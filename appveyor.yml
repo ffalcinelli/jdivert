@@ -11,5 +11,5 @@ test_script:
   - gradlew test
 
 after_test:
-  - if [ -e ./gradlew ]; then ./gradlew jacocoTestReport;else gradle jacocoTestReport;fi
+  - gradlew jacocoTestReport
   - bash <(curl -s https://codecov.io/bash)
