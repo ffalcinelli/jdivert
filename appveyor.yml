@@ -5,6 +5,10 @@ environment:
   - JAVA_HOME: C:\Program Files (x86)\Java\jdk1.7.0
   - JAVA_HOME: C:\Program Files (x86)\Java\jdk1.8.0
 
+build: false
+
 test_script:
   - gradlew test
 
+after_test:
+  - bash <(curl -s https://codecov.io/bash)
