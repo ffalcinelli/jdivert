@@ -11,4 +11,4 @@ test_script:
   - gradlew test
 
 after_test:
-  - bash <(curl -s https://codecov.io/bash)
+  - curl -s https://codecov.io/bash | bash -
