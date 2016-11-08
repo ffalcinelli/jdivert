@@ -24,7 +24,7 @@ jacocoTestReport {
 }
 
 test {
-    systemProperty "jna.nosys", project.getProperty("jna.nosys")
+    systemProperty "jna.nosys", "true"
 
 }
 

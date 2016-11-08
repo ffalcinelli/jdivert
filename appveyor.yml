@@ -10,7 +10,7 @@ environment:
 build: false
 
 test_script:
-  - gradlew test -Pjna.nosys=true
+  - gradlew test
 
 after_test:
   - gradlew jacocoTestReport
