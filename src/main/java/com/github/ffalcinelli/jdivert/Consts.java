@@ -49,6 +49,7 @@ public class Consts {
      * See <a href="https://www.reqrypt.org/windivert-doc.html#divert_open">https://www.reqrypt.org/windivert-doc.html#divert_open</a>
      */
     public enum Flag {
+        DEFAULT(0),
         /**
          * This flag opens the WinDivert handle in packet sniffing mode. In packet sniffing mode the original packet is not dropped-and-diverted (the default) but copied-and-diverted. This mode is useful for implementing packet sniffing tools similar to those applications that currently use Winpcap.
          */

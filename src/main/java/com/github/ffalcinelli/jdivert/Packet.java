@@ -310,8 +310,16 @@ public class Packet {
      * @return The payload's array of bytes
      */
     public byte[] getPayload() {
-        int headersLen = ipHdr.getHeaderLength() + (transHdr != null ? transHdr.getHeaderLength() : icmpHdr.getHeaderLength());
-        return Util.getBytesAtOffset(raw, headersLen, raw.capacity() - headersLen);
+        return Util.getBytesAtOffset(raw, getHeadersLength(), raw.capacity() - getHeadersLength());
+    }
+
+    public void setPayload(byte[] payload){
+        //TODO: adjust length!
+        Util.setBytesAtOffset(raw, getHeadersLength(), payload.length, payload);
+    }
+
+    public int getHeadersLength(){
+        return ipHdr.getHeaderLength() + (transHdr != null ? transHdr.getHeaderLength() : icmpHdr.getHeaderLength());
     }
 
     /**

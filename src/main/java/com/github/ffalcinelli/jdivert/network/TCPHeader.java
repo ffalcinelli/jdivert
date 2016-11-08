@@ -62,21 +62,21 @@ public class TCPHeader extends TransportHeader {
                         (raw.get(start + 12) & 0x0F)));
     }
 
-    public boolean isFlag(Flag flag) {
+    public boolean is(Flag flag) {
         if (flag == NS) {
             return getFlag(start + 12, 7);
         } else {
             //Starts by 8 since NS belongs to the previous byte
-            return getFlag(start + 13, flag.ordinal() - 1);
+            return getFlag(start + 13, 8 - flag.ordinal());
         }
     }
 
-    public void setFlag(Flag flag, boolean value) {
+    public void set(Flag flag, boolean value) {
         if (flag == NS) {
             setFlag(start + 12, 7, value);
         } else {
             //Starts by 8 since NS belongs to the previous byte
-            setFlag(start + 13, flag.ordinal() - 1, value);
+            setFlag(start + 13, 8 - flag.ordinal(), value);
         }
     }
 
@@ -122,7 +122,7 @@ public class TCPHeader extends TransportHeader {
     public String toString() {
         StringBuilder flags = new StringBuilder();
         for (Flag flag : Flag.values()) {
-            flags.append(", ").append(flag).append("=").append(isFlag(flag));
+            flags.append(", ").append(flag).append("=").append(is(flag));
         }
         return "TCPHeader{" +
                 "srcPort=" + getSrcPort() +
@@ -135,7 +135,7 @@ public class TCPHeader extends TransportHeader {
                 "}";
     }
 
-    enum Flag {
+    public enum Flag {
         NS, CWR, ECE, URG, ACK, PSH, RST, SYN, FIN
     }
 }

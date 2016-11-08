@@ -22,14 +22,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 
+import static com.github.ffalcinelli.jdivert.network.TCPHeader.Flag.FIN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -38,199 +36,222 @@ import static org.junit.Assert.assertTrue;
  */
 public class WinDivertRunningTestCase {
 
-    int port;
-    WinDivert w;
+
+    WinDivert wd;
     EchoServer srv;
     EchoClient clt;
 
-    Thread srvThread;
-    Thread cltThread;
-    String message = "This is a test message.";
-
     @Before
     public void setUp() throws IOException {
-        port = getRandomFreePort();
-        w = new WinDivert("tcp.DstPort == " + port);
-        srv = new EchoServer(port, w);
-        clt = new EchoClient("localhost", srv.getPort(), message, w);
+        srv = new EchoServer();
+        clt = new EchoClient(srv.getAddress(), srv.getPort(), "Test message.");
 
-        srvThread = new Thread(srv);
-        cltThread = new Thread(clt);
-        srvThread.start();
-        cltThread.start();
     }
 
-    public void waitForTermination() throws InterruptedException {
-        srv.close();
-        if (cltThread != null) cltThread.join();
-        if (srvThread != null) srvThread.join();
+    public void startupWithFilter(String filter) {
+        wd = new WinDivert(filter);
+        clt.setWinDivert(wd);
+        srv.start();
+        clt.start();
     }
 
     @After
-    public void tearDown() throws WinDivertException {
-        if (srv != null) srv.close();
-        if (w != null) w.close();
+    public void tearDown() throws InterruptedException {
+        endThreads();
+    }
+
+    public void endThreads() throws InterruptedException {
+        if (srv != null) {
+            srv.close();
+            srv.join();
+        }
+        if (clt != null) clt.join();
     }
 
     @Test
-    public void passThrough() throws WinDivertException, InterruptedException, IOException {
-        w.open();
-        Packet p = w.recv();
+    public void passThrough() throws WinDivertException, InterruptedException {
+        startupWithFilter("tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
+        wd.open();
+        Packet p = wd.recv();
         assertTrue(p.isTcp());
-        w.send(p, true);
-        waitForTermination();
-        assertEquals(
-                message.toUpperCase() + " [" + port + "]",
-                clt.getLastMessage());
+        wd.send(p, false);
+        endThreads();
+        assertEquals(srv.alterMessage(clt.getMessage()), clt.getResponse());
     }
 
-    public static int getRandomFreePort() throws IOException {
-        ServerSocket socket = null;
-        try {
-            socket = new ServerSocket(0);
-            return socket.getLocalPort();
-        } finally {
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException ignore) {
-
-                }
-            }
-        }
+    @Test
+    public void editPacket() throws WinDivertException, InterruptedException {
+        startupWithFilter("tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
+        wd.open();
+        String message = "Echo message.";
+        Packet p = wd.recv();
+        p.setPayload(message.getBytes());
+        assertEquals(message, new String(p.getPayload()).trim());
+        wd.send(p);
+        endThreads();
+        assertEquals(srv.alterMessage(message), clt.getResponse());
     }
 
-    public static class Peer implements Runnable {
-        protected WinDivert w;
-        protected int delay = 750;
+    @Test
+    public void divert() throws IOException, WinDivertException, InterruptedException {
+        EchoServer spoofer = new EchoServer();
+        spoofer.start();
+        startupWithFilter("tcp.DstPort == " + srv.getPort() + " or " +
+                "tcp.SrcPort == " + spoofer.getPort());
+        wd.open();
+        Packet p;
+        do {
+            p = wd.recv();
+            if (p.getDestinationPort() == srv.getPort())
+                p.setDestinationPort(spoofer.getPort());
 
-        public void waitForWinDivert() {
-            try {
-                while (!w.isOpen()) {
-                    Thread.sleep(delay);
-                }
-                Thread.sleep(delay);
-            } catch (InterruptedException e) {
-            }
-        }
+            if (p.getSourcePort() == spoofer.getPort())
+                p.setSourcePort(srv.getPort());
 
-        public void run() {
-            waitForWinDivert();
-        }
-
+            wd.send(p);
+        } while (!p.getTcp().is(FIN));
+        endThreads();
+        spoofer.close();
+        spoofer.join();
+        assertEquals(spoofer.alterMessage(clt.getMessage()), clt.getResponse());
     }
 
-    public static class EchoClient extends Peer {
-        String toAddress;
-        int portNumber;
-        String message;
-        String lastMessage;
 
-        public EchoClient(String toAddress, int portNumber, String message, WinDivert w) {
-            this.toAddress = toAddress;
-            this.portNumber = portNumber;
+    public static class EchoClient extends Thread {
+        InetAddress address;
+        int port;
+        WinDivert winDivert;
+        String response, message;
+
+        public EchoClient(InetAddress address, int port, String message) {
+            this.address = address;
+            this.port = port;
             this.message = message;
-            this.w = w;
+        }
+
+        public void setWinDivert(WinDivert winDivert) {
+            this.winDivert = winDivert;
+        }
+
+        public void waitForWindivert() {
+            while (winDivert != null && !winDivert.isOpen()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                }
+            }
         }
 
         public void run() {
-            Socket echoSocket = null;
+            waitForWindivert();
             PrintWriter out = null;
             BufferedReader in = null;
-            do {
-                waitForWinDivert();
-                try {
-                    echoSocket = new Socket(toAddress, portNumber);
-                    out = new PrintWriter(echoSocket.getOutputStream(), true);
-                    in = new BufferedReader(new InputStreamReader(
-                            echoSocket.getInputStream()));
+            Socket socket = null;
+            try {
+                socket = new Socket(address, port);
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-                    out.println(message.toLowerCase());
-                    String temp = in.readLine();
-                    if (temp!=null)
-                        lastMessage = temp;
-                } catch (SocketException e) {
-                    break;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    if (out != null) out.close();
-                    try {
-                        if (in != null) in.close();
-                    } catch (Exception ignore) {
-                    }
-                    try {
-                        if (echoSocket != null) echoSocket.close();
-                    } catch (Exception ignore) {
-                    }
+                synchronized (this) {
+                    out.println(message);
+                    response = in.readLine();
                 }
-            } while (true);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                closeAnyway(out, in, socket);
+            }
         }
 
-        public String getLastMessage() {
-            return lastMessage;
+        public String getMessage() {
+            return message;
+        }
+
+        public String getResponse() {
+            synchronized (this) {
+                return response;
+            }
         }
     }
 
-    public static class EchoServer extends Peer {
-        private ServerSocket serverSocket;
-        boolean stop;
+    public static class EchoServer extends Thread {
+        private ServerSocket socket;
+        private boolean stop;
 
         public EchoServer(int portNumber) throws IOException {
-            this(portNumber, null);
+            socket = new ServerSocket(portNumber);
         }
 
-        public EchoServer(int portNumber, WinDivert w) throws IOException {
-            serverSocket = new ServerSocket(portNumber);
-            this.w = w;
+        public EchoServer() throws IOException {
+            this(0);
         }
 
         public int getPort() {
-            return serverSocket.getLocalPort();
+            return socket.getLocalPort();
         }
 
-        @Override
+        public InetAddress getAddress() {
+            return socket.getInetAddress();
+        }
+
         public void run() {
             PrintWriter out = null;
             BufferedReader in = null;
             Socket clientSocket = null;
             try {
-                waitForWinDivert();
                 while (!stop) {
-                    clientSocket = serverSocket.accept();
-                    out = new PrintWriter(clientSocket.getOutputStream(),
-                            true);
-                    in = new BufferedReader(
-                            new InputStreamReader(clientSocket.getInputStream()));
+                    clientSocket = socket.accept();
+                    out = new PrintWriter(clientSocket.getOutputStream(), true);
+                    in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-                    String inputLine;
+                    String data = in.readLine();
+                    if (data != null)
+                        out.print(alterMessage(data));
+                    out.flush();
 
-                    while ((inputLine = in.readLine()) != null) {
-                        out.println(inputLine.toUpperCase() + " [" + getPort() + "]");
-                    }
+                    closeAnyway(out, in, clientSocket);
                 }
-            } catch (Exception e) {
-
+            } catch (IOException e) {
+//                System.out.println("Error on server at port "+getPort());
+//                e.printStackTrace();
             } finally {
-                if (out != null) out.close();
-                try {
-                    if (in != null) in.close();
-                } catch (IOException ignore) {
-                }
-                try {
-                    if (clientSocket != null) clientSocket.close();
-                } catch (IOException ignore) {
-                }
+                closeAnyway(out, in, clientSocket, socket);
             }
+        }
+
+        public String alterMessage(String message) {
+            return String.format("{message: %s, port: %d}", message.toUpperCase(), getPort());
         }
 
         public void close() {
-            try {
-                if (serverSocket != null) serverSocket.close();
-            } catch (IOException ignore) {
-            }
+            closeAnyway(socket);
             stop = true;
         }
+    }
 
+    public static void closeAnyway(Closeable... toClose) {
+        try {
+            for (Closeable closeable : toClose) {
+                if (closeable != null)
+                    closeable.close();
+            }
+        } catch (Exception ignore) {
+
+        }
+    }
+
+    public static void main(String... args) {
+        try {
+            EchoServer srv = new EchoServer(11111);
+            EchoClient clt = new EchoClient(srv.getAddress(), srv.getPort(), "PIPPO");
+            srv.start();
+            clt.start();
+            clt.join();
+            srv.close();
+            srv.join();
+            System.out.println(clt.getResponse());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

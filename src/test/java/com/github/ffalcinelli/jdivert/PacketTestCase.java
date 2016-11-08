@@ -25,6 +25,7 @@ import org.junit.Test;
 import static com.github.ffalcinelli.jdivert.Consts.Direction.OUTBOUND;
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
+import static com.github.ffalcinelli.jdivert.network.TCPHeader.Flag.FIN;
 import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.*;
 
@@ -90,4 +91,9 @@ public class PacketTestCase {
         assertTrue(packet.toString().contains(printHexBinary(raw)));
     }
 
+    @Test
+    public void fin(){
+        Packet p = new Packet(parseHexBinary("4500002841734000800600000A00020F0A00020FF4162B678A5FC6E30139B9515011080564650000"), addr);
+        assertTrue(p.getTcp().is(FIN));
+    }
 }

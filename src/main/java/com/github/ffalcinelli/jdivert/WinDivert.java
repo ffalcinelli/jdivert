@@ -50,12 +50,12 @@ public class WinDivert {
     /**
      * Create a new WinDivert instance based upon the given filter for
      * {@link com.github.ffalcinelli.jdivert.Consts.Layer#NETWORK NETWORK} layer with priority set to 0 and in
-     * {@link com.github.ffalcinelli.jdivert.Consts.Flag#SNIFF SNIFF} mode.
+     * {@link com.github.ffalcinelli.jdivert.Consts.Flag#DEFAULT DEFAULT} mode (Drop and divert packet).
      *
      * @param filter The filter string expressed using <a href="https://www.reqrypt.org/windivert-doc.html#filter_language">WinDivert filter language.</a>
      */
     public WinDivert(String filter) {
-        this(filter, Layer.NETWORK, 0, Flag.SNIFF);
+        this(filter, Layer.NETWORK, 0, Flag.DEFAULT);
     }
 
 

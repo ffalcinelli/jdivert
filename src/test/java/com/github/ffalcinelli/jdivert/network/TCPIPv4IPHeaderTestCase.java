@@ -115,13 +115,13 @@ public class TCPIPv4IPHeaderTestCase extends IPv4IPHeaderTestCase {
         super.flags();
         for (TCPHeader.Flag flag : TCPHeader.Flag.values()) {
             if (flag == ACK || flag == PSH) {
-                assertTrue(flag.name() + " is not false", tcpHdr.isFlag(flag));
-                tcpHdr.setFlag(flag, false);
-                assertFalse(flag.name() + " is not true", tcpHdr.isFlag(flag));
+                assertTrue(flag.name() + " is not false", tcpHdr.is(flag));
+                tcpHdr.set(flag, false);
+                assertFalse(flag.name() + " is not true", tcpHdr.is(flag));
             } else {
-                assertFalse(flag.name() + " is not false", tcpHdr.isFlag(flag));
-                tcpHdr.setFlag(flag, true);
-                assertTrue(flag.name() + " is not true", tcpHdr.isFlag(flag));
+                assertFalse(flag.name() + " is not false", tcpHdr.is(flag));
+                tcpHdr.set(flag, true);
+                assertTrue(flag.name() + " is not true", tcpHdr.is(flag));
             }
         }
     }
