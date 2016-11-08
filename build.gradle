@@ -20,8 +20,12 @@ dependencies {
 jacocoTestReport {
     reports {
         xml.enabled = true
-        html.enabled = true
     }
+}
+
+test {
+    systemProperty "jna.nosys", project.getProperty("jna.nosys")
+
 }
 
 check.dependsOn jacocoTestReport
