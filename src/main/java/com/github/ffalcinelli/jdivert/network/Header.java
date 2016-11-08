@@ -25,6 +25,7 @@ import java.util.Arrays;
 import static java.nio.ByteOrder.BIG_ENDIAN;
 
 /**
+ * A Network Header
  * Created by fabio on 24/10/2016.
  */
 public abstract class Header {
@@ -43,6 +44,13 @@ public abstract class Header {
         this.start = start;
     }
 
+    /**
+     * Build headers from raw data.
+     *
+     * @param data The data's array of bytes
+     * @return A pair of headers, first of which is a {@link com.github.ffalcinelli.jdivert.network.IPHeader} while the second
+     * is either a {@link com.github.ffalcinelli.jdivert.network.TransportHeader} or {@link com.github.ffalcinelli.jdivert.network.ICMPHeader}
+     */
     public static Header[] buildHeaders(byte[] data) {
         ByteBuffer raw = ByteBuffer.wrap(data);
         raw.order(BIG_ENDIAN);
@@ -70,18 +78,46 @@ public abstract class Header {
         return headers;
     }
 
+    /**
+     * Convenience method to get a given range of bytes
+     *
+     * @param offset The starting offset
+     * @param length How many bytes to read
+     * @return The byte array in range
+     */
     public byte[] getBytesAtOffset(int offset, int length) {
         return Util.getBytesAtOffset(raw, offset, length);
     }
 
+    /**
+     * Convenience method to set an array of data
+     *
+     * @param offset The starting offset where to put data
+     * @param length How many bytes to write
+     * @param data   The data to write
+     */
     public void setBytesAtOffset(int offset, int length, byte[] data) {
         Util.setBytesAtOffset(raw, offset, length, data);
     }
 
+    /**
+     * Convenience method to get the status of a flag (1 bit)
+     *
+     * @param index The byte index inside the buffer
+     * @param pos   The flag position inside the byte (0-7)
+     * @return True if the bit is 1, false if 0
+     */
     public boolean getFlag(int index, int pos) {
         return (raw.get(index) & (1 << pos)) != 0;
     }
 
+    /**
+     * Convenience method to set the status of a flag (1 bit)
+     *
+     * @param index The byte index inside the buffer
+     * @param pos   The flag position inside the byte (0-7)
+     * @param flag  The value to assign: 1 if true else 0.
+     */
     public void setFlag(int index, int pos, boolean flag) {
         int value = raw.get(index);
         if (flag)
@@ -91,22 +127,38 @@ public abstract class Header {
         raw.put(index, (byte) value);
     }
 
+    /**
+     * Get header's bytes only
+     *
+     * @return The byte array for this header
+     */
     public byte[] getRawHeaderBytes() {
         return getBytesAtOffset(start, getHeaderLength());
     }
 
     /**
-     * Return the Header length (in bytes)
+     * Return the Header length (in bytes).
      *
-     * @return
+     * @return The header length (in bytes).
      */
     public abstract int getHeaderLength();
 
+    /**
+     * Convert a short into its unsigned representation as int.
+     *
+     * @param value The value to convert
+     * @return The unsigned representation.
+     */
     public int unsigned(short value) {
         return value & 0xffff;
     }
 
-    public ByteBuffer getRaw() {
+    /**
+     * Return the {@link java.nio.ByteBuffer} used to construct this header
+     *
+     * @return The internal {@link java.nio.ByteBuffer}
+     */
+    public ByteBuffer getByteBuffer() {
         return raw;
     }
 

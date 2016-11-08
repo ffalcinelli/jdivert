@@ -45,7 +45,7 @@ public class TCPIPv6IPHeaderTestCase extends IPv6IPHeaderTestCase {
                 "0d0a557365722d4167656e743a206375726c2f372e33382e300d0a486f73743a205b666330303a323a303a313a3a315" +
                 "d3a383038300d0a4163636570743a202a2f2a0d0a0d0a";
         super.setUp();
-        tcpHdr = new TCPHeader(ipv6Hdr.getRaw(), ipv6Hdr.getHeaderLength());
+        tcpHdr = new TCPHeader(ipv6Hdr.getByteBuffer(), ipv6Hdr.getHeaderLength());
         srcAddr = "fc00:2:0:2:0:0:0:1";
         dstAddr = "fc00:2:0:1:0:0:0:1";
         protocol = TCP;

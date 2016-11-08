@@ -33,6 +33,9 @@ import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throw
 import static com.sun.jna.platform.win32.WinNT.HANDLE;
 
 /**
+ * A WinDivert handle that can be used to capture packets.<p>
+ * The main methods are {@link #open()}, {@link #recv()}, {@link #send(Packet)} and {@link #close()}.
+ * </p>
  * Created by fabio on 20/10/2016.
  */
 public class WinDivert {
@@ -45,14 +48,25 @@ public class WinDivert {
     private HANDLE handle;
 
     /**
-     * Create a new WinDivert instance based upon the given filter
-     * @param filter
+     * Create a new WinDivert instance based upon the given filter for
+     * {@link com.github.ffalcinelli.jdivert.Consts.Layer#NETWORK NETWORK} layer with priority set to 0 and in
+     * {@link com.github.ffalcinelli.jdivert.Consts.Flag#SNIFF SNIFF} mode.
+     *
+     * @param filter The filter string expressed using <a href="https://www.reqrypt.org/windivert-doc.html#filter_language">WinDivert filter language.</a>
      */
     public WinDivert(String filter) {
         this(filter, Layer.NETWORK, 0, Flag.SNIFF);
     }
 
 
+    /**
+     * Create a new WinDivert instance based upon the given parameters
+     *
+     * @param filter   The filter string expressed using <a href="https://www.reqrypt.org/windivert-doc.html#filter_language">WinDivert filter language.</a>
+     * @param layer    The {@link com.github.ffalcinelli.jdivert.Consts.Layer layer}
+     * @param priority The priority of the handle
+     * @param flags    Additional {@link com.github.ffalcinelli.jdivert.Consts.Flag flags}
+     */
     public WinDivert(String filter, Layer layer, int priority, Flag... flags) {
         this.filter = filter;
         this.layer = layer;
@@ -68,6 +82,28 @@ public class WinDivert {
 
     }
 
+    /**
+     * Opens a WinDivert handle for the given filter.<br>
+     * Unless otherwise specified by flags, any packet that matches the filter will be diverted to the handle.<br>
+     * Diverted packets can be read by the application with {@link #recv() recv}.
+     * <p>
+     * The remapped function is {@code WinDivertOpen}:
+     * </p>
+     * <pre>{@code
+     * HANDLE WinDivertOpen(
+     *      __in const char *filter,
+     *      __in WINDIVERT_LAYER layer,
+     *      __in INT16 priority,
+     *      __in UINT64 flags
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_open">http://reqrypt.org/windivert-doc.html#divert_open</a>
+     *
+     * @return this instance to allow call chaining (e.g. {@code Windivert w = new WinDivert("true").open()})
+     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
+     *                            is in progress)
+     */
     public WinDivert open() throws WinDivertException {
         if (isOpen()) {
             throw new IllegalStateException("The instance is already in open state");
@@ -78,10 +114,32 @@ public class WinDivert {
         return this;
     }
 
+    /**
+     * Indicates if there is currently an open handle.
+     *
+     * @return True if the handle is open, false otherwise
+     */
     public boolean isOpen() {
         return handle != null;
     }
 
+    /**
+     * Closes the handle opened by {@link #open() open}.
+     * <p>
+     * The remapped function is {@code WinDivertClose}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertClose(
+     *      __in HANDLE handle
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_close">http://reqrypt.org/windivert-doc.html#divert_close</a>
+     * """
+     *
+     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
+     *                            is in progress)
+     */
     public void close() throws WinDivertException {
         if (isOpen()) {
             try {
@@ -93,10 +151,55 @@ public class WinDivert {
         }
     }
 
+    /**
+     * Receives a diverted packet that matched the filter.<br>
+     * The return value is a {@link com.github.ffalcinelli.jdivert.Packet packet}.
+     * <p>
+     * The remapped function is {@code WinDivertRecv}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertRecv(
+     *      __in HANDLE handle,
+     *      __out PVOID pPacket,
+     *      __in UINT packetLen,
+     *      __out_opt PWINDIVERT_ADDRESS pAddr,
+     *      __out_opt UINT *recvLen
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_recv">http://reqrypt.org/windivert-doc.html#divert_recv</a>
+     *
+     * @return A {@link com.github.ffalcinelli.jdivert.Packet Packet} instance
+     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
+     *                            is in progress)
+     */
     public Packet recv() throws WinDivertException {
         return recv(DEFAULT_PACKET_BUFFER_SIZE);
     }
 
+    /**
+     * Receives a diverted packet that matched the filter.<br>
+     * The return value is a {@link com.github.ffalcinelli.jdivert.Packet packet}.
+     * <p>
+     * The remapped function is {@code WinDivertRecv}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertRecv(
+     *      __in HANDLE handle,
+     *      __out PVOID pPacket,
+     *      __in UINT packetLen,
+     *      __out_opt PWINDIVERT_ADDRESS pAddr,
+     *      __out_opt UINT *recvLen
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_recv">http://reqrypt.org/windivert-doc.html#divert_recv</a>
+     *
+     * @param bufsize The size for the buffer to allocate
+     * @return A {@link com.github.ffalcinelli.jdivert.Packet Packet} instance
+     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
+     *                            is in progress)
+     */
     public Packet recv(int bufsize) throws WinDivertException {
         WinDivertAddress address = new WinDivertAddress();
         Memory buffer = new Memory(bufsize);
@@ -107,14 +210,101 @@ public class WinDivert {
         return new Packet(raw, address);
     }
 
+    /**
+     * Injects a packet into the network stack.<br>
+     * Recalculates the checksum before sending.<br>
+     * The return value is the number of bytes actually sent.<br>
+     * <p>
+     * The injected packet may be one received from {@link com.github.ffalcinelli.jdivert.WinDivert#recv() recv}, or a modified version, or a completely new packet.
+     * Injected packets can be captured and diverted again by other WinDivert handles with lower priorities.
+     * </p><p>
+     * The remapped function is {@code WinDivertSend}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertSend(
+     *      __in HANDLE handle,
+     *      __in PVOID pPacket,
+     *      __in UINT packetLen,
+     *      __in PWINDIVERT_ADDRESS pAddr,
+     *      __out_opt UINT *sendLen
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_send">http://reqrypt.org/windivert-doc.html#divert_send</a>
+     *
+     * @param packet The {@link com.github.ffalcinelli.jdivert.Packet Packet} to send
+     * @return The number of bytes actually sent
+     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
+     *                            is in progress)
+     */
     public int send(Packet packet) throws WinDivertException {
-        return send(packet, false);
+        return send(packet, true);
     }
 
+    /**
+     * Injects a packet into the network stack.<br>
+     * Recalculates the checksum before sending using the given {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options}.<br>
+     * The return value is the number of bytes actually sent.<br>
+     * <p>
+     * The injected packet may be one received from {@link com.github.ffalcinelli.jdivert.WinDivert#recv() recv}, or a modified version, or a completely new packet.
+     * Injected packets can be captured and diverted again by other WinDivert handles with lower priorities.
+     * </p><p>
+     * The remapped function is {@code WinDivertSend}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertSend(
+     *      __in HANDLE handle,
+     *      __in PVOID pPacket,
+     *      __in UINT packetLen,
+     *      __in PWINDIVERT_ADDRESS pAddr,
+     *      __out_opt UINT *sendLen
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_send">http://reqrypt.org/windivert-doc.html#divert_send</a>
+     *
+     * @param packet  The {@link com.github.ffalcinelli.jdivert.Packet Packet} to send
+     * @param options A set of {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options} to use when recalculating checksums.
+     * @return The number of bytes actually sent
+     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
+     *                            is in progress)
+     */
     public int send(Packet packet, CalcChecksumsOption... options) throws WinDivertException {
         return send(packet, true, options);
     }
 
+    /**
+     * Injects a packet into the network stack.<br>
+     * Recalculates the checksum before sending unless {@code recalculateChecksum=false} is passed:<ul>
+     * <li>If {@code recalculateChecksum=true} then checksums are calculated using the given {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options}.</li>
+     * <li>If {@code recalculateChecksum=false} then {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options} are ignored.</li>
+     * </ul>
+     * The return value is the number of bytes actually sent.
+     * <p>
+     * The injected packet may be one received from {@link com.github.ffalcinelli.jdivert.WinDivert#recv() recv}, or a modified version, or a completely new packet.
+     * Injected packets can be captured and diverted again by other WinDivert handles with lower priorities.
+     * </p><p>
+     * The remapped function is {@code WinDivertSend}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertSend(
+     *      __in HANDLE handle,
+     *      __in PVOID pPacket,
+     *      __in UINT packetLen,
+     *      __in PWINDIVERT_ADDRESS pAddr,
+     *      __out_opt UINT *sendLen
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_send">http://reqrypt.org/windivert-doc.html#divert_send</a>
+     *
+     * @param packet              The {@link com.github.ffalcinelli.jdivert.Packet Packet} to send
+     * @param recalculateChecksum Whether to recalculate the checksums or pass the {@link com.github.ffalcinelli.jdivert.Packet packet} as is.
+     * @param options             A set of {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options} to use when recalculating checksums.
+     * @return The number of bytes actually sent
+     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
+     *                            is in progress)
+     */
     public int send(Packet packet, boolean recalculateChecksum, CalcChecksumsOption... options) throws WinDivertException {
         if (recalculateChecksum) {
             packet.recalculateChecksum(options);
@@ -129,6 +319,24 @@ public class WinDivert {
         return sendLen.getValue();
     }
 
+    /**
+     * Get a WinDivert parameter. See {@link com.github.ffalcinelli.jdivert.Consts.Param Param} for the list of parameters.
+     * <p>
+     * The remapped function is {@code WinDivertGetParam}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertGetParam(
+     *      __in HANDLE handle,
+     *      __in WINDIVERT_PARAM param,
+     *      __out UINT64 *pValue
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_get_param">http://reqrypt.org/windivert-doc.html#divert_get_param</a>
+     *
+     * @param param The {@link com.github.ffalcinelli.jdivert.Consts.Param param} to set
+     * @return The value for the parameter
+     */
     public long getParam(Param param) {
         if (!isOpen()) {
             throw new IllegalStateException("WinDivert handle not in OPEN state");
@@ -138,6 +346,24 @@ public class WinDivert {
         return value.getValue();
     }
 
+    /**
+     * Set a WinDivert parameter. See {@link com.github.ffalcinelli.jdivert.Consts.Param Param} for the list of parameters.
+     * <p>
+     * The remapped function is {@code DivertSetParam}:
+     * </p>
+     * <pre>{@code
+     * BOOL WinDivertSetParam(
+     *      __in HANDLE handle,
+     *      __in WINDIVERT_PARAM param,
+     *      __in UINT64 value
+     * );
+     * }</pre>
+     * <p>
+     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_set_param">http://reqrypt.org/windivert-doc.html#divert_set_param</a>
+     *
+     * @param param The {@link com.github.ffalcinelli.jdivert.Consts.Param param} to set
+     * @param value The value for the parameter
+     */
     public void setParam(Param param, long value) {
         if (!isOpen()) {
             throw new IllegalStateException("WinDivert handle not in OPEN state");

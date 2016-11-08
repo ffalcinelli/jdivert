@@ -39,7 +39,7 @@ public class UDPIPv6HeaderTestCase extends IPv6IPHeaderTestCase {
     public void setUp() {
         rawDataHexString = "60000000002711403ffe050700000001020086fffe0580da3ffe0501481900000000000000000042095d0035002746b700060100000100000000000003777777057961686f6f03636f6d00000f0001";
         super.setUp();
-        udpHeader = new UDPHeader(ipHdr.getRaw(), ipHdr.getHeaderLength());
+        udpHeader = new UDPHeader(ipHdr.getByteBuffer(), ipHdr.getHeaderLength());
         srcAddr = "3ffe:507:0:1:200:86ff:fe05:80da";
         dstAddr = "3ffe:501:4819:0:0:0:0:42";
         srcPort = 2397;

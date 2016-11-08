@@ -36,7 +36,7 @@ public class ICMPIPv6HeaderTestCase extends IPv6IPHeaderTestCase {
     public void setUp() {
         rawDataHexString = "6000000000443a3d3ffe05010410000002c0dffffe47033e3ffe050700000001020086fffe0580da010413520000000060000000001411013ffe050700000001020086fffe0580da3ffe05010410000002c0dffffe47033ea07582a40014cf470a040000f9c8e7369d250b00";
         super.setUp();
-        icmpHdr = new ICMPv6Header(ipHdr.getRaw(), ipHdr.getHeaderLength());
+        icmpHdr = new ICMPv6Header(ipHdr.getByteBuffer(), ipHdr.getHeaderLength());
         srcAddr = "3ffe:501:410:0:2c0:dfff:fe47:33e";
         dstAddr = "3ffe:507:0:1:200:86ff:fe05:80da";
         protocol = ICMPV6;

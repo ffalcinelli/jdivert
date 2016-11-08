@@ -36,7 +36,7 @@ public class ICMPIPv4HeaderTestCase extends IPv4IPHeaderTestCase {
     public void setUp() {
         rawDataHexString = "4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637";
         super.setUp();
-        icmpHdr = new ICMPv4Header(ipHdr.getRaw(), ipHdr.getHeaderLength());
+        icmpHdr = new ICMPv4Header(ipHdr.getByteBuffer(), ipHdr.getHeaderLength());
         srcAddr = "192.168.43.9";
         dstAddr = "8.8.8.8";
         protocol = ICMP;

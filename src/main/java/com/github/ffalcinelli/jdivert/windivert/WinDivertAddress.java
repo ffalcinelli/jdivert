@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * Represents the "address" of a captured or injected packet. The address includes the packet's network interfaces and the packet direction.
  * Created by fabio on 20/10/2016.
  */
 public class WinDivertAddress extends Structure {

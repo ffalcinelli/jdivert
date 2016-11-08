@@ -1,6 +1,6 @@
 # jdivert
 
-A Java binding to WinDivert driver
+A WinDivert Java binding.
 
 [![AppVeyor Build Status](https://img.shields.io/appveyor/ci/ffalcinelli/jdivert/master.svg)](https://ci.appveyor.com/project/ffalcinelli/jdivert) [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/master.svg)](https://codecov.io/github/ffalcinelli/jdivert)
 
@@ -29,7 +29,7 @@ WinDivert w = new WinDivert("tcp.DstPort == 80 and tcp.PayloadLength > 0");
 
 w.open(); // packets will be captured from now on
 
-packet = w.recv();  // read a single packet
+Packet packet = w.recv();  // read a single packet
 System.out.println(packet);
 w.send(packet);  // re-inject the packet into the network stack
 
@@ -40,4 +40,4 @@ Packets that are not matched by the "tcp.DstPort == 80 and tcp.PayloadLength > 0
 
 ## API Reference Documentation
 
-The API Reference Documentation for JDivert can be found [here](TODO...).
+The API Reference Documentation for JDivert can be found [here](https://ffalcinelli.github.io/jdivert).

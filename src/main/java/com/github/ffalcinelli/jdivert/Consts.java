@@ -22,8 +22,18 @@ package com.github.ffalcinelli.jdivert;
  */
 public class Consts {
 
+    /**
+     * See <a href="https://www.reqrypt.org/windivert-doc.html#divert_open">https://www.reqrypt.org/windivert-doc.html#divert_open</a>
+     */
     public enum Layer {
-        NETWORK(0), NETWORK_FORWARD(1);
+        /**
+         * The network layer. This is the default.
+         */
+        NETWORK(0),
+        /**
+         * The network layer (forwarded packets).
+         */
+        NETWORK_FORWARD(1);
         private int value;
 
         private Layer(int value) {
@@ -35,8 +45,22 @@ public class Consts {
         }
     }
 
+    /**
+     * See <a href="https://www.reqrypt.org/windivert-doc.html#divert_open">https://www.reqrypt.org/windivert-doc.html#divert_open</a>
+     */
     public enum Flag {
-        SNIFF(1), DROP(2), NO_CHECKSUM(1024);
+        /**
+         * This flag opens the WinDivert handle in packet sniffing mode. In packet sniffing mode the original packet is not dropped-and-diverted (the default) but copied-and-diverted. This mode is useful for implementing packet sniffing tools similar to those applications that currently use Winpcap.
+         */
+        SNIFF(1),
+        /**
+         * This flag indicates that the user application does not intend to read matching packets with WinDivertRecv(), instead the packets should be silently dropped. This is useful for implementing simple packet filters using the <a href="https://www.reqrypt.org/windivert-doc.html#filter_language">WinDivert filter language</a>.
+         */
+        DROP(2),
+        /**
+         * By default WinDivert ensures that each diverted packet has a valid checksum. If the checksum is missing (e.g. with TCP checksum offloading), WinDivert will calculate it before passing the packet to the user application. This flag disables this behavior.
+         */
+        NO_CHECKSUM(1024);
         private int value;
 
         private Flag(int value) {
@@ -49,7 +73,14 @@ public class Consts {
     }
 
     public enum Param {
-        QUEUE_LEN(0, 1, 8192, 1024 /* but docs state 512 */), QUEUE_TIME(1, 128, 2048, 512);
+        /**
+         * Sets the maximum length of the packet queue for {@link WinDivert#recv()}. Currently the default value is 512 (actually 1024), the minimum is 1, and the maximum is 8192.
+         */
+        QUEUE_LEN(0, 1, 8192, 1024 /* but docs state 512 */),
+        /**
+         * Sets the minimum time, in milliseconds, a packet can be queued before it is automatically dropped. Packets cannot be queued indefinitely, and ideally, packets should be processed by the application as soon as is possible. Note that this sets the minimum time a packet can be queued before it can be dropped. The actual time may be exceed this value. Currently the default value is 512, the minimum is 128, and the maximum is 2048.
+         */
+        QUEUE_TIME(1, 128, 2048, 512);
         private int value;
         private int min;
         private int max;
@@ -98,7 +129,26 @@ public class Consts {
     }
 
     public enum CalcChecksumsOption {
-        NO_IP_CHECKSUM(1), NO_ICMP_CHECKSUM(2), NO_ICMPV6_CHECKSUM(4), NO_TCP_CHECKSUM(8), NO_UDP_CHECKSUM(16);
+        /**
+         * Do not calculate the IPv4 checksum.
+         */
+        NO_IP_CHECKSUM(1),
+        /**
+         * Do not calculate the ICMP checksum.
+         */
+        NO_ICMP_CHECKSUM(2),
+        /**
+         * Do not calculate the ICMPv6 checksum.
+         */
+        NO_ICMPV6_CHECKSUM(4),
+        /**
+         * Do not calculate the TCP checksum.
+         */
+        NO_TCP_CHECKSUM(8),
+        /**
+         * Do not calculate the UDP checksum.
+         */
+        NO_UDP_CHECKSUM(16);
         private int value;
 
         private CalcChecksumsOption(int value) {

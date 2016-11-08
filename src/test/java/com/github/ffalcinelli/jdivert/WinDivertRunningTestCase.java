@@ -102,7 +102,7 @@ public class WinDivertRunningTestCase {
 
     public static class Peer implements Runnable {
         protected WinDivert w;
-        protected int delay = 500;
+        protected int delay = 750;
 
         public void waitForWinDivert() {
             try {

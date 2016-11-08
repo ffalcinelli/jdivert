@@ -43,7 +43,7 @@ public class TCPIPv4IPHeaderTestCase extends IPv4IPHeaderTestCase {
         rawDataHexString = "45000051476040008006f005c0a856a936f274fdd84201bb0876cfd0c19f9320501800ff8dba0000170303" +
                 "00240000000000000c2f53831a37ed3c3a632f47440594cab95283b558bf82cb7784344c3314";
         super.setUp();
-        tcpHdr = new TCPHeader(ipv4Hdr.getRaw(), ipv4Hdr.getHeaderLength());
+        tcpHdr = new TCPHeader(ipv4Hdr.getByteBuffer(), ipv4Hdr.getHeaderLength());
         ipHdr = ipv4Hdr;
         srcAddr = "192.168.86.169";
         dstAddr = "54.242.116.253";

@@ -44,10 +44,11 @@ public class WinDivertException extends Exception {
 
     /**
      * Throw a WinDivertException whenever GetLastError returned a code different from
-     *  - 0 (Success)
-     *  - 997 (Overlapped I/O is in progress)
+     * - 0 (Success)
+     * - 997 (Overlapped I/O is in progress)
+     *
      * @return The GetLastError code
-     * @throws WinDivertException
+     * @throws WinDivertException When {@code GetLastError} returns a code different from 0 or 997, {@link WinDivertException} is thrown.
      */
     public static int throwExceptionOnGetLastError() throws WinDivertException {
         int lastError = Native.getLastError();

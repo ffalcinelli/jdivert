@@ -29,3 +29,12 @@ test {
 }
 
 check.dependsOn jacocoTestReport
+
+task deleteDocs(){
+    fileTree(dir: "docs", exclude: ".nojekyll")
+}
+
+task copyJavadoc(dependsOn: deleteDocs, type: Copy) {
+    from 'build/docs/javadoc'
+    into 'docs'
+}

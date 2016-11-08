@@ -22,12 +22,19 @@ import java.nio.ByteBuffer;
 /**
  * Created by fabio on 26/10/2016.
  * Gently from http://stackoverflow.com/questions/140131/convert-a-string-representation-of-a-hex-dump-to-a-byte-array-using-java
+ * with some enhancement...
  */
 public class Util {
 
 
     private static final char[] hexCode = "0123456789ABCDEF".toCharArray();
 
+    /**
+     * Converts the string argument into an array of bytes.
+     *
+     * @param s A string containing a binary "hexlified".
+     * @return The binary bytes
+     */
     public static byte[] parseHexBinary(String s) {
         final int len = s.length();
 
@@ -56,10 +63,22 @@ public class Util {
         return -1;
     }
 
+    /**
+     * "Hexlify" a {@link java.nio.ByteBuffer} into a string.
+     *
+     * @param data The binary data to convert
+     * @return The "hexlified" representation of data
+     */
     public static String printHexBinary(ByteBuffer data) {
         return printHexBinary(getBytesAtOffset(data, 0, data.capacity()));
     }
 
+    /**
+     * Converts an array of bytes into a string.
+     *
+     * @param data The binary data to convert
+     * @return The "hexlified" representation of data
+     */
     public static String printHexBinary(byte[] data) {
         StringBuilder r = new StringBuilder(data.length * 2);
         for (byte b : data) {
@@ -87,6 +106,16 @@ public class Util {
         return data;
     }
 
+    /**
+     * Given a {@link java.nio.ByteBuffer} get bytes in an absolute offset without altering its current position.
+     * <p>
+     * The operation is {@code synchronized} over the {@code buffer} to avoid thread interference.
+     *
+     * @param buffer The {@link java.nio.ByteBuffer} to read data from
+     * @param offset The absolute offset from which starting to extract data
+     * @param length How many bytes to extract
+     * @return The exctracted bytes as a byte array
+     */
     public static byte[] getBytesAtOffset(ByteBuffer buffer, int offset, int length) {
         byte[] data = new byte[length];
         synchronized (buffer) {
@@ -98,6 +127,16 @@ public class Util {
         return data;
     }
 
+    /**
+     * Given a {@link java.nio.ByteBuffer} set bytes in an absolute offset without altering its current position.
+     * <p>
+     * The operation is {@code synchronized} over the {@code buffer} to avoid thread interference.
+     *
+     * @param buffer The {@link java.nio.ByteBuffer} to write data to
+     * @param offset The absolute offset from which starting to write data
+     * @param length How many bytes to write
+     * @param data   The data to write into the {@link java.nio.ByteBuffer}
+     */
     public static void setBytesAtOffset(ByteBuffer buffer, int offset, int length, byte[] data) {
         synchronized (buffer) {
             int position = buffer.position();
@@ -106,5 +145,4 @@ public class Util {
             buffer.position(position);
         }
     }
-
 }

@@ -39,7 +39,7 @@ public class UDPIPv4HeaderTestCase extends IPv4IPHeaderTestCase {
     public void setUp() {
         rawDataHexString = "4500004281bf000040112191c0a82b09c0a82b01c9dd0035002ef268528e01000001000000000000013801380138013807696e2d61646472046172706100000c0001";
         super.setUp();
-        udpHeader = new UDPHeader(ipHdr.getRaw(), ipHdr.getHeaderLength());
+        udpHeader = new UDPHeader(ipHdr.getByteBuffer(), ipHdr.getHeaderLength());
         srcAddr = "192.168.43.9";
         dstAddr = "192.168.43.1";
         srcPort = 51677;

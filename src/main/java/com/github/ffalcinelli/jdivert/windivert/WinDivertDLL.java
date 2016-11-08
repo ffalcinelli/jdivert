@@ -32,6 +32,7 @@ import static com.sun.jna.platform.win32.WinNT.HANDLE;
  * <p>
  * DLL methods cannot declare "throws LastErrorException since 997 (Overlapped I/O is in progress) will be considered as
  * an error and will interrupt the call.
+ * </p>
  */
 public interface WinDivertDLL extends Library {
     WinDivertDLL INSTANCE = (WinDivertDLL) Native.loadLibrary(
