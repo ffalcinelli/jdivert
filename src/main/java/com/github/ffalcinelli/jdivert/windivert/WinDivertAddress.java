@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Represents the "address" of a captured or injected packet. The address includes the packet's network interfaces and the packet direction.
+ * Represents the "address" of a captured or injected packet. The address includes the packet's headers interfaces and the packet direction.
  * Created by fabio on 20/10/2016.
  */
 public class WinDivertAddress extends Structure {
@@ -54,8 +54,7 @@ public class WinDivertAddress extends Structure {
 
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + IfIdx.hashCode();
+        int result = 31 * IfIdx.hashCode();
         result = 31 * result + SubIfIdx.hashCode();
         result = 31 * result + Direction.hashCode();
         return result;

@@ -17,15 +17,19 @@
 
 package com.github.ffalcinelli.jdivert;
 
+import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import com.sun.jna.platform.win32.WinDef;
 import org.junit.Before;
 import org.junit.Test;
 
-import static com.github.ffalcinelli.jdivert.Consts.Direction.OUTBOUND;
+import java.net.UnknownHostException;
+
+import static com.github.ffalcinelli.jdivert.Enums.CalcChecksumsOption.NO_TCP_CHECKSUM;
+import static com.github.ffalcinelli.jdivert.Enums.Direction.OUTBOUND;
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
-import static com.github.ffalcinelli.jdivert.network.TCPHeader.Flag.FIN;
+import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.FIN;
 import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.*;
 
@@ -38,6 +42,7 @@ public class PacketTestCase {
     byte[] raw;
     byte[] payload;
     WinDivertAddress addr;
+    String localhost = "127.0.0.1";
 
     @Before
     public void setUp() {
@@ -60,12 +65,12 @@ public class PacketTestCase {
     @Test
     public void icmp() {
         packet = new Packet(parseHexBinary("4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637"), addr);
-        assertTrue(packet.isIcmp());
-        assertNotNull(packet.getICMPv4());
+        assertTrue(packet.isIcmpv4());
+        assertNotNull(packet.getIcmpv4());
         assertFalse(packet.isTcp());
         assertNull(packet.getTcp());
         assertTrue(packet.isIpv4());
-        assertNotNull(packet.getIPv4());
+        assertNotNull(packet.getIpv4());
     }
 
     @Test
@@ -74,16 +79,16 @@ public class PacketTestCase {
         assertNotNull(packet.getTcp());
         assertTrue(packet.isOutbound());
         assertTrue(packet.isIpv4());
-        assertNotNull(packet.getIPv4());
+        assertNotNull(packet.getIpv4());
         assertFalse(packet.isLoopback());
         assertFalse(packet.isUdp());
         assertNull(packet.getUdp());
         assertFalse(packet.isIpv6());
-        assertNull(packet.getIPv6());
-        assertFalse(packet.isIcmp());
-        assertNull(packet.getICMPv4());
+        assertNull(packet.getIpv6());
+        assertFalse(packet.isIcmpv4());
+        assertNull(packet.getIcmpv4());
         assertFalse(packet.isIcmpv6());
-        assertNull(packet.getICMPv6());
+        assertNull(packet.getIcmpv6());
         assertFalse(packet.isInbound());
         assertArrayEquals(payload, packet.getPayload());
         assertArrayEquals(raw, packet.getRaw());
@@ -92,8 +97,52 @@ public class PacketTestCase {
     }
 
     @Test
-    public void fin(){
+    public void convenienceMethods() throws UnknownHostException {
+        packet.setSrcAddr(localhost);
+        assertEquals(localhost, packet.getSrcAddr());
+        packet.setDstAddr(localhost);
+        assertEquals(localhost, packet.getDstAddr());
+    }
+
+
+    @Test
+    public void fin() {
         Packet p = new Packet(parseHexBinary("4500002841734000800600000A00020F0A00020FF4162B678A5FC6E30139B9515011080564650000"), addr);
         assertTrue(p.getTcp().is(FIN));
+    }
+
+    @Test
+    public void equalsAndHashCode() {
+        Packet p2 = new Packet(raw, addr);
+        Packet p3 = new Packet(parseHexBinary("4500002841734000800600000A00020F0A00020FF4162B678A5FC6E30139B9515011080564650000"), addr);
+
+        assertTrue(packet.equals(p2));
+        assertEquals(packet.hashCode(), p2.hashCode());
+        assertFalse(packet.equals(p3));
+        assertNotEquals(packet.hashCode(), p3.hashCode());
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void noDstPort() {
+        Packet p = new Packet(parseHexBinary("4500003C5C8800007F011181C0A801010A00020F00005552000100096162636465666768696A6B6C6D6E6F7071727374757677616263646566676869"), addr);
+        assertNull(p.getDstPort());
+        p.setDstPort(8080);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void noSrcPort() {
+        Packet p = new Packet(parseHexBinary("4500003C5C8800007F011181C0A801010A00020F00005552000100096162636465666768696A6B6C6D6E6F7071727374757677616263646566676869"), addr);
+        assertNull(p.getSrcPort());
+        p.setSrcPort(8080);
+    }
+
+    @Test
+    public void excludeChecksums() throws WinDivertException {
+        int cksum = packet.getTcp().getChecksum();
+        packet.setSrcPort(8080);
+        packet.recalculateChecksum(NO_TCP_CHECKSUM);
+        assertEquals(cksum, packet.getTcp().getChecksum());
+        packet.recalculateChecksum();
+        assertNotEquals(cksum, packet.getTcp().getChecksum());
     }
 }

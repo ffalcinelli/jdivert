@@ -1,4 +1,4 @@
 com.github.ffalcinelli.jdivert
 com.github.ffalcinelli.jdivert.exceptions
-com.github.ffalcinelli.jdivert.network
+com.github.ffalcinelli.jdivert.headers
 com.github.ffalcinelli.jdivert.windivert

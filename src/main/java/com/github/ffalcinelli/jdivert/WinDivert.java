@@ -28,7 +28,7 @@ import com.sun.jna.ptr.LongByReference;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.github.ffalcinelli.jdivert.Consts.*;
+import static com.github.ffalcinelli.jdivert.Enums.*;
 import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throwExceptionOnGetLastError;
 import static com.sun.jna.platform.win32.WinNT.HANDLE;
 
@@ -49,8 +49,8 @@ public class WinDivert {
 
     /**
      * Create a new WinDivert instance based upon the given filter for
-     * {@link com.github.ffalcinelli.jdivert.Consts.Layer#NETWORK NETWORK} layer with priority set to 0 and in
-     * {@link com.github.ffalcinelli.jdivert.Consts.Flag#DEFAULT DEFAULT} mode (Drop and divert packet).
+     * {@link Enums.Layer#NETWORK NETWORK} layer with priority set to 0 and in
+     * {@link Enums.Flag#DEFAULT DEFAULT} mode (Drop and divert packet).
      *
      * @param filter The filter string expressed using <a href="https://www.reqrypt.org/windivert-doc.html#filter_language">WinDivert filter language.</a>
      */
@@ -63,9 +63,9 @@ public class WinDivert {
      * Create a new WinDivert instance based upon the given parameters
      *
      * @param filter   The filter string expressed using <a href="https://www.reqrypt.org/windivert-doc.html#filter_language">WinDivert filter language.</a>
-     * @param layer    The {@link com.github.ffalcinelli.jdivert.Consts.Layer layer}
+     * @param layer    The {@link Enums.Layer layer}
      * @param priority The priority of the handle
-     * @param flags    Additional {@link com.github.ffalcinelli.jdivert.Consts.Flag flags}
+     * @param flags    Additional {@link Enums.Flag flags}
      */
     public WinDivert(String filter, Layer layer, int priority, Flag... flags) {
         this.filter = filter;
@@ -211,7 +211,7 @@ public class WinDivert {
     }
 
     /**
-     * Injects a packet into the network stack.<br>
+     * Injects a packet into the headers stack.<br>
      * Recalculates the checksum before sending.<br>
      * The return value is the number of bytes actually sent.<br>
      * <p>
@@ -242,42 +242,10 @@ public class WinDivert {
     }
 
     /**
-     * Injects a packet into the network stack.<br>
-     * Recalculates the checksum before sending using the given {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options}.<br>
-     * The return value is the number of bytes actually sent.<br>
-     * <p>
-     * The injected packet may be one received from {@link com.github.ffalcinelli.jdivert.WinDivert#recv() recv}, or a modified version, or a completely new packet.
-     * Injected packets can be captured and diverted again by other WinDivert handles with lower priorities.
-     * </p><p>
-     * The remapped function is {@code WinDivertSend}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertSend(
-     *      __in HANDLE handle,
-     *      __in PVOID pPacket,
-     *      __in UINT packetLen,
-     *      __in PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *sendLen
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_send">http://reqrypt.org/windivert-doc.html#divert_send</a>
-     *
-     * @param packet  The {@link com.github.ffalcinelli.jdivert.Packet Packet} to send
-     * @param options A set of {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options} to use when recalculating checksums.
-     * @return The number of bytes actually sent
-     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
-     *                            is in progress)
-     */
-    public int send(Packet packet, CalcChecksumsOption... options) throws WinDivertException {
-        return send(packet, true, options);
-    }
-
-    /**
-     * Injects a packet into the network stack.<br>
+     * Injects a packet into the headers stack.<br>
      * Recalculates the checksum before sending unless {@code recalculateChecksum=false} is passed:<ul>
-     * <li>If {@code recalculateChecksum=true} then checksums are calculated using the given {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options}.</li>
-     * <li>If {@code recalculateChecksum=false} then {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options} are ignored.</li>
+     * <li>If {@code recalculateChecksum=true} then checksums are calculated using the given {@link Enums.CalcChecksumsOption options}.</li>
+     * <li>If {@code recalculateChecksum=false} then {@link Enums.CalcChecksumsOption options} are ignored.</li>
      * </ul>
      * The return value is the number of bytes actually sent.
      * <p>
@@ -300,7 +268,7 @@ public class WinDivert {
      *
      * @param packet              The {@link com.github.ffalcinelli.jdivert.Packet Packet} to send
      * @param recalculateChecksum Whether to recalculate the checksums or pass the {@link com.github.ffalcinelli.jdivert.Packet packet} as is.
-     * @param options             A set of {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options} to use when recalculating checksums.
+     * @param options             A set of {@link Enums.CalcChecksumsOption options} to use when recalculating checksums.
      * @return The number of bytes actually sent
      * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
      *                            is in progress)
@@ -320,7 +288,7 @@ public class WinDivert {
     }
 
     /**
-     * Get a WinDivert parameter. See {@link com.github.ffalcinelli.jdivert.Consts.Param Param} for the list of parameters.
+     * Get a WinDivert parameter. See {@link Enums.Param Param} for the list of parameters.
      * <p>
      * The remapped function is {@code WinDivertGetParam}:
      * </p>
@@ -334,7 +302,7 @@ public class WinDivert {
      * <p>
      * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_get_param">http://reqrypt.org/windivert-doc.html#divert_get_param</a>
      *
-     * @param param The {@link com.github.ffalcinelli.jdivert.Consts.Param param} to set
+     * @param param The {@link Enums.Param param} to set
      * @return The value for the parameter
      */
     public long getParam(Param param) {
@@ -347,7 +315,7 @@ public class WinDivert {
     }
 
     /**
-     * Set a WinDivert parameter. See {@link com.github.ffalcinelli.jdivert.Consts.Param Param} for the list of parameters.
+     * Set a WinDivert parameter. See {@link Enums.Param Param} for the list of parameters.
      * <p>
      * The remapped function is {@code DivertSetParam}:
      * </p>
@@ -361,7 +329,7 @@ public class WinDivert {
      * <p>
      * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_set_param">http://reqrypt.org/windivert-doc.html#divert_set_param</a>
      *
-     * @param param The {@link com.github.ffalcinelli.jdivert.Consts.Param param} to set
+     * @param param The {@link Enums.Param param} to set
      * @param value The value for the parameter
      */
     public void setParam(Param param, long value) {

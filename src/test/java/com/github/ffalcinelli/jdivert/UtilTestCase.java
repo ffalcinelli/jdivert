@@ -19,7 +19,9 @@ package com.github.ffalcinelli.jdivert;
 
 import org.junit.Test;
 
-import static com.github.ffalcinelli.jdivert.Util.*;
+import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
+import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -28,17 +30,24 @@ import static org.junit.Assert.assertEquals;
 public class UtilTestCase {
 
     @Test
-    public void hexConversion(){
+    public void hexConversion() {
         assertEquals("0123456789ABCDEF", printHexBinary(parseHexBinary("0123456789ABCDEF")));
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void hexConversionOddCharacters(){
+    public void hexConversionOddCharacters() {
         assertEquals("0123456789ABCDE", printHexBinary(parseHexBinary("0123456789ABCDE")));
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void hexConversionInvalidCharacters(){
+    public void hexConversionInvalidCharacters() {
         assertEquals("0123456789ABCDEZ", printHexBinary(parseHexBinary("0123456789ABCDEZ")));
+    }
+
+    @Test
+    public void zeroPad() {
+        byte[] source = new byte[]{0x1, 0x2, 0x3, 0x4};
+        assertArrayEquals(new byte[]{0x1, 0x2, 0x3, 0x4, 0x0, 0x0}, Util.zeroPadArray(source, 6));
+        assertArrayEquals(new byte[]{0x1, 0x2}, Util.zeroPadArray(source, 2));
     }
 }

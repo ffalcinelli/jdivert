@@ -18,7 +18,7 @@
 package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
-import com.github.ffalcinelli.jdivert.network.*;
+import com.github.ffalcinelli.jdivert.headers.*;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertDLL;
 import com.sun.jna.Memory;
@@ -28,15 +28,15 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 
-import static com.github.ffalcinelli.jdivert.Consts.Direction;
+import static com.github.ffalcinelli.jdivert.Enums.Direction;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
 import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throwExceptionOnGetLastError;
 import static com.sun.jna.platform.win32.WinDef.UINT;
 import static com.sun.jna.platform.win32.WinDef.USHORT;
 
 /**
- * A single packet, possibly including an {@link com.github.ffalcinelli.jdivert.network.IPHeader IP header},
- * a {@link com.github.ffalcinelli.jdivert.network.TCPHeader TCP}/{@link com.github.ffalcinelli.jdivert.network.UDPHeader UDP} header and a payload.
+ * A single packet, possibly including an {@link com.github.ffalcinelli.jdivert.headers.Ip} header,
+ * a {@link com.github.ffalcinelli.jdivert.headers.Tcp}/{@link com.github.ffalcinelli.jdivert.headers.Udp} header and a payload.
  * <p>
  * Creation of packets is cheap, attributes are parsed when accessing them.
  * </p>
@@ -47,9 +47,9 @@ public class Packet {
     private ByteBuffer raw;
     private Direction direction;
     private int[] iface;
-    private TransportHeader transHdr;
-    private IPHeader ipHdr;
-    private ICMPHeader icmpHdr;
+    private Transport transHdr;
+    private Ip ipHdr;
+    private Icmp icmpHdr;
 
     /**
      * Construct a {@link Packet} from the given byte array and for the given {@link com.github.ffalcinelli.jdivert.windivert.WinDivertAddress} metadata.
@@ -67,7 +67,7 @@ public class Packet {
      *
      * @param raw       The packet's array of bytes
      * @param iface     The interface in form of {InterfaceIndex, InterfaceSubIndex} integer pair
-     * @param direction The {@link com.github.ffalcinelli.jdivert.Consts.Direction Direction}
+     * @param direction The {@link Enums.Direction Direction}
      */
     public Packet(byte[] raw, int[] iface, Direction direction) {
         if (iface.length != 2) {
@@ -78,12 +78,12 @@ public class Packet {
         this.direction = direction;
         this.iface = iface;
         for (Header header : Header.buildHeaders(raw)) {
-            if (header instanceof IPHeader) {
-                ipHdr = (IPHeader) header;
-            } else if (header instanceof ICMPHeader) {
-                icmpHdr = (ICMPHeader) header;
+            if (header instanceof Ip) {
+                ipHdr = (Ip) header;
+            } else if (header instanceof Icmp) {
+                icmpHdr = (Icmp) header;
             } else {
-                transHdr = (TransportHeader) header;
+                transHdr = (Transport) header;
             }
         }
     }
@@ -98,18 +98,18 @@ public class Packet {
     }
 
     /**
-     * Convenience method to check if the packet is {@link com.github.ffalcinelli.jdivert.Consts.Direction#OUTBOUND OUTBOUND}
+     * Convenience method to check if the packet is {@link Enums.Direction#OUTBOUND OUTBOUND}
      *
-     * @return True if packet is {@link com.github.ffalcinelli.jdivert.Consts.Direction#OUTBOUND OUTBOUND}, false otherwise
+     * @return True if packet is {@link Enums.Direction#OUTBOUND OUTBOUND}, false otherwise
      */
     public boolean isOutbound() {
         return direction == Direction.OUTBOUND;
     }
 
     /**
-     * Convenience method to check if the packet is {@link com.github.ffalcinelli.jdivert.Consts.Direction#INBOUND INBOUND}
+     * Convenience method to check if the packet is {@link Enums.Direction#INBOUND INBOUND}
      *
-     * @return True if packet is {@link com.github.ffalcinelli.jdivert.Consts.Direction#INBOUND INBOUND}, false otherwise
+     * @return True if packet is {@link Enums.Direction#INBOUND INBOUND}, false otherwise
      */
 
     public boolean isInbound() {
@@ -117,111 +117,111 @@ public class Packet {
     }
 
     /**
-     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.network.IPv4Header IP header version 4}
+     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.headers.Ipv4 Ip header version 4}
      *
-     * @return True if packet is an IPv4 one
+     * @return True if packet is an Ipv4 one
      */
     public boolean isIpv4() {
-        return ipHdr instanceof IPv4Header;
+        return ipHdr instanceof Ipv4;
     }
 
     /**
-     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.network.IPv6Header IP header version 6}
+     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.headers.Ipv6 Ip header version 6}
      *
-     * @return True if packet is an IPv6 one
+     * @return True if packet is an Ipv6 one
      */
     public boolean isIpv6() {
-        return ipHdr instanceof IPv6Header;
+        return ipHdr instanceof Ipv6;
     }
 
     /**
-     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.network.ICMPv4Header ICMP header version 4}
+     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.headers.Icmpv4 Icmp header version 4}
      *
-     * @return True if packet is an ICMPv4 one
+     * @return True if packet is an Icmpv4 one
      */
-    public boolean isIcmp() {
-        return icmpHdr instanceof ICMPv4Header;
+    public boolean isIcmpv4() {
+        return icmpHdr instanceof Icmpv4;
     }
 
     /**
-     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.network.ICMPv6Header ICMP header version 6}
+     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.headers.Icmpv6 Icmp header version 6}
      *
-     * @return True if packet is an ICMPv6 one
+     * @return True if packet is an Icmpv6 one
      */
     public boolean isIcmpv6() {
-        return icmpHdr instanceof ICMPv6Header;
+        return icmpHdr instanceof Icmpv6;
     }
 
     /**
-     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.network.UDPHeader UDP header}
+     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.headers.Udp Udp header}
      *
-     * @return True if packet is an UDP one
+     * @return True if packet is an Udp one
      */
     public boolean isUdp() {
-        return transHdr instanceof UDPHeader;
+        return transHdr instanceof Udp;
     }
 
     /**
-     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.network.TCPHeader TCP header}
+     * Convenience method to check if the packet has a {@link com.github.ffalcinelli.jdivert.headers.Tcp Tcp header}
      *
-     * @return True if packet is an TCP one
+     * @return True if packet is an Tcp one
      */
     public boolean isTcp() {
-        return transHdr instanceof TCPHeader;
+        return transHdr instanceof Tcp;
     }
 
     /**
-     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.network.TCPHeader} if present
+     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.headers.Tcp} if present
      *
-     * @return The {@link com.github.ffalcinelli.jdivert.network.TCPHeader} if present, {@code null} otherwise
+     * @return The {@link com.github.ffalcinelli.jdivert.headers.Tcp} if present, {@code null} otherwise
      */
-    public TCPHeader getTcp() {
-        return isTcp() ? (TCPHeader) transHdr : null;
+    public Tcp getTcp() {
+        return isTcp() ? (Tcp) transHdr : null;
     }
 
     /**
-     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.network.UDPHeader} if present
+     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.headers.Udp} if present
      *
-     * @return The {@link com.github.ffalcinelli.jdivert.network.UDPHeader} if present, {@code null} otherwise
+     * @return The {@link com.github.ffalcinelli.jdivert.headers.Udp} if present, {@code null} otherwise
      */
-    public UDPHeader getUdp() {
-        return isUdp() ? (UDPHeader) transHdr : null;
+    public Udp getUdp() {
+        return isUdp() ? (Udp) transHdr : null;
     }
 
     /**
-     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.network.ICMPv4Header} if present
+     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.headers.Icmpv4} if present
      *
-     * @return The {@link com.github.ffalcinelli.jdivert.network.ICMPv4Header} if present, {@code null} otherwise
+     * @return The {@link com.github.ffalcinelli.jdivert.headers.Icmpv4} if present, {@code null} otherwise
      */
-    public ICMPv4Header getICMPv4() {
-        return isIcmp() ? (ICMPv4Header) icmpHdr : null;
+    public Icmpv4 getIcmpv4() {
+        return isIcmpv4() ? (Icmpv4) icmpHdr : null;
     }
 
     /**
-     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.network.ICMPv6Header} if present
+     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.headers.Icmpv6} if present
      *
-     * @return The {@link com.github.ffalcinelli.jdivert.network.ICMPv6Header} if present, {@code null} otherwise
+     * @return The {@link com.github.ffalcinelli.jdivert.headers.Icmpv6} if present, {@code null} otherwise
      */
-    public ICMPv6Header getICMPv6() {
-        return isIcmpv6() ? (ICMPv6Header) icmpHdr : null;
+    public Icmpv6 getIcmpv6() {
+        return isIcmpv6() ? (Icmpv6) icmpHdr : null;
     }
 
     /**
-     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.network.IPv4Header} if present
+     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.headers.Ipv4} if present
      *
-     * @return The {@link com.github.ffalcinelli.jdivert.network.IPv4Header} if present, {@code null} otherwise
+     * @return The {@link com.github.ffalcinelli.jdivert.headers.Ipv4} if present, {@code null} otherwise
      */
-    public IPv4Header getIPv4() {
-        return isIpv4() ? (IPv4Header) ipHdr : null;
+    public Ipv4 getIpv4() {
+        return isIpv4() ? (Ipv4) ipHdr : null;
     }
 
     /**
-     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.network.IPv6Header} if present
+     * Convenience method to get the {@link com.github.ffalcinelli.jdivert.headers.Ipv6} if present
      *
-     * @return The {@link com.github.ffalcinelli.jdivert.network.IPv6Header} if present, {@code null} otherwise
+     * @return The {@link com.github.ffalcinelli.jdivert.headers.Ipv6} if present, {@code null} otherwise
      */
-    public IPv6Header getIPv6() {
-        return isIpv6() ? (IPv6Header) ipHdr : null;
+    public Ipv6 getIpv6() {
+        return isIpv6() ? (Ipv6) ipHdr : null;
     }
 
     /**
@@ -229,8 +229,8 @@ public class Packet {
      *
      * @return The source address String
      */
-    public String getSourceHostAddress() {
-        return ipHdr.getSourceHostAddress();
+    public String getSrcAddr() {
+        return ipHdr.getSrcAddrStr();
     }
 
     /**
@@ -238,8 +238,8 @@ public class Packet {
      *
      * @return The destination address String
      */
-    public String getDestinationHostAddress() {
-        return ipHdr.getDestinationHostAddress();
+    public String getDstAddr() {
+        return ipHdr.getDstAddrStr();
     }
 
     /**
@@ -247,7 +247,7 @@ public class Packet {
      *
      * @return The source port number if present, {@code null} otherwise.
      */
-    public Integer getSourcePort() {
+    public Integer getSrcPort() {
         return transHdr != null ? transHdr.getSrcPort() : null;
     }
 
@@ -256,7 +256,7 @@ public class Packet {
      *
      * @param port The port number to set for source service. If packet does not have such info an {@link java.lang.IllegalStateException} is thrown.
      */
-    public void setSourcePort(int port) {
+    public void setSrcPort(int port) {
         if (transHdr != null)
             transHdr.setSrcPort(port);
         else
@@ -268,8 +268,8 @@ public class Packet {
      *
      * @return The destination port number if present, {@code null} otherwise.
      */
-    public int getDestinationPort() {
-        return transHdr.getDstPort();
+    public Integer getDstPort() {
+        return transHdr != null ? transHdr.getDstPort() : null;
     }
 
     /**
@@ -277,7 +277,7 @@ public class Packet {
      *
      * @param port The port number to set for destination service. If packet does not have such info an {@link java.lang.IllegalStateException} is thrown.
      */
-    public void setDestinationPort(int port) {
+    public void setDstPort(int port) {
         if (transHdr != null)
             transHdr.setDstPort(port);
         else
@@ -290,8 +290,8 @@ public class Packet {
      * @param address The String representing the source address to set
      * @throws UnknownHostException Unlikely to be thrown...
      */
-    public void setSourceAddress(String address) throws UnknownHostException {
-        ipHdr.setSourceHostAddress(address);
+    public void setSrcAddr(String address) throws UnknownHostException {
+        ipHdr.setSrcAddrStr(address);
     }
 
     /**
@@ -300,8 +300,8 @@ public class Packet {
      * @param address The String representing the destination address to set
      * @throws UnknownHostException Unlikely to be thrown...
      */
-    public void setDestinationAddress(String address) throws UnknownHostException {
-        ipHdr.setDestinationHostAddress(address);
+    public void setDstAddr(String address) throws UnknownHostException {
+        ipHdr.setDstAddrStr(address);
     }
 
     /**
@@ -313,12 +313,12 @@ public class Packet {
         return Util.getBytesAtOffset(raw, getHeadersLength(), raw.capacity() - getHeadersLength());
     }
 
-    public void setPayload(byte[] payload){
+    public void setPayload(byte[] payload) {
         //TODO: adjust length!
         Util.setBytesAtOffset(raw, getHeadersLength(), payload.length, payload);
     }
 
-    public int getHeadersLength(){
+    public int getHeadersLength() {
         return ipHdr.getHeaderLength() + (transHdr != null ? transHdr.getHeaderLength() : icmpHdr.getHeaderLength());
     }
 
@@ -332,15 +332,15 @@ public class Packet {
     }
 
     /**
-     * Recalculates the checksum fields matching the given {@link com.github.ffalcinelli.jdivert.Consts.CalcChecksumsOption options}
+     * Recalculates the checksum fields matching the given {@link Enums.CalcChecksumsOption options}
      *
      * @param options Drive the recalculateChecksum function
      * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
      *                            is in progress)
      */
-    public void recalculateChecksum(Consts.CalcChecksumsOption... options) throws WinDivertException {
+    public void recalculateChecksum(Enums.CalcChecksumsOption... options) throws WinDivertException {
         int flags = 0;
-        for (Consts.CalcChecksumsOption option : options) {
+        for (Enums.CalcChecksumsOption option : options) {
             flags |= option.getValue();
         }
         byte[] rawBytes = getRaw();
@@ -355,6 +355,7 @@ public class Packet {
 
     /**
      * Put the {@link Packet} metadata into a {@link com.github.ffalcinelli.jdivert.windivert.WinDivertAddress} structure.
+     *
      * @return The {@link com.github.ffalcinelli.jdivert.windivert.WinDivertAddress} representing the packet metadata
      */
     public WinDivertAddress getWinDivertAddress() {
@@ -376,4 +377,23 @@ public class Packet {
                 ", icmpHdr=" + icmpHdr +
                 '}';
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Packet packet = (Packet) o;
+        return Arrays.equals(getRaw(), packet.getRaw()) &&
+                getWinDivertAddress().equals(packet.getWinDivertAddress());
+    }
+
+
+    @Override
+    public int hashCode() {
+        int result = Arrays.hashCode(getRaw());
+        result = 31 * result + getWinDivertAddress().hashCode();
+        return result;
+    }
+
 }

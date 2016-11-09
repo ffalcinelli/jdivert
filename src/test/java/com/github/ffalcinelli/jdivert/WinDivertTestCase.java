@@ -23,9 +23,9 @@ import org.junit.Test;
 
 import java.util.Random;
 
-import static com.github.ffalcinelli.jdivert.Consts.Flag.DROP;
-import static com.github.ffalcinelli.jdivert.Consts.Flag.SNIFF;
-import static com.github.ffalcinelli.jdivert.Consts.Layer.NETWORK;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.DROP;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.SNIFF;
+import static com.github.ffalcinelli.jdivert.Enums.Layer.NETWORK;
 import static org.junit.Assert.*;
 
 /**
@@ -76,7 +76,7 @@ public class WinDivertTestCase {
     @Test(expected = IllegalStateException.class)
     public void setParamWindivertNotOpen() {
         w = new WinDivert("true");
-        for (Consts.Param param : Consts.Param.values()) {
+        for (Enums.Param param : Enums.Param.values()) {
             // I know this won't iterate...
             w.setParam(param, param.getDefault());
         }
@@ -85,7 +85,7 @@ public class WinDivertTestCase {
     @Test(expected = IllegalStateException.class)
     public void getParamWindivertNotOpen() {
         w = new WinDivert("true");
-        for (Consts.Param param : Consts.Param.values()) {
+        for (Enums.Param param : Enums.Param.values()) {
             // I know this won't iterate...
             assertEquals(w.getParam(param), param.getDefault());
         }
@@ -95,7 +95,7 @@ public class WinDivertTestCase {
     @Test
     public void params() throws WinDivertException {
         w = new WinDivert("true").open();
-        for (Consts.Param param : Consts.Param.values()) {
+        for (Enums.Param param : Enums.Param.values()) {
             assertEquals(param.toString(), param.getDefault(), w.getParam(param));
             long value = randInt(param.getMin(), param.getMax());
             w.setParam(param, value);
@@ -114,6 +114,17 @@ public class WinDivertTestCase {
                         param));
             } catch (IllegalArgumentException e) {
             }
+        }
+    }
+
+    @Test(expected = WinDivertException.class)
+    public void wrongFilterSyntax() throws WinDivertException {
+        try {
+            w = new WinDivert("something").open();
+        } catch (WinDivertException e) {
+            assertEquals(87, e.getCode());
+            assertTrue(e.toString().contains("code=87"));
+            throw e;
         }
     }
 
