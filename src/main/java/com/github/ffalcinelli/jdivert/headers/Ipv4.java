@@ -40,6 +40,10 @@ public class Ipv4 extends Ip<Inet4Address> {
         return getIHL() * 4;
     }
 
+    public void setVersion(int version) {
+        raw.put(0, (byte) ((version << 4) | getIHL()));
+    }
+
     public int getIHL() {
         return (raw.get(0) & 0x0F);
     }
@@ -146,6 +150,25 @@ public class Ipv4 extends Ip<Inet4Address> {
         raw.putShort(6, (short) (getFlags() | (fragOff << 3)));
     }
 
+    public int getDSCP() {
+        return (raw.get(1) >> 2) & 0x003F;
+    }
+
+    public void setDSCP(int dscp) {
+        byte first = (byte) (dscp << 2);
+        byte second = (byte) (getECN() & 0x03);
+        raw.put(1, (byte) (first | second));
+    }
+
+    public int getECN() {
+        return raw.get(1) & 0x03;
+    }
+
+    public void setECN(int ecn) {
+        byte first = (byte) (getDSCP() << 2);
+        byte second = (byte) (ecn & 0x3F);
+        raw.put(1, (byte) (first | second));
+    }
 
     @Override
     public String toString() {
@@ -153,14 +176,15 @@ public class Ipv4 extends Ip<Inet4Address> {
         for (Flag flag : Flag.values()) {
             flags.append(flag.name()).append("=").append(is(flag)).append(", ");
         }
-        return String.format("IPv4 {version=%d, srcAddr=%s, dstAddr=%s, IHL=%d, TOS=%d, length=%d, ID=%s " +
+        return String.format("IPv4 {version=%d, srcAddr=%s, dstAddr=%s, IHL=%d, DSCP=%d, ECN=%d, length=%d, ID=%s " +
                         "%s fragOff=%d TTL=%d " +
                         "proto=%s, cksum=%s}"
                 , getVersion()
                 , getSrcAddrStr()
                 , getDstAddrStr()
                 , getIHL()
-                , 0 //TODO TOS
+                , getDSCP()
+                , getECN()
                 , getTotalLength()
                 , Integer.toHexString(getID())
                 , flags

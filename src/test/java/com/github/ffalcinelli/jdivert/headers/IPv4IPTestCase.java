@@ -48,6 +48,14 @@ public abstract class IPv4IPTestCase extends IPTestCase {
     }
 
     @Test
+    public void versionBis() {
+        int ihl = ipv4Hdr.getIHL();
+        ipv4Hdr.setVersion(5);
+        assertEquals(5, ipv4Hdr.getVersion());
+        assertEquals(ihl, ipv4Hdr.getIHL());
+    }
+
+    @Test
     public void nextHeaderProtocolBis() {
         assertEquals(ipHdr.getNextHeaderProtocol(), ipv4Hdr.getProtocol());
     }
@@ -167,7 +175,16 @@ public abstract class IPv4IPTestCase extends IPTestCase {
         ipv4Hdr.set(MF, true);
 
         assertEquals(0x5, ipv4Hdr.getFlags());
+    }
 
-
+    @Test
+    public void dscpAndEcn() {
+        int dscp = ipv4Hdr.getDSCP();
+        ipv4Hdr.setECN(2);
+        assertEquals(2, ipv4Hdr.getECN());
+        assertEquals(dscp, ipv4Hdr.getDSCP());
+        ipv4Hdr.setDSCP(33);
+        assertEquals(33, ipv4Hdr.getDSCP());
+        assertEquals(2, ipv4Hdr.getECN());
     }
 }

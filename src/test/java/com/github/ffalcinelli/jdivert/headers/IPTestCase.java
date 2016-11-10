@@ -57,8 +57,6 @@ public abstract class IPTestCase {
     public void version() {
         assertEquals(ipVersion, ipHdr.getVersion());
         assertEquals(ipHdr.getVersion(), Ipv6.getVersion(ByteBuffer.wrap(rawData)));
-        ipHdr.setVersion(ipVersion + 1);
-        assertEquals(ipVersion + 1, ipHdr.getVersion());
     }
 
     @Test

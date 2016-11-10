@@ -40,6 +40,10 @@ public class Ipv6 extends Ip<Inet6Address> {
         return 40;
     }
 
+    public void setVersion(int version) {
+        raw.put(0, (byte) ((version << 4)));
+    }
+
     @Override
     public Protocol getNextHeaderProtocol() {
         return getNextHeader();

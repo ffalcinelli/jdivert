@@ -46,6 +46,14 @@ public abstract class IPv6IPTestCase extends IPTestCase {
     }
 
     @Test
+    public void versionBis() {
+//        int ihl = ipv6Hdr.getIHL();
+        ipv6Hdr.setVersion(5);
+        assertEquals(5, ipv6Hdr.getVersion());
+//        assertEquals(ihl, ipv4Hdr.getIHL());
+    }
+
+    @Test
     public void nextHeaderProtocolBis() {
         assertEquals(ipHdr.getNextHeaderProtocol(), ipv6Hdr.getNextHeader());
     }

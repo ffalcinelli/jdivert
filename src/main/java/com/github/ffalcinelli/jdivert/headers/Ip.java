@@ -95,9 +95,5 @@ public abstract class Ip<T extends InetAddress> extends Header {
         return raw.get(0) >> 4;
     }
 
-    public void setVersion(int version) {
-        raw.put(0, (byte) (version << 4));
-    }
-
     public abstract Protocol getNextHeaderProtocol();
 }

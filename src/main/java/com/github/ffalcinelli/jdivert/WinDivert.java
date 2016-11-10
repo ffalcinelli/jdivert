@@ -136,7 +136,6 @@ public class WinDivert {
      * <p>
      * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_close">http://reqrypt.org/windivert-doc.html#divert_close</a>
      * """
-     *
      */
     public void close() {
         if (isOpen()) {
