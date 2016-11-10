@@ -122,21 +122,21 @@ public class Tcp extends Transport {
     public String toString() {
         StringBuilder flags = new StringBuilder();
         for (Flag flag : Flag.values()) {
-            flags.append(flag).append("=").append(is(flag)?1:0).append(", ");
+            flags.append(flag).append("=").append(is(flag) ? 1 : 0).append(", ");
         }
-        return String.format("Tcp {len=%d, srcPort=%d, dstPort=%d, seqNum=%d, ackNum=%d dataOffset=%d, " +
+        return String.format("TCP {srcPort=%d, dstPort=%d, seqNum=%d, ackNum=%d dataOffset=%d, " +
 //                        "Reserved1=%d Reserved2=%d " +
-                        "%s window=%d, cksum=%s, urgPtr=%d}",
-                getHeaderLength(),
-                getSrcPort(),
-                getDstPort(),
-                getSeqNumber(),
-                getAckNumber(),
-                getDataOffset(),
-                flags,
-                getWindowSize(),
-                Integer.toHexString(getChecksum()),
-                getUrgentPointer());
+                        "%s window=%d, cksum=%s, urgPtr=%d}"
+                , getSrcPort()
+                , getDstPort()
+                , getSeqNumber()
+                , getAckNumber()
+                , getDataOffset()
+                , flags
+                , getWindowSize()
+                , Integer.toHexString(getChecksum())
+                , getUrgentPointer()
+        );
     }
 
     public enum Flag {

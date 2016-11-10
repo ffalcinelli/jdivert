@@ -54,6 +54,7 @@ public class ICMPIPv6TestCase extends IPv6IPTestCase {
         assertEquals(1, icmpHdr.getType());
         icmpHdr.setType((byte) 0x2);
         assertEquals((byte) 0x2, icmpHdr.getType());
+        assertTrue(icmpHdr.toString().contains("type=" + 0x2));
     }
 
     @Test

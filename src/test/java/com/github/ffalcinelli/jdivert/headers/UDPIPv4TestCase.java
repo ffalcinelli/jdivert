@@ -60,6 +60,7 @@ public class UDPIPv4TestCase extends IPv4IPTestCase {
         assertEquals(srcPort, udp.getSrcPort());
         udp.setSrcPort(50000);
         assertEquals(50000, udp.getSrcPort());
+        assertTrue(udp.toString().contains("srcPort=" + 50000));
     }
 
     @Test
@@ -67,6 +68,7 @@ public class UDPIPv4TestCase extends IPv4IPTestCase {
         assertEquals(53, udp.getDstPort());
         udp.setDstPort(50000);
         assertEquals(50000, udp.getDstPort());
+        assertTrue(udp.toString().contains("dstPort=" + 50000));
     }
 
     @Test

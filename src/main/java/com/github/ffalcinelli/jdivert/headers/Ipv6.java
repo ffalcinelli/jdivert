@@ -21,7 +21,6 @@ import java.net.Inet6Address;
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol;
-import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
 
 /**
  * Created by fabio on 24/10/2016.
@@ -72,13 +71,13 @@ public class Ipv6 extends Ip<Inet6Address> {
 
     @Override
     public String toString() {
-        return "Ipv6{" +
-                "raw=" + printHexBinary(raw) +
-                ", version=" + getVersion() +
-                ", payloadLength=" + getPayloadLength() +
-                ", nextHeader=" + getNextHeader() +
-                ", srcAddr=" + getSrcAddrStr() +
-                ", dstAddr=" + getDstAddrStr() +
-                "}";
+        return String.format("IPv6 {version=%d, srcAddr=%s, dstAddr=%s, payloadLength=%d, nextHeader=%s, hopLimit=%d}"
+                , getVersion()
+                , getSrcAddrStr()
+                , getDstAddrStr()
+                , getPayloadLength()
+                , getNextHeader()
+                , getHopLimit()
+        );
     }
 }

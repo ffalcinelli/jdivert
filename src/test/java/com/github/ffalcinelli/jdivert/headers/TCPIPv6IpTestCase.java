@@ -29,7 +29,6 @@ import static org.junit.Assert.*;
  */
 public class TCPIPv6IpTestCase extends IPv6IPTestCase {
 
-    Tcp tcpHdr;
     protected int tcpHdrLen;
     protected int seqNum;
     protected int ackNum;
@@ -37,6 +36,7 @@ public class TCPIPv6IpTestCase extends IPv6IPTestCase {
     protected int urgPtr;
     protected int tcpCksum;
     protected byte[] options = new byte[]{1, 1, 8, 10, -128, 29, -91, 34, -128, 29, -91, 34};
+    Tcp tcpHdr;
 
     @Before
     public void setUp() {
@@ -69,7 +69,7 @@ public class TCPIPv6IpTestCase extends IPv6IPTestCase {
         assertEquals(43424, tcpHdr.getSrcPort());
         tcpHdr.setSrcPort(51234);
         assertEquals(51234, tcpHdr.getSrcPort());
-        assertTrue(tcpHdr.toString().contains("51234"));
+        assertTrue(tcpHdr.toString().contains("srcPort=51234"));
     }
 
     @Test
@@ -77,7 +77,7 @@ public class TCPIPv6IpTestCase extends IPv6IPTestCase {
         assertEquals(8080, tcpHdr.getDstPort());
         tcpHdr.setDstPort(51234);
         assertEquals(51234, tcpHdr.getDstPort());
-        assertTrue(tcpHdr.toString().contains("51234"));
+        assertTrue(tcpHdr.toString().contains("dstPort=51234"));
     }
 
     @Test

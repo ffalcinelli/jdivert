@@ -19,6 +19,8 @@ package com.github.ffalcinelli.jdivert;
 
 import org.junit.Test;
 
+import java.nio.ByteBuffer;
+
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
 import static org.junit.Assert.assertArrayEquals;
@@ -31,7 +33,10 @@ public class UtilTestCase {
 
     @Test
     public void hexConversion() {
-        assertEquals("0123456789ABCDEF", printHexBinary(parseHexBinary("0123456789ABCDEF")));
+        byte[] bytes = parseHexBinary("0123456789ABCDEF");
+        assertEquals("0123456789ABCDEF", printHexBinary(bytes));
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        assertEquals("0123456789ABCDEF", printHexBinary(buffer));
     }
 
     @Test(expected = IllegalArgumentException.class)

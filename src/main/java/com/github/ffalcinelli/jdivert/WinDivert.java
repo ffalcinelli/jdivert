@@ -137,17 +137,11 @@ public class WinDivert {
      * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_close">http://reqrypt.org/windivert-doc.html#divert_close</a>
      * """
      *
-     * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
-     *                            is in progress)
      */
-    public void close() throws WinDivertException {
+    public void close() {
         if (isOpen()) {
-            try {
-                dll.WinDivertClose(handle);
-                throwExceptionOnGetLastError();
-            } finally {
-                handle = null;
-            }
+            dll.WinDivertClose(handle);
+            handle = null;
         }
     }
 
@@ -342,5 +336,43 @@ public class WinDivert {
         dll.WinDivertSetParam(handle, param.getValue(), value);
     }
 
+    /**
+     * Checks if the given flag is set
+     *
+     * @param flag The mode flag to set
+     * @return True if the flag is set, false otherwise.
+     */
+    public boolean is(Flag flag) {
+        return (flag.getValue() & flags) == flag.getValue();
+    }
 
+    /**
+     * Returns the operational mode as a String
+     *
+     * @return String representation of the operational mode
+     */
+    public String getMode() {
+        StringBuilder mode = new StringBuilder();
+        for (Flag flag : Flag.values()) {
+            if (is(flag)) {
+                mode.append(flag).append("|");
+            }
+        }
+        mode.deleteCharAt(mode.length() - 1);
+        return mode.toString();
+    }
+
+    @Override
+    public String toString() {
+
+        return String.format("WinDivert{handle=%s, dll=%s, filter=%s, layer=%s, priority=%d, mode=%s, state=%s}"
+                , handle
+                , dll
+                , filter
+                , layer
+                , priority
+                , getMode()
+                , isOpen() ? "OPEN" : "CLOSED"
+        );
+    }
 }

@@ -23,8 +23,7 @@ import org.junit.Test;
 
 import java.util.Random;
 
-import static com.github.ffalcinelli.jdivert.Enums.Flag.DROP;
-import static com.github.ffalcinelli.jdivert.Enums.Flag.SNIFF;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.*;
 import static com.github.ffalcinelli.jdivert.Enums.Layer.NETWORK;
 import static org.junit.Assert.*;
 
@@ -33,9 +32,9 @@ import static org.junit.Assert.*;
  */
 public class WinDivertTestCase {
 
-    protected WinDivert w;
     //this can be safely static
     static Random rnd = new Random();
+    protected WinDivert w;
 
     public static int randInt(int min, int max) {
         return rnd.nextInt(max - min + 1) + min;
@@ -43,12 +42,8 @@ public class WinDivertTestCase {
 
     @After
     public void tearDown() {
-        if (w != null && w.isOpen()) {
-            try {
-                w.close();
-            } catch (WinDivertException ignore) {
-            }
-        }
+        if (w != null)
+            w.close();
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -61,6 +56,7 @@ public class WinDivertTestCase {
         w = new WinDivert("true");
         assertEquals(w, w.open());
         assertTrue(w.isOpen());
+        assertTrue(w.toString().contains("state=OPEN"));
         w.close();
         assertFalse(w.isOpen());
     }
@@ -126,6 +122,16 @@ public class WinDivertTestCase {
             assertTrue(e.toString().contains("code=87"));
             throw e;
         }
+    }
+
+    @Test
+    public void flags() {
+        w = new WinDivert("true");
+        assertTrue(w.is(DEFAULT));
+        assertFalse(w.is(SNIFF));
+        assertFalse(w.is(DROP));
+        assertFalse(w.is(NO_CHECKSUM));
+        assertTrue(w.toString().contains("mode=DEFAULT"));
     }
 
 }

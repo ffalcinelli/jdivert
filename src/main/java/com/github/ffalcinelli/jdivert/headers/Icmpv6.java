@@ -19,6 +19,8 @@ package com.github.ffalcinelli.jdivert.headers;
 
 import java.nio.ByteBuffer;
 
+import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
+
 /**
  * Created by fabio on 25/10/2016.
  */
@@ -34,5 +36,15 @@ public class Icmpv6 extends Icmp {
 
     public void setMessageBody(byte[] messageBody) {
         setBytesAtOffset(start + 4, messageBody.length, messageBody);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("ICMPv6 {type=%d, code=%d, cksum=%s, messageBody=%s}"
+                , getType()
+                , getCode()
+                , Integer.toHexString(getChecksum())
+                , printHexBinary(getMessageBody())
+        );
     }
 }

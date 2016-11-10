@@ -121,22 +121,21 @@ public class Ipv4 extends Ip<Inet4Address> {
         for (Flag flag : Flag.values()) {
             flags.append(flag.name()).append("=").append(is(flag)).append(", ");
         }
-        return String.format("Ipv4 {len=%d, version=%d, IHL=%d, TOS=%d, length=%d, ID=%s " +
+        return String.format("IPv4 {version=%d, srcAddr=%s, dstAddr=%s, IHL=%d, TOS=%d, length=%d, ID=%s " +
                         "%s fragOff=%d TTL=%d " +
-                        "proto=%s, cksum=%s, srcAddr=%s, dstAddr=%s}",
-                getHeaderLength(),
-                getVersion(),
-                getIHL(),
-                0, //TODO TOS
-                getTotalLength(),
-                Integer.toHexString(getID()),
-                flags,
-                0, //TODO fragOff
-                0, //TODO TTL
-                getProtocol(),
-                Integer.toHexString(getChecksum()),
-                getSrcAddrStr(),
-                getDstAddrStr()
+                        "proto=%s, cksum=%s}"
+                , getVersion()
+                , getSrcAddrStr()
+                , getDstAddrStr()
+                , getIHL()
+                , 0 //TODO TOS
+                , getTotalLength()
+                , Integer.toHexString(getID())
+                , flags
+                , 0 //TODO fragOff
+                , 0 //TODO TTL
+                , getProtocol()
+                , Integer.toHexString(getChecksum())
         );
     }
 

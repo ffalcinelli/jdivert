@@ -17,15 +17,14 @@
 
 package com.github.ffalcinelli.jdivert.headers;
 
-import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
-import static com.github.ffalcinelli.jdivert.Enums.*;
-
 import org.junit.Before;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import static com.github.ffalcinelli.jdivert.Enums.Protocol;
+import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static org.junit.Assert.*;
 
 /**
@@ -67,7 +66,7 @@ public abstract class IPTestCase {
         assertEquals(srcAddr, ipHdr.getSrcAddrStr());
         ipHdr.setSrcAddrStr(localhost);
         assertEquals(localhost, ipHdr.getSrcAddrStr());
-        assertTrue(ipHdr.toString().contains(localhost));
+        assertTrue(ipHdr.toString().contains("srcAddr=" + localhost));
     }
 
     @Test
@@ -75,7 +74,7 @@ public abstract class IPTestCase {
         assertEquals(dstAddr, ipHdr.getDstAddrStr());
         ipHdr.setDstAddrStr(localhost);
         assertEquals(localhost, ipHdr.getDstAddrStr());
-        assertTrue(ipHdr.toString().contains(localhost));
+        assertTrue(ipHdr.toString().contains("dstAddr=" + localhost));
     }
 
     @Test

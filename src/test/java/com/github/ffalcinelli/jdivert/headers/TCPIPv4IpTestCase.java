@@ -30,13 +30,13 @@ import static org.junit.Assert.*;
  */
 public class TCPIPv4IpTestCase extends IPv4IPTestCase {
 
-    Tcp tcpHdr;
     protected int tcpHdrLen;
     protected int seqNum;
     protected int ackNum;
     protected int windowSize;
     protected int urgPtr;
     protected int tcpCksum;
+    Tcp tcpHdr;
 
     @Before
     public void setUp() {
@@ -71,7 +71,7 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
         assertEquals(55362, tcpHdr.getSrcPort());
         tcpHdr.setSrcPort(51234);
         assertEquals(51234, tcpHdr.getSrcPort());
-        assertTrue(tcpHdr.toString().contains("51234"));
+        assertTrue(tcpHdr.toString().contains("srcPort=51234"));
     }
 
     @Test
@@ -79,7 +79,7 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
         assertEquals(443, tcpHdr.getDstPort());
         tcpHdr.setDstPort(51234);
         assertEquals(51234, tcpHdr.getDstPort());
-        assertTrue(tcpHdr.toString().contains("51234"));
+        assertTrue(tcpHdr.toString().contains("dstPort=51234"));
     }
 
     @Test

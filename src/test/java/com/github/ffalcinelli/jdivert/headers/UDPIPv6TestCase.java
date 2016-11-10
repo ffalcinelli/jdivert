@@ -20,11 +20,9 @@ package com.github.ffalcinelli.jdivert.headers;
 import org.junit.Before;
 import org.junit.Test;
 
-import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.UDP;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
+import static org.junit.Assert.*;
 
 /**
  * Created by fabio on 02/11/2016.
@@ -60,6 +58,7 @@ public class UDPIPv6TestCase extends IPv6IPTestCase {
         assertEquals(srcPort, udp.getSrcPort());
         udp.setSrcPort(50000);
         assertEquals(50000, udp.getSrcPort());
+        assertTrue(udp.toString().contains("srcPort=" + 50000));
     }
 
     @Test
@@ -67,6 +66,7 @@ public class UDPIPv6TestCase extends IPv6IPTestCase {
         assertEquals(53, udp.getDstPort());
         udp.setDstPort(50000);
         assertEquals(50000, udp.getDstPort());
+        assertTrue(udp.toString().contains("dstPort=" + 50000));
     }
 
     @Test

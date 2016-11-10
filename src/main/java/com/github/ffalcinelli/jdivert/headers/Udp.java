@@ -19,6 +19,8 @@ package com.github.ffalcinelli.jdivert.headers;
 
 import java.nio.ByteBuffer;
 
+import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
+
 /**
  * Created by fabio on 25/10/2016.
  */
@@ -57,4 +59,14 @@ public class Udp extends Transport {
         setBytesAtOffset(start + getHeaderLength(), data.length, data);
     }
 
+    @Override
+    public String toString() {
+        return String.format("UDP {srcPort=%d, dstPort=%d, len=%d, cksum=%s, data=%s}"
+                , getSrcPort()
+                , getDstPort()
+                , getLength()
+                , Integer.toHexString(getChecksum())
+                , printHexBinary(getData())
+        );
+    }
 }

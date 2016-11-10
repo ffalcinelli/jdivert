@@ -234,12 +234,32 @@ public class Packet {
     }
 
     /**
+     * Convenience method to set the source address
+     *
+     * @param address The String representing the source address to set
+     * @throws UnknownHostException Unlikely to be thrown...
+     */
+    public void setSrcAddr(String address) throws UnknownHostException {
+        ipHdr.setSrcAddrStr(address);
+    }
+
+    /**
      * Convenience method to get the String representing the destination address
      *
      * @return The destination address String
      */
     public String getDstAddr() {
         return ipHdr.getDstAddrStr();
+    }
+
+    /**
+     * Convenience method to set the destination address
+     *
+     * @param address The String representing the destination address to set
+     * @throws UnknownHostException Unlikely to be thrown...
+     */
+    public void setDstAddr(String address) throws UnknownHostException {
+        ipHdr.setDstAddrStr(address);
     }
 
     /**
@@ -282,26 +302,6 @@ public class Packet {
             transHdr.setDstPort(port);
         else
             throw new IllegalStateException("A port number cannot be set");
-    }
-
-    /**
-     * Convenience method to set the source address
-     *
-     * @param address The String representing the source address to set
-     * @throws UnknownHostException Unlikely to be thrown...
-     */
-    public void setSrcAddr(String address) throws UnknownHostException {
-        ipHdr.setSrcAddrStr(address);
-    }
-
-    /**
-     * Convenience method to set the destination address
-     *
-     * @param address The String representing the destination address to set
-     * @throws UnknownHostException Unlikely to be thrown...
-     */
-    public void setDstAddr(String address) throws UnknownHostException {
-        ipHdr.setDstAddrStr(address);
     }
 
     /**
@@ -368,14 +368,13 @@ public class Packet {
 
     @Override
     public String toString() {
-        return "Packet{" +
-                "raw=" + printHexBinary(getRaw()) +
-                ", direction=" + direction +
-                ", iface=" + Arrays.toString(iface) +
-                ", transHdr=" + transHdr +
-                ", ipHdr=" + ipHdr +
-                ", icmpHdr=" + icmpHdr +
-                '}';
+        return String.format("Packet {%s, %s, direction=%s, iface=%s, raw=%s}"
+                , ipHdr
+                , transHdr != null ? transHdr : icmpHdr
+                , direction
+                , iface
+                , printHexBinary(getRaw())
+        );
     }
 
     @Override

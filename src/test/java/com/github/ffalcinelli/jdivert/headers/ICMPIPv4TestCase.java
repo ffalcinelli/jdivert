@@ -56,6 +56,8 @@ public class ICMPIPv4TestCase extends IPv4IPTestCase {
         assertEquals(8, icmpHdr.getType());
         icmpHdr.setType((byte) 0xC);
         assertEquals((byte) 0xC, icmpHdr.getType());
+
+        assertTrue(icmpHdr.toString().contains("type=" + 0xC));
     }
 
     @Test
