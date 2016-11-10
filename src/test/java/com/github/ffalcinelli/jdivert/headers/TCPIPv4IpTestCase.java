@@ -58,6 +58,7 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
         windowSize = 255;
         urgPtr = 0;
         tcpCksum = 36282;
+        ttl = 65408;
     }
 
     @Test
@@ -164,7 +165,7 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
     }
 
     @Test
-    public void equalsAndHashCodeBis(){
+    public void equalsAndHashCodeBis() {
         Tcp tcpHdr2 = new Tcp(ipHdr.getByteBuffer(), ipHeaderLength);
         assertTrue(tcpHdr.equals(tcpHdr2));
         assertEquals(tcpHdr.hashCode(), tcpHdr2.hashCode());

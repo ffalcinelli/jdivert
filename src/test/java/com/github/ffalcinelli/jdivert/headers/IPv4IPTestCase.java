@@ -35,14 +35,16 @@ public abstract class IPv4IPTestCase extends IPTestCase {
     protected int ipCksum;
     protected int ident;
     protected byte[] options;
+    protected int ttl;
 
     @Before
-    public void setUp(){
+    public void setUp() {
         super.setUp();
         ipv4Hdr = new Ipv4(ByteBuffer.wrap(rawData));
         ipHdr = ipv4Hdr;
         localhost = "127.0.0.1";
         ipVersion = 4;
+        ttl = 64;
     }
 
     @Test
@@ -58,7 +60,7 @@ public abstract class IPv4IPTestCase extends IPTestCase {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void illegalProtocol(){
+    public void illegalProtocol() {
         ipv4Hdr.setProtocol(Enums.Protocol.fromValue(11));
     }
 
@@ -70,7 +72,7 @@ public abstract class IPv4IPTestCase extends IPTestCase {
 
     @Test
     public void internetHeaderLength() {
-        assertEquals(ipHdr.getHeaderLength(), ipv4Hdr.getIHL()*4);
+        assertEquals(ipHdr.getHeaderLength(), ipv4Hdr.getIHL() * 4);
         ipv4Hdr.setIHL(6);
         assertEquals(6, ipv4Hdr.getIHL());
         assertEquals(24, ipv4Hdr.getHeaderLength());
@@ -127,9 +129,17 @@ public abstract class IPv4IPTestCase extends IPTestCase {
     }
 
     @Test
-    public void equalsAndHashCode(){
+    public void equalsAndHashCode() {
         Ipv4 ipHdr2 = new Ipv4(ByteBuffer.wrap(rawData));
         assertTrue(ipHdr.equals(ipHdr2));
         assertEquals(ipHdr.hashCode(), ipHdr2.hashCode());
+    }
+
+    @Test
+    public void ttl() {
+        assertEquals(ttl, ipv4Hdr.getTTL());
+        ipv4Hdr.setTTL(64);
+        assertEquals(64, ipv4Hdr.getTTL());
+        assertTrue(ipv4Hdr.toString().contains("TTL=" + 64));
     }
 }

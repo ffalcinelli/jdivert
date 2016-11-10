@@ -59,6 +59,14 @@ public class Ipv4 extends Ip<Inet4Address> {
         raw.putShort(2, (short) length);
     }
 
+    public int getTTL() {
+        return unsigned(raw.get(8));
+    }
+
+    public void setTTL(int ttl) {
+        raw.put(8, (byte) ttl);
+    }
+
     @Override
     public Protocol getNextHeaderProtocol() {
         return getProtocol();
@@ -133,13 +141,13 @@ public class Ipv4 extends Ip<Inet4Address> {
                 , Integer.toHexString(getID())
                 , flags
                 , 0 //TODO fragOff
-                , 0 //TODO TTL
+                , getTTL()
                 , getProtocol()
                 , Integer.toHexString(getChecksum())
         );
     }
 
-    enum Flag {
+    public enum Flag {
         RESERVED, DF, MF
     }
 }
