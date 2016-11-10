@@ -96,6 +96,7 @@ public class Ipv4 extends Ip<Inet4Address> {
         setFlag(6, flag.ordinal(), value);
     }
 
+
     public byte[] getOptions() {
         if (getHeaderLength() - 20 > 0)
             return getBytesAtOffset(20, getHeaderLength() - 20);
@@ -118,9 +119,32 @@ public class Ipv4 extends Ip<Inet4Address> {
         raw.putShort(4, (short) id);
     }
 
-//    public short getFragmentOffset() {
-//        return (short) (raw.getShort(4) >> 3);
-//    }
+    /**
+     * Gets flags as a bitmask
+     *
+     * @return The bitmask representing flags
+     */
+    public int getFlags() {
+        return raw.get(6) & 0x07;
+    }
+
+    /**
+     * Sets flags with a bitmask
+     *
+     * @param flags The bitmask representing flags
+     */
+    public void setFlags(int flags) {
+        byte first = (byte) (flags & 0x07);
+        raw.put(6, (byte) (first | (getFragmentOffset() << 3) & 0x00FF));
+    }
+
+    public int getFragmentOffset() {
+        return raw.getShort(6) >> 3;
+    }
+
+    public void setFragmentOffset(int fragOff) {
+        raw.putShort(6, (short) (getFlags() | (fragOff << 3)));
+    }
 
 
     @Override
@@ -140,7 +164,7 @@ public class Ipv4 extends Ip<Inet4Address> {
                 , getTotalLength()
                 , Integer.toHexString(getID())
                 , flags
-                , 0 //TODO fragOff
+                , getFragmentOffset()
                 , getTTL()
                 , getProtocol()
                 , Integer.toHexString(getChecksum())

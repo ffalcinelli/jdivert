@@ -24,6 +24,7 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ROUTING;
+import static com.github.ffalcinelli.jdivert.headers.Ipv4.Flag.*;
 import static org.junit.Assert.*;
 
 /**
@@ -32,10 +33,8 @@ import static org.junit.Assert.*;
 public abstract class IPv4IPTestCase extends IPTestCase {
 
     protected Ipv4 ipv4Hdr;
-    protected int ipCksum;
-    protected int ident;
+    protected int ipCksum, ident, ttl, fragOff;
     protected byte[] options;
-    protected int ttl;
 
     @Before
     public void setUp() {
@@ -45,6 +44,7 @@ public abstract class IPv4IPTestCase extends IPTestCase {
         localhost = "127.0.0.1";
         ipVersion = 4;
         ttl = 64;
+        fragOff = 2048;
     }
 
     @Test
@@ -141,5 +141,33 @@ public abstract class IPv4IPTestCase extends IPTestCase {
         ipv4Hdr.setTTL(64);
         assertEquals(64, ipv4Hdr.getTTL());
         assertTrue(ipv4Hdr.toString().contains("TTL=" + 64));
+    }
+
+    @Test
+    public void fragOff() {
+        int flags = ipv4Hdr.getFlags();
+        assertEquals(fragOff, ipv4Hdr.getFragmentOffset());
+        ipv4Hdr.setFragmentOffset(8);
+        assertEquals(8, ipv4Hdr.getFragmentOffset());
+        assertEquals(flags, ipv4Hdr.getFlags());
+        assertTrue(ipv4Hdr.toString().contains("fragOff=" + ipv4Hdr.getFragmentOffset()));
+    }
+
+    @Test
+    public void flagsInteger() {
+        int flags = 0x2;
+        ipv4Hdr.setFlags(flags);
+        assertEquals(flags, ipv4Hdr.getFlags());
+        assertFalse(ipv4Hdr.is(RESERVED));
+        assertTrue(ipv4Hdr.is(DF));
+        assertFalse(ipv4Hdr.is(MF));
+
+        ipv4Hdr.set(RESERVED, true);
+        ipv4Hdr.set(DF, false);
+        ipv4Hdr.set(MF, true);
+
+        assertEquals(0x5, ipv4Hdr.getFlags());
+
+
     }
 }

@@ -43,6 +43,7 @@ public class ICMPIPv4TestCase extends IPv4IPTestCase {
         ident = 9967;
         ipCksum = 22521;
         restOfHeader = new byte[]{-41, 59, 0x0, 0x0};
+        fragOff = 0;
     }
 
     @Test
