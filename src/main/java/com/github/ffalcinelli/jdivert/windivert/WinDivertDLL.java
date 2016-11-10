@@ -18,8 +18,6 @@
 package com.github.ffalcinelli.jdivert.windivert;
 
 import com.sun.jna.Library;
-import com.sun.jna.Native;
-import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
@@ -35,9 +33,7 @@ import static com.sun.jna.platform.win32.WinNT.HANDLE;
  * </p>
  */
 public interface WinDivertDLL extends Library {
-    WinDivertDLL INSTANCE = (WinDivertDLL) Native.loadLibrary(
-            (Platform.is64Bit() ? "WinDivert64" : "WinDivert32"), WinDivertDLL.class);
-
+    WinDivertDLL INSTANCE = DeployHandler.deploy();
 
     HANDLE WinDivertOpen(
             String filter,
