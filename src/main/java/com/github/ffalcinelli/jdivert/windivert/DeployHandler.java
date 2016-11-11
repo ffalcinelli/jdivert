@@ -110,11 +110,15 @@ public class DeployHandler {
      */
     public static WinDivertDLL deploy() {
         String name = Platform.is64Bit() ? "WinDivert64" : "WinDivert32";
+        String jnaLibraryPath = System.getProperty("jna.library.path");
         try {
             System.setProperty("jna.library.path", deployInTempDir(name));
             return (WinDivertDLL) Native.loadLibrary(name, WinDivertDLL.class);
         } catch (Exception e) {
             throw new ExceptionInInitializerError(new Exception("Unable to deploy WinDivert", e));
+        } finally {
+            if (jnaLibraryPath != null)
+                System.setProperty("jna.library.path", jnaLibraryPath);
         }
     }
 
