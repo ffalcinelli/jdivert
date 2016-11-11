@@ -372,7 +372,7 @@ public class Packet {
                 , ipHdr
                 , transHdr != null ? transHdr : icmpHdr
                 , direction
-                , iface
+                , Arrays.toString(iface)
                 , printHexBinary(getRaw())
         );
     }

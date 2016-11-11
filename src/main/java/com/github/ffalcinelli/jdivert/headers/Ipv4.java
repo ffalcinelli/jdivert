@@ -177,7 +177,8 @@ public class Ipv4 extends Ip<Inet4Address> {
             flags.append(flag.name()).append("=").append(is(flag)).append(", ");
         }
         return String.format("IPv4 {version=%d, srcAddr=%s, dstAddr=%s, IHL=%d, DSCP=%d, ECN=%d, length=%d, ID=%s " +
-                        "%s fragOff=%d TTL=%d " +
+                        "%s" +
+                        "fragOff=%d TTL=%d " +
                         "proto=%s, cksum=%s}"
                 , getVersion()
                 , getSrcAddrStr()

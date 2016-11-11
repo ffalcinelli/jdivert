@@ -87,18 +87,17 @@ public class DeployHandler {
     }
 
     /**
-     * Deploys the *.dll and *.sys for the given name in a temporary directory.
+     * Deploys the *.dll and *.sys for the given in a temporary directory.
      *
-     * @param name The resource name for DLL and SYS files to deploy
      * @return The temporary directory absolute path
      * @throws IOException Whenever the deploy process encounters an error
      */
-    public static String deployInTempDir(String name) throws IOException {
+    public static String deployInTempDir() throws IOException {
         File deployDir = createTempDirectory();
-        for (String ext : new String[]{".dll", ".sys"}) {
-            File copyFile = new File(deployDir + File.separator + name + ext);
+        for (String file : new String[]{"WinDivert32.dll", "WinDivert32.sys", "WinDivert64.dll", "WinDivert64.sys"}) {
+            File copyFile = new File(deployDir + File.separator + file);
             copyFile.createNewFile();
-            copy(ClassLoader.getSystemClassLoader().getResourceAsStream(name + ext), new FileOutputStream(copyFile));
+            copy(ClassLoader.getSystemClassLoader().getResourceAsStream(file), new FileOutputStream(copyFile));
         }
         return deployDir.getAbsolutePath();
     }
@@ -109,11 +108,10 @@ public class DeployHandler {
      * @return The {@link WinDivertDLL} instance to use
      */
     public static WinDivertDLL deploy() {
-        String name = Platform.is64Bit() ? "WinDivert64" : "WinDivert32";
         String jnaLibraryPath = System.getProperty("jna.library.path");
         try {
-            System.setProperty("jna.library.path", deployInTempDir(name));
-            return (WinDivertDLL) Native.loadLibrary(name, WinDivertDLL.class);
+            System.setProperty("jna.library.path", deployInTempDir());
+            return (WinDivertDLL) Native.loadLibrary(Platform.is64Bit() ? "WinDivert64" : "WinDivert32", WinDivertDLL.class);
         } catch (Exception e) {
             throw new ExceptionInInitializerError(new Exception("Unable to deploy WinDivert", e));
         } finally {
