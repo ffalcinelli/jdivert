@@ -1,6 +1,6 @@
 # jdivert
 
-[![AppVeyor Build Status](https://img.shields.io/appveyor/ci/ffalcinelli/jdivert/master.svg)](https://ci.appveyor.com/project/ffalcinelli/jdivert) [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/master.svg)](https://codecov.io/github/ffalcinelli/jdivert)
+[![AppVeyor Build Status](https://img.shields.io/appveyor/ci/ffalcinelli/jdivert/master.svg)](https://ci.appveyor.com/project/ffalcinelli/jdivert) [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/master.svg)](https://codecov.io/github/ffalcinelli/jdivert) [![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)])(https://search.maven.org/#artifactdetails%7Ccom.github.ffalcinelli%7Cjdivert%7C1.0%7Cjar)
 
 Java bindings for [WinDivert](https://reqrypt.org/windivert.html), a Windows driver that allows user-mode applications to capture/modify/drop network packets sent to/from the Windows network stack.
 
