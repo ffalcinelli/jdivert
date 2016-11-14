@@ -1,9 +1,12 @@
 group 'com.github.ffalcinelli'
-version '1.0-SNAPSHOT'
+version '1.0'
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'jacoco'
+apply plugin: 'maven'
+apply plugin: 'signing'
 
 sourceCompatibility = 1.6
 
@@ -12,8 +15,8 @@ repositories {
 }
 
 dependencies {
-    compile 'net.java.dev.jna:jna:4.2.+'
-    compile 'net.java.dev.jna:jna-platform:4.2.+'
+    compile 'net.java.dev.jna:jna:4.2.2'
+    compile 'net.java.dev.jna:jna-platform:4.2.2'
     testCompile group: 'junit', name: 'junit', version: '4.11'
 }
 
@@ -23,12 +26,11 @@ jacocoTestReport {
     }
 }
 
+check.dependsOn jacocoTestReport
+
 test {
     systemProperty "jna.nosys", "true"
-
 }
-
-check.dependsOn jacocoTestReport
 
 task deleteDocs(){
     fileTree(dir: "docs", exclude: ".nojekyll")
@@ -37,4 +39,68 @@ task deleteDocs(){
 task copyJavadoc(dependsOn: deleteDocs, type: Copy) {
     from 'build/docs/javadoc'
     into 'docs'
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+signing {
+    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: System.getenv("OSSRH_USERNAME"), password: System.getenv("OSSRH_PASSWORD"))
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: System.getenv("OSSRH_USERNAME"), password: System.getenv("OSSRH_PASSWORD"))
+            }
+
+            pom.project {
+                name 'jdivert'
+                packaging 'jar'
+                // optionally artifactId can be defined here
+                description 'A Java binding to WinDivert driver'
+                url 'https://github.com/ffalcinelli/jdivert'
+
+                scm {
+                    connection 'https://github.com/ffalcinelli/jdivert.git'
+                    developerConnection 'https://github.com/ffalcinelli/jdivert.git'
+                    url 'https://github.com/ffalcinelli/jdivert'
+                }
+
+                licenses {
+                    license {
+                        name 'GNU Lesser General Public License 3'
+                        url 'https://www.gnu.org/licenses/lgpl-3.0.html'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'ffalcinelli'
+                        name 'Fabio Falcinelli'
+                        email 'fabio.falcinelli@gmail.com'
+                    }
+                }
+            }
+        }
+    }
 }

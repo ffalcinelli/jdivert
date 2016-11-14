@@ -1,9 +1,8 @@
 # jdivert
 
-A WinDivert Java binding.
-
 [![AppVeyor Build Status](https://img.shields.io/appveyor/ci/ffalcinelli/jdivert/master.svg)](https://ci.appveyor.com/project/ffalcinelli/jdivert) [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/master.svg)](https://codecov.io/github/ffalcinelli/jdivert)
 
+Java bindings for [WinDivert](https://reqrypt.org/windivert.html), a Windows driver that allows user-mode applications to capture/modify/drop network packets sent to/from the Windows network stack.
 
 ## Requirements
 
@@ -13,12 +12,45 @@ A WinDivert Java binding.
 
 ## Installation
 
-TODO
+Add JDivert as a dependency in your project:
+
+### Maven
+
+Put these lines under section `dependencies` in your `pom.xml`
+
+```xml
+<dependency>
+  <groupId>com.github.ffalcinelli</groupId>
+  <artifactId>jdivert</artifactId>
+  <version>1.0</version>
+</dependency>
+```
+
+### Gradle
+
+In your `build.gradle` file make sure you include jdivert into dependencies list
+
+```groovy
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'com.github.ffalcinelli:jdivert:1.0'
+}
+```
+
+JDivert bundles [WinDivert](https://reqrypt.org/windivert.html) 1.1.8 into its JAR file distribution. The first time
+`WinDivertDLL` interface gets initialized, it will copy WinDivert .sys and .dll files inside a temporary directory and will point JNA to
+load them by this directory by setting `jna.library.path` system property.
+To have less impact in projects using JNA, the `jna.library.path` setting is saved before and restored after the WinDivert deployment and load.
+Upon exit, temporary dir will be removed and so the files in it.
+
 
 ## Getting Started
 
-JDivert consists of two main classes: com.github.ffalcinelli.jdivert.WinDivert and
-com.github.ffalcinelli.jdivert.Packet. This follows the [PyDivert](https://github.com/ffalcinelli/pydivert) structure.
+JDivert consists of two main classes: `WinDivert` and
+`Packet`. This follows the [PyDivert](https://github.com/ffalcinelli/pydivert) structure.
 
 First, you usually want to create a WinDivert object to start capturing network traffic and then call .recv() to receive the first Packet that was captured.
 By receiving packets, they are taken out of the Windows network stack and will not be sent out unless you take action. You can re-inject packets by calling .send(packet). The following example opens a WinDivert handle, receives a single packet, prints it, re-injects it, and then exits:
