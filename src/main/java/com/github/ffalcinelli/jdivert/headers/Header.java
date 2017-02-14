@@ -123,9 +123,9 @@ public abstract class Header {
     public void setFlag(int index, int pos, boolean flag) {
         int value = raw.get(index);
         if (flag)
-            value = value | (1 << pos);
+            value |= 1 << pos;
         else
-            value = value & ~(1 << pos);
+            value &= ~(1 << pos);
         raw.put(index, (byte) value);
     }
 

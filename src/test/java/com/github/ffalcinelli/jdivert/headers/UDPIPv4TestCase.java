@@ -47,7 +47,6 @@ public class UDPIPv4TestCase extends IPv4IPTestCase {
         ipHeaderLength = 20;
         ident = 33215;
         ipCksum = 8593;
-        fragOff = 0;
     }
 
     @Test

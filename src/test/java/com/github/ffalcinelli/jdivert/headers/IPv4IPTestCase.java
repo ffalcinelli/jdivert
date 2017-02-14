@@ -33,7 +33,7 @@ import static org.junit.Assert.*;
 public abstract class IPv4IPTestCase extends IPTestCase {
 
     protected Ipv4 ipv4Hdr;
-    protected int ipCksum, ident, ttl, fragOff;
+    protected int ipCksum, ident, ttl;
     protected byte[] options;
 
     @Before
@@ -44,7 +44,6 @@ public abstract class IPv4IPTestCase extends IPTestCase {
         localhost = "127.0.0.1";
         ipVersion = 4;
         ttl = 64;
-        fragOff = 2048;
     }
 
     @Test
@@ -97,6 +96,7 @@ public abstract class IPv4IPTestCase extends IPTestCase {
 
     @Test
     public void flags() {
+        ipv4Hdr.setFlags(0);
         for (Ipv4.Flag flag : Ipv4.Flag.values()) {
             assertFalse(ipv4Hdr.is(flag));
             ipv4Hdr.set(flag, true);
@@ -154,7 +154,6 @@ public abstract class IPv4IPTestCase extends IPTestCase {
     @Test
     public void fragOff() {
         int flags = ipv4Hdr.getFlags();
-        assertEquals(fragOff, ipv4Hdr.getFragmentOffset());
         ipv4Hdr.setFragmentOffset(8);
         assertEquals(8, ipv4Hdr.getFragmentOffset());
         assertEquals(flags, ipv4Hdr.getFlags());
@@ -186,5 +185,18 @@ public abstract class IPv4IPTestCase extends IPTestCase {
         ipv4Hdr.setDSCP(33);
         assertEquals(33, ipv4Hdr.getDSCP());
         assertEquals(2, ipv4Hdr.getECN());
+    }
+
+    @Test
+    public void bug1WrongFragOff() {
+        int flags = ipv4Hdr.getFlags();
+        ipv4Hdr.setFragmentOffset(12);
+        assertEquals(12, ipv4Hdr.getFragmentOffset());
+        assertEquals(flags, ipv4Hdr.getFlags());
+        ipv4Hdr.setFlags(2);
+        assertTrue(ipv4Hdr.is(Ipv4.Flag.DF));
+        assertEquals(2, ipv4Hdr.getFlags());
+        assertEquals(12, ipv4Hdr.getFragmentOffset());
+        assertTrue(ipv4Hdr.toString().contains("fragOff=" + ipv4Hdr.getFragmentOffset()));
     }
 }

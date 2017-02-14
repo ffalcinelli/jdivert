@@ -93,11 +93,11 @@ public class Ipv4 extends Ip<Inet4Address> {
     }
 
     public boolean is(Flag flag) {
-        return getFlag(6, flag.ordinal());
+        return getFlag(6, flag.ordinal() + 5);
     }
 
     public void set(Flag flag, boolean value) {
-        setFlag(6, flag.ordinal(), value);
+        setFlag(6, flag.ordinal() + 5, value);
     }
 
 
@@ -129,7 +129,7 @@ public class Ipv4 extends Ip<Inet4Address> {
      * @return The bitmask representing flags
      */
     public int getFlags() {
-        return raw.get(6) & 0x07;
+        return ((raw.get(6) & 0x00FF) >> 5) & 0x00FF;
     }
 
     /**
@@ -138,16 +138,21 @@ public class Ipv4 extends Ip<Inet4Address> {
      * @param flags The bitmask representing flags
      */
     public void setFlags(int flags) {
-        byte first = (byte) (flags & 0x07);
-        raw.put(6, (byte) (first | (getFragmentOffset() << 3) & 0x00FF));
+        byte first = (byte) (flags << 5);
+        byte second = (byte) (getFragmentOffset() & 0xFF00);
+//        short second = (short) (getFragmentOffset() << 3);
+        raw.put(6, (byte) (first | second));
     }
 
     public int getFragmentOffset() {
-        return raw.getShort(6) >> 3;
+//        return (raw.getShort(6) & 0xF8FF) >> 3;
+        return raw.getShort(6) & 0x00001FFF;
     }
 
     public void setFragmentOffset(int fragOff) {
-        raw.putShort(6, (short) (getFlags() | (fragOff << 3)));
+        int first = getFlags() << 13;
+        int second = fragOff & 0x00001FFF;
+        raw.putShort(6, (short) (first | second));
     }
 
     public int getDSCP() {
