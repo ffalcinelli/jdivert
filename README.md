@@ -22,7 +22,7 @@ Put these lines under section `dependencies` in your `pom.xml`
 <dependency>
   <groupId>com.github.ffalcinelli</groupId>
   <artifactId>jdivert</artifactId>
-  <version>1.0</version>
+  <version>1.1</version>
 </dependency>
 ```
 
@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.github.ffalcinelli:jdivert:1.0'
+    compile 'com.github.ffalcinelli:jdivert:1.1'
 }
 ```
 
