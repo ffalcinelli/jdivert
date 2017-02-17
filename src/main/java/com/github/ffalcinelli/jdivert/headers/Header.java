@@ -145,15 +145,6 @@ public abstract class Header {
      */
     public abstract int getHeaderLength();
 
-    /**
-     * Convert a short into its unsigned representation as int.
-     *
-     * @param value The value to convert
-     * @return The unsigned representation.
-     */
-    public int unsigned(short value) {
-        return value & 0xffff;
-    }
 
     /**
      * Return the {@link java.nio.ByteBuffer} used to construct this header

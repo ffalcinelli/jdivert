@@ -30,7 +30,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Created by fabio on 26/10/2016.
  */
-public abstract class IPv6IPTestCase extends IPTestCase {
+public abstract class IPv6TestCase extends IPTestCase {
 
     protected Ipv6 ipv6Hdr;
     protected int hopLimit;

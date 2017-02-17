@@ -26,7 +26,7 @@ import static org.junit.Assert.*;
 /**
  * Created by fabio on 02/11/2016.
  */
-public class ICMPIPv4TestCase extends IPv4IPTestCase {
+public class ICMPIPv4TestCase extends IPv4TestCase {
 
     protected Icmpv4 icmpHdr;
     protected byte[] restOfHeader;
@@ -40,8 +40,6 @@ public class ICMPIPv4TestCase extends IPv4IPTestCase {
         dstAddr = "8.8.8.8";
         protocol = ICMP;
         ipHeaderLength = 20;
-        ident = 9967;
-        ipCksum = 22521;
         restOfHeader = new byte[]{-41, 59, 0x0, 0x0};
     }
 

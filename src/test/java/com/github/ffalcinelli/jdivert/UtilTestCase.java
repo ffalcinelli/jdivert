@@ -17,19 +17,29 @@
 
 package com.github.ffalcinelli.jdivert;
 
+import com.github.ffalcinelli.jdivert.windivert.DeployHandler;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 /**
  * Created by fabio on 26/10/2016.
  */
 public class UtilTestCase {
+
+    @Test
+    public void coverageHack() {
+        /*
+         * This simple hack stimulate the coverage of Util and Enums class definition line.
+         */
+        assertNotNull(new Util());
+        assertNotNull(new Enums());
+        assertNotNull(new DeployHandler());
+    }
 
     @Test
     public void hexConversion() {

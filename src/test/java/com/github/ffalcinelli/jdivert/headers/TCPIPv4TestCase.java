@@ -21,14 +21,12 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.TCP;
-import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.ACK;
-import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.PSH;
 import static org.junit.Assert.*;
 
 /**
  * Created by fabio on 29/10/2016.
  */
-public class TCPIPv4IpTestCase extends IPv4IPTestCase {
+public class TCPIPv4TestCase extends IPv4TestCase {
 
     protected int tcpHdrLen;
     protected int seqNum;
@@ -49,8 +47,6 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
         dstAddr = "54.242.116.253";
         protocol = TCP;
         ipHeaderLength = 20;
-        ipCksum = 61445;
-        ident = 18272;
 
         tcpHdrLen = 20;
         seqNum = 142004176;
@@ -58,7 +54,6 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
         windowSize = 255;
         urgPtr = 0;
         tcpCksum = 36282;
-        ttl = 65408;
     }
 
     @Test
@@ -113,18 +108,12 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
 
     @Test
     public void flags() {
-        super.flags();
+        tcpHdr.setFlags(0x0);
         for (Tcp.Flag flag : Tcp.Flag.values()) {
-            if (flag == ACK || flag == PSH) {
-                assertTrue(flag.name() + " is not false", tcpHdr.is(flag));
-                tcpHdr.set(flag, false);
-                assertFalse(flag.name() + " is not true", tcpHdr.is(flag));
-            } else {
-                assertFalse(flag.name() + " is not false", tcpHdr.is(flag));
-                tcpHdr.set(flag, true);
-                assertTrue(flag.name() + " is not true", tcpHdr.is(flag));
-            }
+            assertFalse(flag.name() + " is not false", tcpHdr.is(flag));
+            tcpHdr.set(flag, true);
         }
+        assertEquals(0x01FF, tcpHdr.getFlags());
     }
 
     @Test
@@ -171,5 +160,16 @@ public class TCPIPv4IpTestCase extends IPv4IPTestCase {
         assertEquals(tcpHdr.hashCode(), tcpHdr2.hashCode());
     }
 
+    @Test
+    public void reserved() {
+        assertEquals(0x0, tcpHdr.getReserved());
+        tcpHdr.setReserved(0x7);
+        assertEquals(0x7, tcpHdr.getReserved());
+    }
+
+    @Test
+    public void bug2WrongFlags() {
+
+    }
 
 }

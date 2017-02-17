@@ -19,6 +19,8 @@ package com.github.ffalcinelli.jdivert.headers;
 
 import java.nio.ByteBuffer;
 
+import static com.github.ffalcinelli.jdivert.Util.unsigned;
+
 /**
  * Created by fabio on 25/10/2016.
  */

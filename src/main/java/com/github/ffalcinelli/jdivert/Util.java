@@ -33,7 +33,7 @@ public class Util {
      * Converts the string argument into an array of bytes.
      *
      * @param s A string containing a binary "hexlified".
-     * @return The binary bytes
+     * @return The binary bytes.
      */
     public static byte[] parseHexBinary(String s) {
         final int len = s.length();
@@ -56,6 +56,12 @@ public class Util {
         return out;
     }
 
+    /**
+     * Convert a character to it's hex value.
+     *
+     * @param ch The character [a-fA-F0-9].
+     * @return An integer representing the hex value.
+     */
     private static int hexToBin(char ch) {
         if ('0' <= ch && ch <= '9') return ch - '0';
         if ('A' <= ch && ch <= 'F') return ch - 'A' + 10;
@@ -66,8 +72,8 @@ public class Util {
     /**
      * "Hexlify" a {@link java.nio.ByteBuffer} into a string.
      *
-     * @param data The binary data to convert
-     * @return The "hexlified" representation of data
+     * @param data The binary data to convert.
+     * @return The "hexlified" representation of data.
      */
     public static String printHexBinary(ByteBuffer data) {
         return printHexBinary(getBytesAtOffset(data, 0, data.capacity()));
@@ -91,9 +97,9 @@ public class Util {
     /**
      * Pad a byte array with zeroes. If Source array length exceed size, then truncate it.
      *
-     * @param source The source array
-     * @param size   The final array size
-     * @return The array of size elements eventually zero-padded
+     * @param source The source array.
+     * @param size   The final array size.
+     * @return The array of size elements eventually zero-padded.
      */
     public static byte[] zeroPadArray(byte[] source, int size) {
         byte[] data = new byte[size];
@@ -111,10 +117,10 @@ public class Util {
      * <p>
      * The operation is {@code synchronized} over the {@code buffer} to avoid thread interference.
      *
-     * @param buffer The {@link java.nio.ByteBuffer} to read data from
-     * @param offset The absolute offset from which starting to extract data
-     * @param length How many bytes to extract
-     * @return The exctracted bytes as a byte array
+     * @param buffer The {@link java.nio.ByteBuffer} to read data from.
+     * @param offset The absolute offset from which starting to extract data.
+     * @param length How many bytes to extract.
+     * @return The exctracted bytes as a byte array.
      */
     public static byte[] getBytesAtOffset(ByteBuffer buffer, int offset, int length) {
         byte[] data = new byte[length];
@@ -132,10 +138,10 @@ public class Util {
      * <p>
      * The operation is {@code synchronized} over the {@code buffer} to avoid thread interference.
      *
-     * @param buffer The {@link java.nio.ByteBuffer} to write data to
-     * @param offset The absolute offset from which starting to write data
-     * @param length How many bytes to write
-     * @param data   The data to write into the {@link java.nio.ByteBuffer}
+     * @param buffer The {@link java.nio.ByteBuffer} to write data to.
+     * @param offset The absolute offset from which starting to write data.
+     * @param length How many bytes to write.
+     * @param data   The data to write into the {@link java.nio.ByteBuffer}.
      */
     public static void setBytesAtOffset(ByteBuffer buffer, int offset, int length, byte[] data) {
         synchronized (buffer) {
@@ -144,5 +150,25 @@ public class Util {
             buffer.put(data, 0, length);
             buffer.position(position);
         }
+    }
+
+    /**
+     * Convert a short into its unsigned representation as int.
+     *
+     * @param value The value to convert.
+     * @return The unsigned representation.
+     */
+    public static int unsigned(short value) {
+        return value & 0x0000ffff;
+    }
+
+    /**
+     * Convert a byte into its unsigned representation as int.
+     *
+     * @param value The value to convert.
+     * @return The unsigned representation.
+     */
+    public static int unsigned(byte value) {
+        return value & 0x000000ff;
     }
 }

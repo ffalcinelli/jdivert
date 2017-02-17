@@ -19,6 +19,7 @@ package com.github.ffalcinelli.jdivert.headers;
 
 import java.nio.ByteBuffer;
 
+import static com.github.ffalcinelli.jdivert.Util.unsigned;
 import static com.github.ffalcinelli.jdivert.Util.zeroPadArray;
 import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.NS;
 
@@ -57,14 +58,22 @@ public class Tcp extends Transport {
     }
 
     public void setDataOffset(int dataOffset) {
-        raw.put(start + 12, (byte) (
-                ((dataOffset << 4) & 0xF0) |
-                        (raw.get(start + 12) & 0x0F)));
+        if (dataOffset < 5 || dataOffset > 15)
+            throw new IllegalArgumentException("TCP data offset must be greater or equal than 5 and less or equal than 15. You passed " + dataOffset);
+        raw.put(start + 12, (byte) (((dataOffset << 4) | (getReserved() << 1) | (is(NS) ? 0x01 : 0x00))));
+    }
+
+    public int getReserved() {
+        return (raw.get(start + 12) >> 1) & 0x07;
+    }
+
+    public void setReserved(int reserved) {
+        raw.put(start + 12, (byte) ((getDataOffset() << 4) | (reserved << 1) | (is(NS) ? 0x01 : 0x00)));
     }
 
     public boolean is(Flag flag) {
         if (flag == NS) {
-            return getFlag(start + 12, 7);
+            return getFlag(start + 12, 0);
         } else {
             //Starts by 8 since NS belongs to the previous byte
             return getFlag(start + 13, 8 - flag.ordinal());
@@ -73,11 +82,19 @@ public class Tcp extends Transport {
 
     public void set(Flag flag, boolean value) {
         if (flag == NS) {
-            setFlag(start + 12, 7, value);
+            setFlag(start + 12, 0, value);
         } else {
             //Starts by 8 since NS belongs to the previous byte
             setFlag(start + 13, 8 - flag.ordinal(), value);
         }
+    }
+
+    public int getFlags() {
+        return raw.getShort(start + 12) & 0x01FF;
+    }
+
+    public void setFlags(int flags) {
+        raw.putShort(start + 12, (short) ((getDataOffset() << 12) | (getReserved() << 5) | (flags & 0x01FF)));
     }
 
     public int getWindowSize() {
@@ -124,14 +141,15 @@ public class Tcp extends Transport {
         for (Flag flag : Flag.values()) {
             flags.append(flag).append("=").append(is(flag) ? 1 : 0).append(", ");
         }
-        return String.format("TCP {srcPort=%d, dstPort=%d, seqNum=%d, ackNum=%d dataOffset=%d, " +
-//                        "Reserved1=%d Reserved2=%d " +
+        return String.format("TCP {srcPort=%d, dstPort=%d, seqNum=%d, ackNum=%d, dataOffset=%d, " +
+                        "Reserved=%s, " +
                         "%s window=%d, cksum=%s, urgPtr=%d}"
                 , getSrcPort()
                 , getDstPort()
                 , getSeqNumber()
                 , getAckNumber()
                 , getDataOffset()
+                , Integer.toHexString(getReserved())
                 , flags
                 , getWindowSize()
                 , Integer.toHexString(getChecksum())

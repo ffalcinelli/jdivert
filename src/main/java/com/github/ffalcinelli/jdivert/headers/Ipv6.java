@@ -21,6 +21,7 @@ import java.net.Inet6Address;
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol;
+import static com.github.ffalcinelli.jdivert.Util.unsigned;
 
 /**
  * Created by fabio on 24/10/2016.
@@ -30,9 +31,9 @@ public class Ipv6 extends Ip<Inet6Address> {
 
     public Ipv6(ByteBuffer raw) {
         super(raw);
-        srcAddrOffset = 8;
-        dstAddrOffset = 24;
-        addrLen = 16;
+        setSrcAddrOffset(8);
+        setDstAddrOffset(24);
+        setAddrLen(16);
     }
 
     @Override

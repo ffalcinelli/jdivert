@@ -21,13 +21,12 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.TCP;
-import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.*;
 import static org.junit.Assert.*;
 
 /**
  * Created by fabio on 29/10/2016.
  */
-public class TCPIPv6IpTestCase extends IPv6IPTestCase {
+public class TCPIPv6TestCase extends IPv6TestCase {
 
     protected int tcpHdrLen;
     protected int seqNum;
@@ -109,17 +108,14 @@ public class TCPIPv6IpTestCase extends IPv6IPTestCase {
     }
 
     @Test
-    public void flags() {
+    public void tcpFlags() {
+        tcpHdr.setFlags(0x0);
         for (Tcp.Flag flag : Tcp.Flag.values()) {
-            if (flag == NS || flag == ACK || flag == PSH) {
-                assertTrue(flag.name() + " is not false", tcpHdr.is(flag));
-                tcpHdr.set(flag, false);
-                assertFalse(flag.name() + " is not true", tcpHdr.is(flag));
-            } else {
                 assertFalse(flag.name() + " is not false", tcpHdr.is(flag));
-                tcpHdr.set(flag, true);
-                assertTrue(flag.name() + " is not true", tcpHdr.is(flag));
-            }
+        }
+        tcpHdr.setFlags(0x01FF);
+        for (Tcp.Flag flag : Tcp.Flag.values()) {
+            assertTrue(flag.name() + " is not true", tcpHdr.is(flag));
         }
     }
 
@@ -154,12 +150,14 @@ public class TCPIPv6IpTestCase extends IPv6IPTestCase {
         assertArrayEquals(newOptions, tcpHdr.getOptions());
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void optionsIllegalSizeTcp() {
+    @Test(expected = IllegalArgumentException.class)
+    public void illegalDataOffsetGT15() {
         tcpHdr.setDataOffset(20);
-        tcpHdr.setOptions(new byte[]{
-                0x1, 0x2, 0x3, 0x4
-        });
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void illegalDataOffsetLT5() {
+        tcpHdr.setDataOffset(4);
     }
 
     @Test

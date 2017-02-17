@@ -43,7 +43,7 @@ public abstract class IPTestCase {
     protected int ipHeaderLength;
 
     @Before
-    public void setUp(){
+    public void setUp() {
         rawData = parseHexBinary(rawDataHexString);
     }
 
@@ -73,6 +73,18 @@ public abstract class IPTestCase {
         ipHdr.setDstAddrStr(localhost);
         assertEquals(localhost, ipHdr.getDstAddrStr());
         assertTrue(ipHdr.toString().contains("dstAddr=" + localhost));
+    }
+
+    @Test
+    public void illegalSrcAddressLength() {
+        ipHdr.setAddrLen(ipHdr.getHeaderLength());
+        assertNull(ipHdr.getSrcAddr());
+    }
+
+    @Test
+    public void illegalDstAddressLength() {
+        ipHdr.setAddrLen(ipHdr.getHeaderLength());
+        assertNull(ipHdr.getDstAddr());
     }
 
     @Test

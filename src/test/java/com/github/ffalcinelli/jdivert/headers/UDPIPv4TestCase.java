@@ -27,7 +27,7 @@ import static org.junit.Assert.*;
 /**
  * Created by fabio on 02/11/2016.
  */
-public class UDPIPv4TestCase extends IPv4IPTestCase {
+public class UDPIPv4TestCase extends IPv4TestCase {
 
     protected Udp udp;
     protected int srcPort;
@@ -45,8 +45,6 @@ public class UDPIPv4TestCase extends IPv4IPTestCase {
         dstPort = 53;
         protocol = UDP;
         ipHeaderLength = 20;
-        ident = 33215;
-        ipCksum = 8593;
     }
 
     @Test

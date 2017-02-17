@@ -30,11 +30,9 @@ import static org.junit.Assert.*;
 /**
  * Created by fabio on 26/10/2016.
  */
-public abstract class IPv4IPTestCase extends IPTestCase {
+public abstract class IPv4TestCase extends IPTestCase {
 
     protected Ipv4 ipv4Hdr;
-    protected int ipCksum, ident, ttl;
-    protected byte[] options;
 
     @Before
     public void setUp() {
@@ -43,7 +41,6 @@ public abstract class IPv4IPTestCase extends IPTestCase {
         ipHdr = ipv4Hdr;
         localhost = "127.0.0.1";
         ipVersion = 4;
-        ttl = 64;
     }
 
     @Test
@@ -106,7 +103,6 @@ public abstract class IPv4IPTestCase extends IPTestCase {
 
     @Test
     public void checksum() {
-        assertEquals(ipCksum, ipv4Hdr.getChecksum());
         ipv4Hdr.setChecksum((short) 21);
         assertEquals(21, ipv4Hdr.getChecksum());
     }
@@ -131,7 +127,6 @@ public abstract class IPv4IPTestCase extends IPTestCase {
 
     @Test
     public void identification() {
-        assertEquals(ident, ipv4Hdr.getID());
         ipv4Hdr.setID((short) 2);
         assertEquals(2, ipv4Hdr.getID());
     }
@@ -145,7 +140,6 @@ public abstract class IPv4IPTestCase extends IPTestCase {
 
     @Test
     public void ttl() {
-        assertEquals(ttl, ipv4Hdr.getTTL());
         ipv4Hdr.setTTL(64);
         assertEquals(64, ipv4Hdr.getTTL());
         assertTrue(ipv4Hdr.toString().contains("TTL=" + 64));
@@ -185,6 +179,23 @@ public abstract class IPv4IPTestCase extends IPTestCase {
         ipv4Hdr.setDSCP(33);
         assertEquals(33, ipv4Hdr.getDSCP());
         assertEquals(2, ipv4Hdr.getECN());
+    }
+
+    @Test
+    public void diffServ() {
+        ipv4Hdr.setDSCP(0x1A);
+        assertEquals(0x1A, ipv4Hdr.getDiffServ());
+        ipv4Hdr.setDiffServ(0x1B);
+        assertEquals(0x1B, ipv4Hdr.getDSCP());
+    }
+
+    @Test
+    public void tos() {
+        ipv4Hdr.setTOS(0xFC);
+        assertEquals(0x3F, ipv4Hdr.getDiffServ());
+        assertEquals(0x0, ipv4Hdr.getECN());
+        ipv4Hdr.setECN(0x03);
+        assertEquals(0xFF, ipv4Hdr.getTOS());
     }
 
     @Test

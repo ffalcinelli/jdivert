@@ -32,28 +32,14 @@ public class DeployHandler {
 
     public static int BUFFER_SIZE = 512;
 
-    /**
-     * Creates a Temporary directory
-     *
-     * @return The {@link java.io.File} object for temporary directory
-     * @throws IOException If the directory cannot be set as a proper temporary directory
-     */
-    public static File createTempDirectory()
-            throws IOException {
-        final File temp = File.createTempFile("temp", Long.toString(System.nanoTime()));
-        if (!(temp.delete()) || !(temp.mkdir())) {
-            throw new IOException("Could not create a proper temp dir at " + temp.getAbsolutePath());
-        }
-        return (temp);
-    }
 
     /**
-     * Copies all bytes from source to sink streams
+     * Copies all bytes from source to sink streams.
      *
-     * @param source The source stream to copy from
-     * @param sink   The sink stream to copy to
-     * @return How many bytes have been copied
-     * @throws IOException Whenever an error occurs in the copy process
+     * @param source The source stream to copy from.
+     * @param sink   The sink stream to copy to.
+     * @return How many bytes have been copied.
+     * @throws IOException Whenever an error occurs in the copy process.
      */
     public static long copy(InputStream source, OutputStream sink)
             throws IOException {
@@ -75,7 +61,7 @@ public class DeployHandler {
     /**
      * Closes each stream, and more generally each {@link java.io.Closeable} ignoring any {@link java.io.IOException} may occur.
      *
-     * @param closeables The {@link java.io.Closeable} objects to close
+     * @param closeables The {@link java.io.Closeable} objects to close.
      */
     public static void closeIgnoreExceptions(Closeable... closeables) {
         for (Closeable closeable : closeables) {
@@ -89,11 +75,11 @@ public class DeployHandler {
     /**
      * Deploys the *.dll and *.sys for the given in a temporary directory.
      *
-     * @return The temporary directory absolute path
-     * @throws IOException Whenever the deploy process encounters an error
+     * @param deployDir The directory where to deploy the windivert *.sys and *.dll.
+     * @return The temporary directory absolute path.
+     * @throws IOException Whenever the deploy process encounters an error.
      */
-    public static String deployInTempDir() throws IOException {
-        File deployDir = createTempDirectory();
+    public static String deployInTempDir(File deployDir) throws IOException {
         for (String file : new String[]{"WinDivert32.dll", "WinDivert32.sys", "WinDivert64.dll", "WinDivert64.sys"}) {
             File copyFile = new File(deployDir + File.separator + file);
             copyFile.createNewFile();
@@ -105,13 +91,33 @@ public class DeployHandler {
     /**
      * Deploys WinDivert DLL and SYS files based upon Platform architecture (32/64bit).
      *
-     * @return The {@link WinDivertDLL} instance to use
+     * @return The {@link WinDivertDLL} instance to use.
      */
     public static WinDivertDLL deploy() {
+        return deploy(new TemporaryDirManager() {
+            @Override
+            public File createTempDir() throws IOException {
+                return File.createTempFile("temp", Long.toString(System.nanoTime()));
+            }
+        });
+    }
+
+    /**
+     * Deploys WinDivert DLL and SYS files based upon Platform architecture (32/64bit).
+     *
+     * @param deployDirManager The TemporaryDirManager to create the temp directory where to store the files.
+     * @return The {@link WinDivertDLL} instance to use.
+     */
+    public static WinDivertDLL deploy(TemporaryDirManager deployDirManager) {
         String jnaLibraryPath = System.getProperty("jna.library.path");
         try {
-            System.setProperty("jna.library.path", deployInTempDir());
-            return (WinDivertDLL) Native.loadLibrary(Platform.is64Bit() ? "WinDivert64" : "WinDivert32", WinDivertDLL.class);
+            File temp = deployDirManager.createTempDir();
+            if (temp != null && temp.delete() && temp.mkdir()) {
+                System.setProperty("jna.library.path", deployInTempDir(temp));
+                return (WinDivertDLL) Native.loadLibrary(Platform.is64Bit() ? "WinDivert64" : "WinDivert32", WinDivertDLL.class);
+            } else {
+                throw new IOException("Could not create a proper temp dir");
+            }
         } catch (Exception e) {
             throw new ExceptionInInitializerError(new Exception("Unable to deploy WinDivert", e));
         } finally {

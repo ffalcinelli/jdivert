@@ -26,7 +26,7 @@ import static org.junit.Assert.*;
 /**
  * Created by fabio on 02/11/2016.
  */
-public class ICMPIPv6TestCase extends IPv6IPTestCase {
+public class ICMPIPv6TestCase extends IPv6TestCase {
 
     protected Icmpv6 icmpHdr;
     protected byte[] messageBody = new byte[]{0x0, 0x0, 0x0, 0x0};

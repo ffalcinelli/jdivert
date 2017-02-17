@@ -23,7 +23,7 @@ package com.github.ffalcinelli.jdivert;
 public class Enums {
 
     /**
-     * See <a href="https://www.reqrypt.org/windivert-doc.html#divert_open">https://www.reqrypt.org/windivert-doc.html#divert_open</a>
+     * See <a href="https://www.reqrypt.org/windivert-doc.html#divert_open">https://www.reqrypt.org/windivert-doc.html#divert_open</a>.
      */
     public enum Layer {
         /**
@@ -36,7 +36,7 @@ public class Enums {
         NETWORK_FORWARD(1);
         private int value;
 
-        private Layer(int value) {
+        Layer(int value) {
             this.value = value;
         }
 
@@ -46,7 +46,7 @@ public class Enums {
     }
 
     /**
-     * See <a href="https://www.reqrypt.org/windivert-doc.html#divert_open">https://www.reqrypt.org/windivert-doc.html#divert_open</a>
+     * See <a href="https://www.reqrypt.org/windivert-doc.html#divert_open">https://www.reqrypt.org/windivert-doc.html#divert_open</a>.
      */
     public enum Flag {
         DEFAULT(0),
@@ -64,7 +64,7 @@ public class Enums {
         NO_CHECKSUM(1024);
         private int value;
 
-        private Flag(int value) {
+        Flag(int value) {
             this.value = value;
         }
 
@@ -73,6 +73,9 @@ public class Enums {
         }
     }
 
+    /**
+     * See <a href="https://reqrypt.org/windivert-doc.html#divert_set_param">https://reqrypt.org/windivert-doc.html#divert_set_param</a>
+     */
     public enum Param {
         /**
          * Sets the maximum length of the packet queue for {@link WinDivert#recv()}. Currently the default value is 512 (actually 1024), the minimum is 1, and the maximum is 8192.
@@ -87,7 +90,7 @@ public class Enums {
         private int max;
         private int def;
 
-        private Param(int value, int min, int max, int def) {
+        Param(int value, int min, int max, int def) {
             this.value = value;
             this.min = min;
             this.max = max;
@@ -111,11 +114,14 @@ public class Enums {
         }
     }
 
-    public static enum Direction {
+    /**
+     * See <a href="https://reqrypt.org/windivert-doc.html#divert_address">https://reqrypt.org/windivert-doc.html#divert_address</a>
+     */
+    public enum Direction {
         OUTBOUND(0), INBOUND(1);
         private int value;
 
-        private Direction(int value) {
+        Direction(int value) {
             this.value = value;
         }
 
@@ -129,6 +135,9 @@ public class Enums {
         }
     }
 
+    /**
+     * See <a href="https://reqrypt.org/windivert-doc.html#divert_helper_calc_checksums">https://reqrypt.org/windivert-doc.html#divert_helper_calc_checksums</a>
+     */
     public enum CalcChecksumsOption {
         /**
          * Do not calculate the Ipv4 checksum.
@@ -152,7 +161,7 @@ public class Enums {
         NO_UDP_CHECKSUM(16);
         private int value;
 
-        private CalcChecksumsOption(int value) {
+        CalcChecksumsOption(int value) {
             this.value = value;
         }
 
@@ -161,11 +170,15 @@ public class Enums {
         }
     }
 
+    /**
+     * Transport protocol values define the layout of the header that will immediately follow the IPv4 or IPv6 header.
+     * See <a href="http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml">http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml</a>
+     */
     public enum Protocol {
         HOPOPT(0), ICMP(1), TCP(6), UDP(17), ROUTING(43), FRAGMENT(44), AH(51), ICMPV6(58), NONE(59), DSTOPTS(60);
         private int value;
 
-        private Protocol(int value) {
+        Protocol(int value) {
             this.value = value;
         }
 

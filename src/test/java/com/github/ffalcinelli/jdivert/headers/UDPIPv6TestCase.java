@@ -27,7 +27,7 @@ import static org.junit.Assert.*;
 /**
  * Created by fabio on 02/11/2016.
  */
-public class UDPIPv6TestCase extends IPv6IPTestCase {
+public class UDPIPv6TestCase extends IPv6TestCase {
 
     protected Udp udp;
     protected int srcPort;

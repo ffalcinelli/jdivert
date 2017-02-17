@@ -21,6 +21,7 @@ import java.net.Inet4Address;
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol;
+import static com.github.ffalcinelli.jdivert.Util.unsigned;
 import static com.github.ffalcinelli.jdivert.Util.zeroPadArray;
 
 /**
@@ -30,9 +31,9 @@ public class Ipv4 extends Ip<Inet4Address> {
 
     public Ipv4(ByteBuffer raw) {
         super(raw);
-        srcAddrOffset = 12;
-        dstAddrOffset = 16;
-        addrLen = 4;
+        setSrcAddrOffset(12);
+        setDstAddrOffset(16);
+        setAddrLen(4);
     }
 
     @Override
@@ -140,12 +141,10 @@ public class Ipv4 extends Ip<Inet4Address> {
     public void setFlags(int flags) {
         byte first = (byte) (flags << 5);
         byte second = (byte) (getFragmentOffset() & 0xFF00);
-//        short second = (short) (getFragmentOffset() << 3);
         raw.put(6, (byte) (first | second));
     }
 
     public int getFragmentOffset() {
-//        return (raw.getShort(6) & 0xF8FF) >> 3;
         return raw.getShort(6) & 0x00001FFF;
     }
 
@@ -156,13 +155,11 @@ public class Ipv4 extends Ip<Inet4Address> {
     }
 
     public int getDSCP() {
-        return (raw.get(1) >> 2) & 0x003F;
+        return (raw.get(1) & 0xFC) >> 2;
     }
 
     public void setDSCP(int dscp) {
-        byte first = (byte) (dscp << 2);
-        byte second = (byte) (getECN() & 0x03);
-        raw.put(1, (byte) (first | second));
+        raw.put(1, (byte) ((dscp << 2) | getECN()));
     }
 
     public int getECN() {
@@ -170,9 +167,23 @@ public class Ipv4 extends Ip<Inet4Address> {
     }
 
     public void setECN(int ecn) {
-        byte first = (byte) (getDSCP() << 2);
-        byte second = (byte) (ecn & 0x3F);
-        raw.put(1, (byte) (first | second));
+        raw.put(1, (byte) ((getDSCP() << 2) | (ecn & 0x03)));
+    }
+
+    public int getDiffServ() {
+        return getDSCP();
+    }
+
+    public void setDiffServ(int diffServ) {
+        setDSCP(diffServ);
+    }
+
+    public int getTOS() {
+        return raw.get(1) & 0x00FF;
+    }
+
+    public void setTOS(int tos) {
+        raw.put(1, (byte) tos);
     }
 
     @Override
