@@ -21,11 +21,12 @@ import com.sun.jna.Native;
 import com.sun.jna.Platform;
 
 import java.io.*;
-import java.util.stream.Stream;
 
 /**
  * Handles WinDivert DLL and SYS files deployment to a temporary directory.
  * Without this step, WinDivert would not be able to locate SYS file for its Windows Service.
+ * <p>
+ * This project supports 64-bit architecture only.
  */
 public class DeployHandler {
 
@@ -70,14 +71,14 @@ public class DeployHandler {
     }
 
     /**
-     * Deploys the *.dll and *.sys for the given in a temporary directory.
+     * Deploys the 64-bit WinDivert binaries in a temporary directory.
      *
-     * @param deployDir The directory where to deploy the windivert *.sys and *.dll.
+     * @param deployDir The directory where to deploy the windivert binaries.
      * @return The temporary directory absolute path.
      * @throws IOException Whenever the deploy process encounters an error.
      */
     public static String deployInTempDir(File deployDir) throws IOException {
-        for (String file : new String[]{"WinDivert32.dll", "WinDivert32.sys", "WinDivert64.dll", "WinDivert64.sys"}) {
+        for (String file : new String[]{"WinDivert64.dll", "WinDivert64.sys"}) {
             File copyFile = new File(deployDir, file);
             if (!copyFile.createNewFile()) {
                 throw new IOException("Could not create file " + copyFile.getAbsolutePath());
@@ -94,7 +95,7 @@ public class DeployHandler {
     }
 
     /**
-     * Deploys WinDivert DLL and SYS files based upon Platform architecture (32/64bit).
+     * Deploys WinDivert 64-bit binaries.
      *
      * @return The {@link WinDivertDLL} instance to use.
      */
@@ -103,18 +104,21 @@ public class DeployHandler {
     }
 
     /**
-     * Deploys WinDivert DLL and SYS files based upon Platform architecture (32/64bit).
+     * Deploys WinDivert binaries.
      *
      * @param deployDirManager The TemporaryDirManager to create the temp directory where to store the files.
      * @return The {@link WinDivertDLL} instance to use.
      */
     public static WinDivertDLL deploy(TemporaryDirManager deployDirManager) {
+        if (!Platform.is64Bit()) {
+            throw new RuntimeException("JDivert supports 64-bit architecture only.");
+        }
         String jnaLibraryPath = System.getProperty("jna.library.path");
         try {
             File temp = deployDirManager.createTempDir();
             if (temp != null && temp.delete() && temp.mkdir()) {
                 System.setProperty("jna.library.path", deployInTempDir(temp));
-                return (WinDivertDLL) Native.loadLibrary(Platform.is64Bit() ? "WinDivert64" : "WinDivert32", WinDivertDLL.class);
+                return (WinDivertDLL) Native.loadLibrary("WinDivert64", WinDivertDLL.class);
             } else {
                 throw new IOException("Could not create a proper temp dir");
             }

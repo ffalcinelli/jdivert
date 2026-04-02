@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    name: Build and Test (x64)
     strategy:
       matrix:
         java: [ '8', '11', '17', '21' ]

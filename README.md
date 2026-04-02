@@ -40,8 +40,8 @@ dependencies {
 }
 ```
 
-JDivert bundles [WinDivert](https://reqrypt.org/windivert.html) 2.2.2 into its JAR file distribution. The first time
-`WinDivertDLL` interface gets initialized, it will copy WinDivert .sys and .dll files inside a temporary directory and will point JNA to
+JDivert bundles WinDivert 2.2.2 into its JAR file distribution. The first time
+`WinDivertDLL` interface gets initialized, it will copy WinDivert .sys and .dll files (64-bit) inside a temporary directory and will point JNA to
 load them by this directory by setting `jna.library.path` system property.
 To have less impact in projects using JNA, the `jna.library.path` setting is saved before and restored after the WinDivert deployment and load.
 Upon exit, temporary dir will be removed and so the files in it.
@@ -98,3 +98,4 @@ Please refer to [SECURITY.md](SECURITY.md) for information on how to report secu
 ## API Reference Documentation
 
 The API Reference Documentation for JDivert can be found [here](https://ffalcinelli.github.io/jdivert).
+cinelli.github.io/jdivert).

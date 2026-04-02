@@ -9,7 +9,7 @@ JDivert is a Java wrapper for [WinDivert](https://reqrypt.org/windivert.html), a
   - **Java:** Source compatibility set to Java 1.8.
   - **JNA (Java Native Access):** Used to interface with the native WinDivert DLL.
   - **Gradle:** Build system and dependency management.
-  - **WinDivert:** Bundles WinDivert 2.2.2 binaries (`.dll` and `.sys`) for both x86 and x64 architectures.
+  - **WinDivert:** Bundles WinDivert 2.2.2 binaries (`.dll` and `.sys`) for 64-bit architecture. 32-bit support is dropped.
   - **GitHub Actions:** CI/CD platform for automated building and testing on Windows across multiple JDK versions (8, 11, 17, 21).
 - **Architecture:**
   - `com.github.ffalcinelli.jdivert.WinDivert`: The primary entry point for opening a capture handle using a filter string.
