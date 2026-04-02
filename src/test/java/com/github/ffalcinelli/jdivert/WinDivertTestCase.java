@@ -130,7 +130,7 @@ public class WinDivertTestCase {
         assertTrue(w.is(DEFAULT));
         assertFalse(w.is(SNIFF));
         assertFalse(w.is(DROP));
-        assertFalse(w.is(NO_CHECKSUM));
+        assertFalse(w.is(FRAGMENTS));
         assertTrue(w.toString().contains("mode=DEFAULT"));
     }
 

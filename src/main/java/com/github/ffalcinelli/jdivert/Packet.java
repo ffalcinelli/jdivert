@@ -31,8 +31,6 @@ import java.util.Arrays;
 import static com.github.ffalcinelli.jdivert.Enums.Direction;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
 import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throwExceptionOnGetLastError;
-import static com.sun.jna.platform.win32.WinDef.UINT;
-import static com.sun.jna.platform.win32.WinDef.USHORT;
 
 /**
  * A single packet, possibly including an {@link com.github.ffalcinelli.jdivert.headers.Ip} header,
@@ -44,9 +42,9 @@ import static com.sun.jna.platform.win32.WinDef.USHORT;
  */
 public class Packet {
 
-    private ByteBuffer raw;
-    private Direction direction;
-    private int[] iface;
+    private final ByteBuffer raw;
+    private final Direction direction;
+    private final int[] iface;
     private Transport transHdr;
     private Ip ipHdr;
     private Icmp icmpHdr;
@@ -58,8 +56,8 @@ public class Packet {
      * @param addr The metadata (interface and direction).
      */
     public Packet(byte[] raw, WinDivertAddress addr) {
-        this(raw, new int[]{addr.IfIdx.intValue(), addr.SubIfIdx.intValue()},
-                Direction.fromValue(addr.Direction.intValue()));
+        this(raw, new int[]{addr.Union.Network.IfIdx, addr.Union.Network.SubIfIdx},
+                addr.isOutbound() ? Direction.OUTBOUND : Direction.INBOUND);
     }
 
     /**
@@ -109,7 +107,7 @@ public class Packet {
     /**
      * Convenience method to check if the packet is {@link Enums.Direction#INBOUND INBOUND}.
      *
-     * @return True if packet is {@link Enums.Direction#INBOUND INBOUND}, false otherwise.
+     * @return True if packet is {@link Enums.INBOUND INBOUND}, false otherwise.
      */
 
     public boolean isInbound() {
@@ -355,7 +353,7 @@ public class Packet {
         byte[] rawBytes = getRaw();
         Memory memory = new Memory(rawBytes.length);
         memory.write(0, rawBytes, 0, rawBytes.length);
-        WinDivertDLL.INSTANCE.WinDivertHelperCalcChecksums(memory, rawBytes.length, flags);
+        WinDivertDLL.INSTANCE.WinDivertHelperCalcChecksums(memory, rawBytes.length, getWinDivertAddress().getPointer(), flags);
         throwExceptionOnGetLastError();
 
         Util.setBytesAtOffset(raw, 0, rawBytes.length,
@@ -369,9 +367,11 @@ public class Packet {
      */
     public WinDivertAddress getWinDivertAddress() {
         WinDivertAddress addr = new WinDivertAddress();
-        addr.IfIdx = new UINT(iface[0]);
-        addr.SubIfIdx = new UINT(iface[1]);
-        addr.Direction = new USHORT(direction.getValue());
+        addr.setLayer(0); // NETWORK
+        addr.Union.setType(WinDivertAddress.WinDivertData.NetworkData.class);
+        addr.Union.Network.IfIdx = iface[0];
+        addr.Union.Network.SubIfIdx = iface[1];
+        addr.setOutbound(direction == Direction.OUTBOUND);
         return addr;
     }
 

@@ -18,25 +18,143 @@
 package com.github.ffalcinelli.jdivert.windivert;
 
 import com.sun.jna.Structure;
-import com.sun.jna.platform.win32.WinDef;
+import com.sun.jna.Union;
 
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * Represents the "address" of a captured or injected packet. The address includes the packet's headers interfaces and the packet direction.
- * Created by fabio on 20/10/2016.
+ * Represents the "address" of a captured or injected packet.
  */
 public class WinDivertAddress extends Structure {
-    public WinDef.UINT IfIdx;
-    public WinDef.UINT SubIfIdx;
-    public WinDef.USHORT Direction;
+    public long Timestamp;
+    public int bitfield1;
+    public int Reserved2;
+    public WinDivertData Union;
+
+    public static class WinDivertData extends Union {
+        public NetworkData Network;
+        public FlowData Flow;
+        public SocketData Socket;
+        public ReflectData Reflect;
+        public byte[] Reserved3 = new byte[64];
+        
+        public WinDivertData() {
+        }
+        
+        public static class NetworkData extends Structure {
+            public int IfIdx;
+            public int SubIfIdx;
+            
+            @Override
+            protected List<String> getFieldOrder() {
+                return Arrays.asList("IfIdx", "SubIfIdx");
+            }
+        }
+        
+        public static class FlowData extends Structure {
+            public long EndpointId;
+            public long ParentEndpointId;
+            public int ProcessId;
+            public int[] LocalAddr = new int[4];
+            public int[] RemoteAddr = new int[4];
+            public short LocalPort;
+            public short RemotePort;
+            public byte Protocol;
+            
+            @Override
+            protected List<String> getFieldOrder() {
+                return Arrays.asList("EndpointId", "ParentEndpointId", "ProcessId", "LocalAddr", "RemoteAddr", "LocalPort", "RemotePort", "Protocol");
+            }
+        }
+        
+        public static class SocketData extends Structure {
+            public long EndpointId;
+            public long ParentEndpointId;
+            public int ProcessId;
+            public int[] LocalAddr = new int[4];
+            public int[] RemoteAddr = new int[4];
+            public short LocalPort;
+            public short RemotePort;
+            public byte Protocol;
+            
+            @Override
+            protected List<String> getFieldOrder() {
+                return Arrays.asList("EndpointId", "ParentEndpointId", "ProcessId", "LocalAddr", "RemoteAddr", "LocalPort", "RemotePort", "Protocol");
+            }
+        }
+        
+        public static class ReflectData extends Structure {
+            public long Timestamp;
+            public int ProcessId;
+            public int Layer;
+            public long Flags;
+            public short Priority;
+            
+            @Override
+            protected List<String> getFieldOrder() {
+                return Arrays.asList("Timestamp", "ProcessId", "Layer", "Flags", "Priority");
+            }
+        }
+    }
+
+    public WinDivertAddress() {
+        Union = new WinDivertData();
+        Union.setType(WinDivertData.NetworkData.class);
+    }
 
     @Override
-    protected List getFieldOrder() {
-        return Arrays.asList("IfIdx",
-                "SubIfIdx",
-                "Direction");
+    protected List<String> getFieldOrder() {
+        return Arrays.asList("Timestamp", "bitfield1", "Reserved2", "Union");
+    }
+
+    @Override
+    public void read() {
+        super.read();
+        int layer = getLayer();
+        switch (layer) {
+            case 0: // NETWORK
+            case 1: // NETWORK_FORWARD
+                Union.setType(WinDivertData.NetworkData.class);
+                break;
+            case 2: // FLOW
+                Union.setType(WinDivertData.FlowData.class);
+                break;
+            case 3: // SOCKET
+                Union.setType(WinDivertData.SocketData.class);
+                break;
+            case 4: // REFLECT
+                Union.setType(WinDivertData.ReflectData.class);
+                break;
+            default:
+                Union.setType(byte[].class);
+        }
+        Union.read();
+    }
+
+    public int getLayer() {
+        return bitfield1 & 0xFF;
+    }
+
+    public void setLayer(int layer) {
+        bitfield1 = (bitfield1 & ~0xFF) | (layer & 0xFF);
+    }
+    
+    public int getEvent() {
+        return (bitfield1 >> 8) & 0xFF;
+    }
+
+    public void setEvent(int event) {
+        bitfield1 = (bitfield1 & ~(0xFF << 8)) | ((event & 0xFF) << 8);
+    }
+    
+    public boolean isOutbound() {
+        return ((bitfield1 >> 17) & 1) != 0;
+    }
+    
+    public void setOutbound(boolean outbound) {
+        if (outbound) bitfield1 |= (1 << 17);
+        else bitfield1 &= ~(1 << 17);
     }
 
     @Override
@@ -46,17 +164,22 @@ public class WinDivertAddress extends Structure {
 
         WinDivertAddress that = (WinDivertAddress) o;
 
-        return IfIdx.intValue() == that.IfIdx.intValue() &&
-                SubIfIdx.intValue() == that.SubIfIdx.intValue() &&
-                Direction.intValue() == that.Direction.intValue();
-
+        if (getLayer() == 0 && that.getLayer() == 0) {
+           return Union.Network.IfIdx == that.Union.Network.IfIdx &&
+                  Union.Network.SubIfIdx == that.Union.Network.SubIfIdx &&
+                  isOutbound() == that.isOutbound();
+        }
+        return false;
     }
 
     @Override
     public int hashCode() {
-        int result = 31 * IfIdx.hashCode();
-        result = 31 * result + SubIfIdx.hashCode();
-        result = 31 * result + Direction.hashCode();
-        return result;
+        if (getLayer() == 0) {
+            int result = 31 * Union.Network.IfIdx;
+            result = 31 * result + Union.Network.SubIfIdx;
+            result = 31 * result + (isOutbound() ? 1 : 0);
+            return result;
+        }
+        return super.hashCode();
     }
 }

@@ -21,12 +21,11 @@ import com.sun.jna.Native;
 import com.sun.jna.Platform;
 
 import java.io.*;
+import java.util.stream.Stream;
 
 /**
  * Handles WinDivert DLL and SYS files deployment to a temporary directory.
  * Without this step, WinDivert would not be able to locate SYS file for its Windows Service.
- * <p>
- * Created by fabio on 10/11/2016.
  */
 public class DeployHandler {
 
@@ -43,18 +42,14 @@ public class DeployHandler {
      */
     public static long copy(InputStream source, OutputStream sink)
             throws IOException {
-        try {
-            long nread = 0L;
-            byte[] buf = new byte[BUFFER_SIZE];
-            int n;
-            while ((n = source.read(buf)) > 0) {
-                sink.write(buf, 0, n);
-                nread += n;
-            }
-            return nread;
-        } finally {
-            closeIgnoreExceptions(source, sink);
+        long nread = 0L;
+        byte[] buf = new byte[BUFFER_SIZE];
+        int n;
+        while ((n = source.read(buf)) > 0) {
+            sink.write(buf, 0, n);
+            nread += n;
         }
+        return nread;
     }
 
 
@@ -65,9 +60,11 @@ public class DeployHandler {
      */
     public static void closeIgnoreExceptions(Closeable... closeables) {
         for (Closeable closeable : closeables) {
-            try {
-                closeable.close();
-            } catch (IOException ignore) {
+            if (closeable != null) {
+                try {
+                    closeable.close();
+                } catch (IOException ignore) {
+                }
             }
         }
     }
@@ -81,9 +78,17 @@ public class DeployHandler {
      */
     public static String deployInTempDir(File deployDir) throws IOException {
         for (String file : new String[]{"WinDivert32.dll", "WinDivert32.sys", "WinDivert64.dll", "WinDivert64.sys"}) {
-            File copyFile = new File(deployDir + File.separator + file);
-            copyFile.createNewFile();
-            copy(ClassLoader.getSystemClassLoader().getResourceAsStream(file), new FileOutputStream(copyFile));
+            File copyFile = new File(deployDir, file);
+            if (!copyFile.createNewFile()) {
+                throw new IOException("Could not create file " + copyFile.getAbsolutePath());
+            }
+            try (InputStream source = ClassLoader.getSystemClassLoader().getResourceAsStream(file);
+                 OutputStream sink = new FileOutputStream(copyFile)) {
+                if (source == null) {
+                    throw new IOException("Resource " + file + " not found");
+                }
+                copy(source, sink);
+            }
         }
         return deployDir.getAbsolutePath();
     }
@@ -94,12 +99,7 @@ public class DeployHandler {
      * @return The {@link WinDivertDLL} instance to use.
      */
     public static WinDivertDLL deploy() {
-        return deploy(new TemporaryDirManager() {
-            @Override
-            public File createTempDir() throws IOException {
-                return File.createTempFile("temp", Long.toString(System.nanoTime()));
-            }
-        });
+        return deploy(() -> File.createTempFile("temp", Long.toString(System.nanoTime())));
     }
 
     /**

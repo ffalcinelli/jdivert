@@ -47,9 +47,11 @@ public class PacketTestCase {
     @Before
     public void setUp() {
         addr = new WinDivertAddress();
-        addr.IfIdx = new WinDef.UINT(0);
-        addr.SubIfIdx = new WinDef.UINT(1);
-        addr.Direction = new WinDef.USHORT(OUTBOUND.getValue());
+        addr.setLayer(0); // NETWORK
+        addr.Union.setType(WinDivertAddress.WinDivertData.NetworkData.class);
+        addr.Union.Network.IfIdx = 0;
+        addr.Union.Network.SubIfIdx = 1;
+        addr.setOutbound(true);
         raw = parseHexBinary("45000051476040008006f005c0a856a936f274fdd84201bb0876cfd0c19f9320501800ff8dba0000170303" +
                 "00240000000000000c2f53831a37ed3c3a632f47440594cab95283b558bf82cb7784344c3314");
         payload = parseHexBinary("17030300240000000000000c2f53831a37ed3c3a632f47440594cab95283b558bf82cb7784344c3314");

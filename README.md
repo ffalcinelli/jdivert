@@ -1,13 +1,13 @@
 # jdivert
 
-[![AppVeyor Build Status](https://img.shields.io/appveyor/ci/ffalcinelli/jdivert/master.svg)](https://ci.appveyor.com/project/ffalcinelli/jdivert) [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/master.svg)](https://codecov.io/github/ffalcinelli/jdivert) [![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)](https://search.maven.org/#artifactdetails%7Ccom.github.ffalcinelli%7Cjdivert%7C1.0%7Cjar)
+[![Build and Test](https://github.com/ffalcinelli/jdivert/actions/workflows/test.yml/badge.svg)](https://github.com/ffalcinelli/jdivert/actions/workflows/test.yml) [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/master.svg)](https://codecov.io/github/ffalcinelli/jdivert) [![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)](https://search.maven.org/artifact/com.github.ffalcinelli/jdivert/2.2.2/jar)
 
 Java bindings for [WinDivert](https://reqrypt.org/windivert.html), a Windows driver that allows user-mode applications to capture/modify/drop network packets sent to/from the Windows network stack.
 
 ## Requirements
 
-- Java 1.6+
-- Windows Vista/7/8/10 or Windows Server 2008 (32 or 64 bit)
+- Java 8+
+- Windows 7/8/10/11 or Windows Server 2008 R2+ (32 or 64 bit)
 - Administrator Privileges
 
 ## Installation
@@ -22,7 +22,7 @@ Put these lines under section `dependencies` in your `pom.xml`
 <dependency>
   <groupId>com.github.ffalcinelli</groupId>
   <artifactId>jdivert</artifactId>
-  <version>1.1</version>
+  <version>2.2.2</version>
 </dependency>
 ```
 
@@ -36,11 +36,11 @@ repositories {
 }
 
 dependencies {
-    compile 'com.github.ffalcinelli:jdivert:1.1'
+    implementation 'com.github.ffalcinelli:jdivert:2.2.2'
 }
 ```
 
-JDivert bundles [WinDivert](https://reqrypt.org/windivert.html) 1.1.8 into its JAR file distribution. The first time
+JDivert bundles [WinDivert](https://reqrypt.org/windivert.html) 2.2.2 into its JAR file distribution. The first time
 `WinDivertDLL` interface gets initialized, it will copy WinDivert .sys and .dll files inside a temporary directory and will point JNA to
 load them by this directory by setting `jna.library.path` system property.
 To have less impact in projects using JNA, the `jna.library.path` setting is saved before and restored after the WinDivert deployment and load.
@@ -69,6 +69,31 @@ w.close();  // stop capturing packets
 ```
 
 Packets that are not matched by the "tcp.DstPort == 80 and tcp.PayloadLength > 0" filter will not be handled by WinDivert and continue as usual. The syntax for the filter language is described in the [WinDivert documentation](https://reqrypt.org/windivert-doc.html#filter_language).
+
+JDivert supports all features from WinDivert 2.2, including new layers (`NETWORK_FORWARD`, `FLOW`, `SOCKET`, `REFLECT`) and flags like `FRAGMENTS`.
+
+## Development and Testing
+
+Since WinDivert is a Windows driver, testing requires a Windows environment. A `Vagrantfile` is provided to spin up a Windows 11 VM for local testing.
+
+### Local Testing with Vagrant
+
+To run the project tests locally:
+
+1. Install [Vagrant](https://www.vagrantup.com/) and [VirtualBox](https://www.virtualbox.org/).
+2. Run `vagrant up` from the project root.
+3. Once the VM is ready, execute the tests with:
+   ```bash
+   vagrant powershell -c 'cd C:/jdivert; ./gradlew test'
+   ```
+
+## Licensing
+
+JDivert is dual-licensed under the **GNU General Public License v2.0 (GPLv2)** and the **GNU Lesser General Public License v3.0 (LGPLv3)**. This ensures compatibility with the WinDivert project and flexibility for different usage scenarios.
+
+## Security Policy
+
+Please refer to [SECURITY.md](SECURITY.md) for information on how to report security vulnerabilities.
 
 ## API Reference Documentation
 

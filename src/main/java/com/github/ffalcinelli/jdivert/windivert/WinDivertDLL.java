@@ -22,6 +22,7 @@ import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 
+import static com.sun.jna.platform.win32.WinBase.OVERLAPPED;
 import static com.sun.jna.platform.win32.WinDef.BOOL;
 import static com.sun.jna.platform.win32.WinNT.HANDLE;
 
@@ -46,16 +47,43 @@ public interface WinDivertDLL extends Library {
             HANDLE handle,
             Pointer pPacket,
             int packetLen,
+            IntByReference recvLen,
+            Pointer pAddr
+    );
+
+    BOOL WinDivertRecvEx(
+            HANDLE handle,
+            Pointer pPacket,
+            int packetLen,
+            IntByReference recvLen,
+            long flags,
             Pointer pAddr,
-            IntByReference recvLen
+            IntByReference addrLen,
+            OVERLAPPED lpOverlapped
     );
 
     BOOL WinDivertSend(
             HANDLE handle,
             Pointer pPacket,
             int packetLen,
+            IntByReference sendLen,
+            Pointer pAddr
+    );
+
+    BOOL WinDivertSendEx(
+            HANDLE handle,
+            Pointer pPacket,
+            int packetLen,
+            IntByReference sendLen,
+            long flags,
             Pointer pAddr,
-            IntByReference sendLen
+            int addrLen,
+            OVERLAPPED lpOverlapped
+    );
+
+    BOOL WinDivertShutdown(
+            HANDLE handle,
+            int how
     );
 
     BOOL WinDivertSetParam(
@@ -75,6 +103,13 @@ public interface WinDivertDLL extends Library {
     int WinDivertHelperCalcChecksums(
             Pointer pPacket,
             int packetLen,
+            Pointer pAddr,
             long flags
+    );
+
+    long WinDivertHelperHashPacket(
+            Pointer pPacket,
+            int packetLen,
+            long seed
     );
 }
