@@ -34,7 +34,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Created by fabio on 06/11/2016.
  */
-@org.junit.jupiter.api.Disabled("Disabled for Vagrant Integration to prevent WinRM lockup")
 public class LiveCaptureTestCase {
     WinDivert wd;
     EchoServer srv;
