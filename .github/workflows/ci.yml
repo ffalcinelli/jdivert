@@ -18,12 +18,12 @@ jobs:
 
     steps:
     - name: Checkout repository
-      # Using v4.2.2 - 11bd71901bbe5b1630ceea73d27597364c9af683
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # Using v4 - de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
     - name: Set up JDK ${{ matrix.java }}
-      # Using v4.7.0 - 3a44286663675a6104c965c4ecf0050800d1110e
-      uses: actions/setup-java@3a44286663675a6104c965c4ecf0050800d1110e
+      # Using v5.2.0 - be666c2fcd27ec809703dec50e508c2fdc7f6654
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 
       with:
         java-version: ${{ matrix.java }}
         distribution: 'temurin'
@@ -37,8 +37,8 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.java == '17'
-      # Using v5.3.1 - 05b63d0b218596f088147d3455919e1c264a0248
-      uses: codecov/codecov-action@05b63d0b218596f088147d3455919e1c264a0248
+      # Using v5 - 57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
       with:
         files: build/reports/jacoco/test/jacocoTestReport.xml
         fail_ci_if_error: true

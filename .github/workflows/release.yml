@@ -12,12 +12,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        # Using v4.2.2 - 11bd71901bbe5b1630ceea73d27597364c9af683
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        # Using v4 - de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up JDK 17
-        # Using v4.7.0 - 3a44286663675a6104c965c4ecf0050800d1110e
-        uses: actions/setup-java@3a44286663675a6104c965c4ecf0050800d1110e
+        # Using v5.2.0 - be666c2fcd27ec809703dec50e508c2fdc7f6654
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -30,11 +30,11 @@ jobs:
         run: ./gradlew publishAllPublicationsToMavenCentralRepository -PsigningInMemoryKey="${{ secrets.GPG_PRIVATE_KEY }}" -PsigningInMemoryKeyPassword="${{ secrets.GPG_PASSPHRASE }}" -PmavenCentralUsername="${{ secrets.SONATYPE_PORTAL_TOKEN_USERNAME }}" -PmavenCentralPassword="${{ secrets.SONATYPE_PORTAL_TOKEN_PASSWORD }}"
 
       - name: Create GitHub Release
-        # Using v2.2.1 - c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
-        with:
-          files: |
-            build/libs/*.jar
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            build/libs/*.jar \
+            --repo="$GITHUB_REPOSITORY" \
+            --title="Release ${{ github.ref_name }}" \
+            --generate-notes
