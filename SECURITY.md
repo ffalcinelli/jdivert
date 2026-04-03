@@ -2,13 +2,46 @@
 
 ## Supported Versions
 
-Currently, the master branch is the only supported version. If a major issue is found, a patch release will be created.
+Currently, the following versions of JDivert are supported with security updates:
+
+| Version | Status                |
+| ------- | --------------------- |
+| 3.0.x   | :white_check_mark: Supported   |
+| < 3.0   | :x: Unsupported       |
 
 ## Reporting a Vulnerability
 
-Please do not report security vulnerabilities through public GitHub issues.
+If you discover a potential security vulnerability in JDivert, please do **not** open a public issue. Instead, report it privately to the maintainers:
 
-Instead, please send an email to the maintainer or report the issue privately via a GitHub security advisory on this repository. We will try to evaluate the issue and respond as quickly as possible.
+- Fabio Falcinelli: [fabio.falcinelli@gmail.com](mailto:fabio.falcinelli@gmail.com)
+
+We aim to acknowledge receipt of your report as soon as possible (typically within a few business days). Please note that while we take security seriously, we are a community-maintained project and cannot guarantee a specific resolution timeframe. We will provide updates as we investigate the issue and work toward a fix.
 
 ### WinDivert Driver Vulnerabilities
+
 JDivert is a wrapper around the [WinDivert](https://github.com/basil00/WinDivert) driver. If you discover a vulnerability that is related to the kernel-mode driver itself (e.g., a BSOD, privilege escalation, or network stack bypass), please report it directly to the upstream WinDivert project following their security guidelines.
+
+### What to Include in a Report
+
+To help us address the issue quickly, please include:
+- A clear description of the vulnerability.
+- A minimal reproducible example (PoC) if possible.
+- Any potential impact or exploitation scenarios.
+
+## Security Best Practices for JDivert Users
+
+JDivert interacts with the low-level Windows network stack and requires administrator privileges to function. To ensure your application remains secure:
+
+1.  **Principle of Least Privilege**: Run only the necessary parts of your application with administrator privileges.
+2.  **Input Validation**: If your application processes network packets based on external input, ensure all inputs are strictly validated before being used in filter strings or packet modifications.
+3.  **Sanitize Packet Data**: Be cautious when modifying packet payloads, especially when dealing with protocols that may have complex parsing requirements.
+4.  **Keep WinDivert Updated**: JDivert bundles specific versions of the WinDivert driver and DLL. Ensure you are using the latest version of JDivert to benefit from upstream security fixes in WinDivert itself.
+
+## Disclosure Policy
+
+We follow a responsible disclosure policy:
+1.  Acknowledge the report.
+2.  Investigate and confirm the vulnerability.
+3.  Work on a fix.
+4.  Release a new version with the fix.
+5.  Publicly disclose the vulnerability (e.g., via GitHub Security Advisories) after a fix is available and users have had time to update.
