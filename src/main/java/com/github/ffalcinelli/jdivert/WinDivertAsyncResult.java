@@ -21,10 +21,12 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertDLL;
 import com.sun.jna.Memory;
+import com.sun.jna.Native;
 import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinBase;
 import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.win32.W32APIOptions;
 
 import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throwExceptionOnGetLastError;
 
@@ -43,6 +45,14 @@ public class WinDivertAsyncResult<T> {
     private boolean completed = false;
     private T result;
 
+    private static final int STATUS_PENDING = 0x103;
+
+    private interface MyKernel32 extends Kernel32 {
+        MyKernel32 INSTANCE = Native.load("kernel32", MyKernel32.class, W32APIOptions.DEFAULT_OPTIONS);
+
+        boolean GetOverlappedResult(HANDLE hFile, WinBase.OVERLAPPED lpOverlapped, IntByReference lpNumberOfBytesTransferred, boolean bWait);
+    }
+
     public interface ResultConverter<T> {
         T convert(int len, Memory buffer, WinDivertAddress address);
     }
@@ -56,6 +66,10 @@ public class WinDivertAsyncResult<T> {
         this.converter = converter;
     }
 
+    private boolean hasOverlappedIoCompleted(WinBase.OVERLAPPED lpOverlapped) {
+        return lpOverlapped.Internal.intValue() != STATUS_PENDING;
+    }
+
     /**
      * Checks if the asynchronous operation has completed.
      *
@@ -63,7 +77,7 @@ public class WinDivertAsyncResult<T> {
      */
     public boolean isCompleted() {
         if (completed) return true;
-        if (Kernel32.INSTANCE.HasOverlappedIoCompleted(overlapped)) {
+        if (hasOverlappedIoCompleted(overlapped)) {
             try {
                 get(); // This will populate result and set completed
                 return true;
@@ -83,7 +97,7 @@ public class WinDivertAsyncResult<T> {
     public synchronized T get() throws WinDivertException {
         if (completed) return result;
 
-        if (!Kernel32.INSTANCE.GetOverlappedResult(handle, overlapped, transferLen, true)) {
+        if (!MyKernel32.INSTANCE.GetOverlappedResult(handle, overlapped, transferLen, true)) {
             throwExceptionOnGetLastError();
         }
         

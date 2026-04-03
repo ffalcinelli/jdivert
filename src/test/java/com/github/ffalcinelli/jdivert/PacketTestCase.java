@@ -19,9 +19,8 @@ package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
-import com.sun.jna.platform.win32.WinDef;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
 
@@ -30,8 +29,7 @@ import static com.github.ffalcinelli.jdivert.Enums.Direction.OUTBOUND;
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
 import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.FIN;
-import static junit.framework.TestCase.assertFalse;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 03/11/2016.
@@ -44,7 +42,7 @@ public class PacketTestCase {
     WinDivertAddress addr;
     String localhost = "127.0.0.1";
 
-    @Before
+    @BeforeEach
     public void setUp() {
         addr = new WinDivertAddress();
         addr.setLayer(0); // NETWORK
@@ -59,9 +57,9 @@ public class PacketTestCase {
         packet = new Packet(raw, addr);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void constructWithIllegalIface() {
-        packet = new Packet(raw, new int[]{0, 0, 0}, OUTBOUND);
+        assertThrows(IllegalArgumentException.class, () -> new Packet(raw, new int[]{0, 0, 0}, OUTBOUND));
     }
 
     @Test
@@ -124,18 +122,18 @@ public class PacketTestCase {
         assertNotEquals(packet.hashCode(), p3.hashCode());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void noDstPort() {
         Packet p = new Packet(parseHexBinary("4500003C5C8800007F011181C0A801010A00020F00005552000100096162636465666768696A6B6C6D6E6F7071727374757677616263646566676869"), addr);
         assertNull(p.getDstPort());
-        p.setDstPort(8080);
+        assertThrows(IllegalStateException.class, () -> p.setDstPort(8080));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void noSrcPort() {
         Packet p = new Packet(parseHexBinary("4500003C5C8800007F011181C0A801010A00020F00005552000100096162636465666768696A6B6C6D6E6F7071727374757677616263646566676869"), addr);
         assertNull(p.getSrcPort());
-        p.setSrcPort(8080);
+        assertThrows(IllegalStateException.class, () -> p.setSrcPort(8080));
     }
 
     @Test

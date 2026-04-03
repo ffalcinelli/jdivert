@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Fabio Falcinelli 2016.
+ * Copyright (c) Fabio Falcinelli 2024.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -17,11 +17,11 @@
 
 package com.github.ffalcinelli.jdivert.headers;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ICMPV6;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 02/11/2016.
@@ -31,7 +31,7 @@ public class ICMPIPv6TestCase extends IPv6TestCase {
     protected Icmpv6 icmpHdr;
     protected byte[] messageBody = new byte[]{0x0, 0x0, 0x0, 0x0};
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rawDataHexString = "6000000000443a3d3ffe05010410000002c0dffffe47033e3ffe050700000001020086fffe0580da010413520000000060000000001411013ffe050700000001020086fffe0580da3ffe05010410000002c0dffffe47033ea07582a40014cf470a040000f9c8e7369d250b00";
         super.setUp();

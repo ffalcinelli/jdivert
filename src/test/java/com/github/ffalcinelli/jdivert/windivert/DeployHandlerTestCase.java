@@ -17,14 +17,13 @@
 
 package com.github.ffalcinelli.jdivert.windivert;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 17/02/2017.
@@ -45,13 +44,15 @@ public class DeployHandlerTestCase {
         }
     }
 
-    @Test(expected = ExceptionInInitializerError.class)
+    @Test
     public void exceptionInInitializer() {
-        DeployHandler.deploy(new TemporaryDirManager() {
-            @Override
-            public File createTempDir() throws IOException {
-                return null;
-            }
+        assertThrows(ExceptionInInitializerError.class, () -> {
+            DeployHandler.deploy(new TemporaryDirManager() {
+                @Override
+                public File createTempDir() throws IOException {
+                    return null;
+                }
+            });
         });
     }
 

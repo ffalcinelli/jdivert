@@ -5,31 +5,40 @@ ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'jacoco'
-apply plugin: 'maven'
+apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
-sourceCompatibility = 1.8
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withJavadocJar()
+    withSourcesJar()
+}
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    compile 'net.java.dev.jna:jna:4.2.2'
-    compile 'net.java.dev.jna:jna-platform:4.2.2'
-    testCompile group: 'junit', name: 'junit', version: '4.11'
+    implementation 'net.java.dev.jna:jna:5.18.0'
+    implementation 'net.java.dev.jna:jna-platform:5.18.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 jacocoTestReport {
     reports {
-        xml.enabled = true
+        xml.required = true
+        html.required = true
     }
 }
 
 check.dependsOn jacocoTestReport
 
 test {
+    useJUnitPlatform()
     systemProperty "jna.nosys", "true"
+    maxHeapSize = "256m"
 }
 
 task deleteDocs(){
@@ -41,70 +50,53 @@ task copyJavadoc(dependsOn: deleteDocs, type: Copy) {
     into 'docs'
 }
 
-task javadocJar(type: Jar) {
-    classifier = 'javadoc'
-    from javadoc
-}
-
-task sourcesJar(type: Jar) {
-    classifier = 'sources'
-    from sourceSets.main.allSource
-}
-
-artifacts {
-    archives javadocJar, sourcesJar
-}
-
-signing {
-    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
-    sign configurations.archives
-}
-
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                authentication(userName: System.getenv("OSSRH_USERNAME"), password: System.getenv("OSSRH_PASSWORD"))
-            }
-
-            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                authentication(userName: System.getenv("OSSRH_USERNAME"), password: System.getenv("OSSRH_PASSWORD"))
-            }
-
-            pom.project {
-                name 'jdivert'
-                packaging 'jar'
-                // optionally artifactId can be defined here
-                description 'A Java binding to WinDivert driver'
-                url 'https://github.com/ffalcinelli/jdivert'
-
-                scm {
-                    connection 'https://github.com/ffalcinelli/jdivert.git'
-                    developerConnection 'https://github.com/ffalcinelli/jdivert.git'
-                    url 'https://github.com/ffalcinelli/jdivert'
-                }
-
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            pom {
+                name = 'jdivert'
+                description = 'A Java binding to WinDivert driver'
+                url = 'https://github.com/ffalcinelli/jdivert'
                 licenses {
                     license {
-                        name 'GNU Lesser General Public License 3'
-                        url 'https://www.gnu.org/licenses/lgpl-3.0.html'
+                        name = 'GNU Lesser General Public License 3'
+                        url = 'https://www.gnu.org/licenses/lgpl-3.0.html'
                     }
                     license {
-                        name 'GNU General Public License v2.0'
-                        url 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.html'
+                        name = 'GNU General Public License v2.0'
+                        url = 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.html'
                     }
                 }
-
                 developers {
                     developer {
-                        id 'ffalcinelli'
-                        name 'Fabio Falcinelli'
-                        email 'fabio.falcinelli@gmail.com'
+                        id = 'ffalcinelli'
+                        name = 'Fabio Falcinelli'
+                        email = 'fabio.falcinelli@gmail.com'
                     }
+                }
+                scm {
+                    connection = 'https://github.com/ffalcinelli/jdivert.git'
+                    developerConnection = 'https://github.com/ffalcinelli/jdivert.git'
+                    url = 'https://github.com/ffalcinelli/jdivert'
                 }
             }
         }
     }
+    repositories {
+        maven {
+            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username = System.getenv("OSSRH_USERNAME")
+                password = System.getenv("OSSRH_PASSWORD")
+            }
+        }
+    }
+}
+
+signing {
+    required { isReleaseVersion && gradle.taskGraph.hasTask("publishMavenJavaPublicationToMavenRepository") }
+    sign publishing.publications.mavenJava
 }
