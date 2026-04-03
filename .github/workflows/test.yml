@@ -31,7 +31,7 @@ jobs:
       run: ./gradlew build
 
     - name: Run Tests
-      run: ./gradlew test
+      run: ./gradlew test jacocoTestReport
 
     - name: Upload coverage to Codecov
       if: matrix.java == '17'
