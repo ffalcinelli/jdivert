@@ -1,18 +1,50 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'jacoco'
+    id 'com.vanniktech.maven.publish' version '0.30.0'
+}
+
 group 'com.github.ffalcinelli'
 version '3.0.0'
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
-apply plugin: 'java'
-apply plugin: 'idea'
-apply plugin: 'jacoco'
-apply plugin: 'maven-publish'
-apply plugin: 'signing'
-
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
-    withJavadocJar()
-    withSourcesJar()
+}
+
+mavenPublishing {
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
+
+    pom {
+        name = 'jdivert'
+        description = 'A Java binding to WinDivert driver'
+        url = 'https://github.com/ffalcinelli/jdivert'
+        licenses {
+            license {
+                name = 'GNU Lesser General Public License 3'
+                url = 'https://www.gnu.org/licenses/lgpl-3.0.html'
+            }
+            license {
+                name = 'GNU General Public License v2.0'
+                url = 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.html'
+            }
+        }
+        developers {
+            developer {
+                id = 'ffalcinelli'
+                name = 'Fabio Falcinelli'
+                email = 'fabio.falcinelli@gmail.com'
+            }
+        }
+        scm {
+            connection = 'scm:git:https://github.com/ffalcinelli/jdivert.git'
+            developerConnection = 'scm:git:https://github.com/ffalcinelli/jdivert.git'
+            url = 'https://github.com/ffalcinelli/jdivert'
+        }
+    }
 }
 
 repositories {
@@ -48,60 +80,4 @@ task deleteDocs(){
 task copyJavadoc(dependsOn: deleteDocs, type: Copy) {
     from 'build/docs/javadoc'
     into 'docs'
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            pom {
-                name = 'jdivert'
-                description = 'A Java binding to WinDivert driver'
-                url = 'https://github.com/ffalcinelli/jdivert'
-                licenses {
-                    license {
-                        name = 'GNU Lesser General Public License 3'
-                        url = 'https://www.gnu.org/licenses/lgpl-3.0.html'
-                    }
-                    license {
-                        name = 'GNU General Public License v2.0'
-                        url = 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.html'
-                    }
-                }
-                developers {
-                    developer {
-                        id = 'ffalcinelli'
-                        name = 'Fabio Falcinelli'
-                        email = 'fabio.falcinelli@gmail.com'
-                    }
-                }
-                scm {
-                    connection = 'https://github.com/ffalcinelli/jdivert.git'
-                    developerConnection = 'https://github.com/ffalcinelli/jdivert.git'
-                    url = 'https://github.com/ffalcinelli/jdivert'
-                }
-            }
-        }
-    }
-    repositories {
-        maven {
-            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
-            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-            credentials {
-                username = System.getenv("OSSRH_USERNAME")
-                password = System.getenv("OSSRH_PASSWORD")
-            }
-        }
-    }
-}
-
-signing {
-    def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
-    if (signingKey && signingPassword) {
-        useInMemoryPgpKeys(signingKey, signingPassword)
-    }
-    required { isReleaseVersion && gradle.taskGraph.hasTask("publishMavenJavaPublicationToMavenRepository") }
-    sign publishing.publications.mavenJava
 }

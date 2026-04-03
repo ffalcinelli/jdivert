@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         # Using v4.2.2 - 11bd71901bbe5b1630ceea73d27597364c9af683
@@ -25,7 +27,14 @@ jobs:
         run: ./gradlew build
 
       - name: Publish to Maven Central
-        run: ./gradlew publishMavenJavaPublicationToMavenRepository -PsigningKey="${{ secrets.GPG_PRIVATE_KEY }}" -PsigningPassword="${{ secrets.GPG_PASSPHRASE }}"
+        run: ./gradlew publishAllPublicationsToMavenCentralRepository -PsigningInMemoryKey="${{ secrets.GPG_PRIVATE_KEY }}" -PsigningInMemoryKeyPassword="${{ secrets.GPG_PASSPHRASE }}" -PmavenCentralUsername="${{ secrets.SONATYPE_PORTAL_TOKEN_USERNAME }}" -PmavenCentralPassword="${{ secrets.SONATYPE_PORTAL_TOKEN_PASSWORD }}"
+
+      - name: Create GitHub Release
+        # Using v2.2.1 - c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
+        with:
+          files: |
+            build/libs/*.jar
+          generate_release_notes: true
         env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

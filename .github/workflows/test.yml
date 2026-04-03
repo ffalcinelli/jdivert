@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: read
     name: Build and Test (JDK ${{ matrix.java }})
     strategy:
       matrix:
