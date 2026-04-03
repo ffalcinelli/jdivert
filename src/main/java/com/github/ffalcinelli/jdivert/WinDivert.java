@@ -204,6 +204,7 @@ public class WinDivert {
         IntByReference recvLen = new IntByReference();
         dll.WinDivertRecv(handle, buffer, bufsize, recvLen, address.getPointer());
         throwExceptionOnGetLastError();
+        address.read();
         byte[] raw = buffer.getByteArray(0, recvLen.getValue());
         return new Packet(raw, address);
     }
@@ -316,7 +317,9 @@ public class WinDivert {
         Memory buffer = new Memory(raw.length);
 
         buffer.write(0, raw, 0, raw.length);
-        dll.WinDivertSend(handle, buffer, raw.length, sendLen, packet.getWinDivertAddress().getPointer());
+        WinDivertAddress addr = packet.getWinDivertAddress();
+        addr.write();
+        dll.WinDivertSend(handle, buffer, raw.length, sendLen, addr.getPointer());
         throwExceptionOnGetLastError();
         return sendLen.getValue();
     }
@@ -352,14 +355,16 @@ public class WinDivert {
         WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
         overlapped.hEvent = Kernel32.INSTANCE.CreateEvent(null, true, false, null);
 
-        if (!dll.WinDivertSendEx(handle, buffer, raw.length, null, 0, packet.getWinDivertAddress().getPointer(), packet.getWinDivertAddress().size(), overlapped)) {
+        WinDivertAddress addr = packet.getWinDivertAddress();
+        addr.write();
+        if (!dll.WinDivertSendEx(handle, buffer, raw.length, null, 0, addr.getPointer(), addr.size(), overlapped)) {
             int err = Kernel32.INSTANCE.GetLastError();
             if (err != WinNT.ERROR_IO_PENDING) {
                 throw new WinDivertException(err);
             }
         }
 
-        return new WinDivertAsyncResult<>(handle, overlapped, buffer, null, (len, buf, addr) -> len);
+        return new WinDivertAsyncResult<>(handle, overlapped, buffer, null, (len, buf, a) -> len);
     }
 
     /**

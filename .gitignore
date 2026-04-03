@@ -50,3 +50,4 @@ desktop.ini
 # Crash dumps
 *.dmp
 *.dump
+*.hprof

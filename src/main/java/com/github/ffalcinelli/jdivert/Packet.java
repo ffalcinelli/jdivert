@@ -353,7 +353,9 @@ public class Packet {
         byte[] rawBytes = getRaw();
         Memory memory = new Memory(rawBytes.length);
         memory.write(0, rawBytes, 0, rawBytes.length);
-        WinDivertDLL.INSTANCE.WinDivertHelperCalcChecksums(memory, rawBytes.length, getWinDivertAddress().getPointer(), flags);
+        WinDivertAddress addr = getWinDivertAddress();
+        addr.write();
+        WinDivertDLL.INSTANCE.WinDivertHelperCalcChecksums(memory, rawBytes.length, addr.getPointer(), flags);
         throwExceptionOnGetLastError();
 
         Util.setBytesAtOffset(raw, 0, rawBytes.length,
