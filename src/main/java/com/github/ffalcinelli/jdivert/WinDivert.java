@@ -198,6 +198,7 @@ public class WinDivert {
         Memory buffer = new Memory(bufsize);
         IntByReference recvLen = new IntByReference();
         dll.WinDivertRecv(handle, buffer, bufsize, address.getPointer(), recvLen);
+        address.read();
         throwExceptionOnGetLastError();
         byte[] raw = buffer.getByteArray(0, recvLen.getValue());
         return new Packet(raw, address);
@@ -270,12 +271,14 @@ public class WinDivert {
         if (recalculateChecksum) {
             packet.recalculateChecksum(options);
         }
+        WinDivertAddress address = packet.getWinDivertAddress();
         IntByReference sendLen = new IntByReference();
         byte[] raw = packet.getRaw();
         Memory buffer = new Memory(raw.length);
 
         buffer.write(0, raw, 0, raw.length);
-        dll.WinDivertSend(handle, buffer, raw.length, packet.getWinDivertAddress().getPointer(), sendLen);
+        address.write();
+        dll.WinDivertSend(handle, buffer, raw.length, address.getPointer(), sendLen);
         throwExceptionOnGetLastError();
         return sendLen.getValue();
     }
