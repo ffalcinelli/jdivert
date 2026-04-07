@@ -1,0 +1,51 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    name: Build and Test (JDK ${{ matrix.java }})
+    strategy:
+      matrix:
+        java: [ '8', '11', '17', '21' ]
+
+    steps:
+    - name: Checkout repository
+      # Using v4 - de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+    - name: Set up JDK 17 for Gradle
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up JDK ${{ matrix.java }} for Toolchain
+      # Using v5.2.0 - be666c2fcd27ec809703dec50e508c2fdc7f6654
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: 'gradle'
+
+    - name: Build with Gradle
+      run: ./gradlew build
+
+    - name: Run Tests
+      run: ./gradlew test jacocoTestReport
+
+    - name: Upload coverage to Codecov
+      if: matrix.java == '17'
+      # Using v5 - 57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
+      with:
+        files: build/reports/jacoco/test/jacocoTestReport.xml
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}

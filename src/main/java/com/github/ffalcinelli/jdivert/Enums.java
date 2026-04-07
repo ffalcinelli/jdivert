@@ -17,6 +17,8 @@
 
 package com.github.ffalcinelli.jdivert;
 
+import java.util.stream.Stream;
+
 /**
  * Created by fabio on 20/10/2016.
  */
@@ -33,7 +35,10 @@ public class Enums {
         /**
          * The headers layer (forwarded packets).
          */
-        NETWORK_FORWARD(1);
+        NETWORK_FORWARD(1),
+        FLOW(2),
+        SOCKET(3),
+        REFLECT(4);
         private int value;
 
         Layer(int value) {
@@ -50,18 +55,12 @@ public class Enums {
      */
     public enum Flag {
         DEFAULT(0),
-        /**
-         * This flag opens the WinDivert handle in packet sniffing mode. In packet sniffing mode the original packet is not dropped-and-diverted (the default) but copied-and-diverted. This mode is useful for implementing packet sniffing tools similar to those applications that currently use Winpcap.
-         */
         SNIFF(1),
-        /**
-         * This flag indicates that the user application does not intend to read matching packets with WinDivertRecv(), instead the packets should be silently dropped. This is useful for implementing simple packet filters using the <a href="https://www.reqrypt.org/windivert-doc.html#filter_language">WinDivert filter language</a>.
-         */
         DROP(2),
-        /**
-         * By default WinDivert ensures that each diverted packet has a valid checksum. If the checksum is missing (e.g. with Tcp checksum offloading), WinDivert will calculate it before passing the packet to the user application. This flag disables this behavior.
-         */
-        NO_CHECKSUM(1024);
+        RECV_ONLY(4),
+        SEND_ONLY(8),
+        NO_INSTALL(16),
+        FRAGMENTS(32);
         private int value;
 
         Flag(int value) {
@@ -77,14 +76,11 @@ public class Enums {
      * See <a href="https://reqrypt.org/windivert-doc.html#divert_set_param">https://reqrypt.org/windivert-doc.html#divert_set_param</a>
      */
     public enum Param {
-        /**
-         * Sets the maximum length of the packet queue for {@link WinDivert#recv()}. Currently the default value is 512 (actually 1024), the minimum is 1, and the maximum is 8192.
-         */
-        QUEUE_LEN(0, 1, 8192, 1024 /* but docs state 512 */),
-        /**
-         * Sets the minimum time, in milliseconds, a packet can be queued before it is automatically dropped. Packets cannot be queued indefinitely, and ideally, packets should be processed by the application as soon as is possible. Note that this sets the minimum time a packet can be queued before it can be dropped. The actual time may be exceed this value. Currently the default value is 512, the minimum is 128, and the maximum is 2048.
-         */
-        QUEUE_TIME(1, 128, 2048, 512);
+        QUEUE_LEN(0, 32, 16384, 4096),
+        QUEUE_TIME(1, 100, 16000, 2000),
+        QUEUE_SIZE(2, 65535, 33554432, 4194304),
+        VERSION_MAJOR(3, 0, 99, 2),
+        VERSION_MINOR(4, 0, 99, 2);
         private int value;
         private int min;
         private int max;
@@ -126,8 +122,10 @@ public class Enums {
         }
 
         public static Direction fromValue(int value) {
-            //works because values --> ordinal 0/1
-            return Direction.values()[value];
+            return Stream.of(Direction.values())
+                    .filter(d -> d.getValue() == value)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(String.format("Direction %d is not recognized", value)));
         }
 
         public int getValue() {
@@ -183,11 +181,26 @@ public class Enums {
         }
 
         public static Protocol fromValue(int value) {
-            for (Protocol protocol : Protocol.values()) {
-                if (protocol.getValue() == value)
-                    return protocol;
-            }
-            throw new IllegalArgumentException(String.format("Protocol %d is not recognized", value));
+            return Stream.of(Protocol.values())
+                    .filter(p -> p.getValue() == value)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(String.format("Protocol %d is not recognized", value)));
+        }
+
+        public int getValue() {
+            return value;
+        }
+    }
+
+    /**
+     * See <a href="https://reqrypt.org/windivert-doc.html#divert_shutdown">https://reqrypt.org/windivert-doc.html#divert_shutdown</a>
+     */
+    public enum Shutdown {
+        RECV(1), SEND(2), BOTH(3);
+        private int value;
+
+        Shutdown(int value) {
+            this.value = value;
         }
 
         public int getValue() {

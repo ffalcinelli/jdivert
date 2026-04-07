@@ -1,5 +1,53 @@
+# Gradle
 .gradle
-.idea
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# VS Code
+.vscode/
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Java
 *.class
 *.jar
-build
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Vagrant
+.vagrant/
+
+# Log files
+*.log
+
+# Crash dumps
+*.dmp
+*.dump
+*.hprof

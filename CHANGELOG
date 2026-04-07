@@ -1,0 +1,14 @@
+Version 3.0.0
+    - Major version bump to match pydivert 3.0.0.
+    - Bundle WinDivert 2.2.2 (64-bit).
+    - Updated for modern Windows environments (10/11).
+    - Support for new layers (FLOW, SOCKET, REFLECT).
+    - Added Vagrantfile for Windows testing.
+    - Security policy (SECURITY.md) added.
+    - Dual-licensed under GPLv2 and LGPLv3.
+
+Version 1.1
+    - Initial support for WinDivert 1.4.
+
+Version 1.0
+    - Initial release.

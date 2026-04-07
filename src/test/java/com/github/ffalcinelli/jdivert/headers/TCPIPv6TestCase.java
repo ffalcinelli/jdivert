@@ -17,11 +17,11 @@
 
 package com.github.ffalcinelli.jdivert.headers;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.TCP;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 29/10/2016.
@@ -37,7 +37,7 @@ public class TCPIPv6TestCase extends IPv6TestCase {
     protected byte[] options = new byte[]{1, 1, 8, 10, -128, 29, -91, 34, -128, 29, -91, 34};
     Tcp tcpHdr;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rawDataHexString = "600d684a007d0640fc000002000000020000000000000001fc000002000000010000000000000001a9a01f90021b638" +
                 "dba311e8e801800cfc92e00000101080a801da522801da522474554202f68656c6c6f2e74787420485454502f312e31" +
@@ -111,11 +111,11 @@ public class TCPIPv6TestCase extends IPv6TestCase {
     public void tcpFlags() {
         tcpHdr.setFlags(0x0);
         for (Tcp.Flag flag : Tcp.Flag.values()) {
-                assertFalse(flag.name() + " is not false", tcpHdr.is(flag));
+                assertFalse(tcpHdr.is(flag), flag.name() + " is not false");
         }
         tcpHdr.setFlags(0x01FF);
         for (Tcp.Flag flag : Tcp.Flag.values()) {
-            assertTrue(flag.name() + " is not true", tcpHdr.is(flag));
+            assertTrue(tcpHdr.is(flag), flag.name() + " is not true");
         }
     }
 
@@ -150,14 +150,14 @@ public class TCPIPv6TestCase extends IPv6TestCase {
         assertArrayEquals(newOptions, tcpHdr.getOptions());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void illegalDataOffsetGT15() {
-        tcpHdr.setDataOffset(20);
+        assertThrows(IllegalArgumentException.class, () -> tcpHdr.setDataOffset(20));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void illegalDataOffsetLT5() {
-        tcpHdr.setDataOffset(4);
+        assertThrows(IllegalArgumentException.class, () -> tcpHdr.setDataOffset(4));
     }
 
     @Test

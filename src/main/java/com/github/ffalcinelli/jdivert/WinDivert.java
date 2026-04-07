@@ -22,11 +22,16 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertDLL;
 import com.sun.jna.Memory;
+import com.sun.jna.platform.win32.Kernel32;
+import com.sun.jna.platform.win32.WinBase;
+import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.github.ffalcinelli.jdivert.Enums.*;
 import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throwExceptionOnGetLastError;
@@ -40,11 +45,11 @@ import static com.sun.jna.platform.win32.WinNT.HANDLE;
  */
 public class WinDivert {
     public static int DEFAULT_PACKET_BUFFER_SIZE = 1500;
-    private WinDivertDLL dll = WinDivertDLL.INSTANCE;
-    private String filter;
-    private Layer layer;
-    private int priority;
-    private int flags;
+    private final WinDivertDLL dll = WinDivertDLL.INSTANCE;
+    private final String filter;
+    private final Layer layer;
+    private final int priority;
+    private final int flags;
     private HANDLE handle;
 
     /**
@@ -71,15 +76,15 @@ public class WinDivert {
         this.filter = filter;
         this.layer = layer;
         this.priority = priority;
-        this.flags = 0;
         List<Flag> flagList = Arrays.asList(flags);
         if (flagList.contains(Flag.SNIFF) && flagList.contains(Flag.DROP)) {
             throw new IllegalArgumentException(String.format("A filter cannot be set with flags %s and %s at same time.", Flag.SNIFF, Flag.DROP));
         }
+        int flagsValue = 0;
         for (Flag flag : flags) {
-            this.flags |= flag.getValue();
+            flagsValue |= flag.getValue();
         }
-
+        this.flags = flagsValue;
     }
 
     /**
@@ -155,8 +160,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __out PVOID pPacket,
      *      __in UINT packetLen,
-     *      __out_opt PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *recvLen
+     *      __out_opt UINT *recvLen,
+     *      __out_opt PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -181,8 +186,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __out PVOID pPacket,
      *      __in UINT packetLen,
-     *      __out_opt PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *recvLen
+     *      __out_opt UINT *recvLen,
+     *      __out_opt PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -197,11 +202,47 @@ public class WinDivert {
         WinDivertAddress address = new WinDivertAddress();
         Memory buffer = new Memory(bufsize);
         IntByReference recvLen = new IntByReference();
-        dll.WinDivertRecv(handle, buffer, bufsize, address.getPointer(), recvLen);
-        address.read();
+        dll.WinDivertRecv(handle, buffer, bufsize, recvLen, address.getPointer());
         throwExceptionOnGetLastError();
+        address.read();
         byte[] raw = buffer.getByteArray(0, recvLen.getValue());
         return new Packet(raw, address);
+    }
+
+    /**
+     * Starts an asynchronous receive operation.
+     *
+     * @return A {@link WinDivertAsyncResult} object to track the operation.
+     * @throws WinDivertException If the operation fails to start.
+     */
+    public WinDivertAsyncResult<Packet> recvAsync() throws WinDivertException {
+        return recvAsync(DEFAULT_PACKET_BUFFER_SIZE);
+    }
+
+    /**
+     * Starts an asynchronous receive operation.
+     *
+     * @param bufsize The size for the buffer to allocate.
+     * @return A {@link WinDivertAsyncResult} object to track the operation.
+     * @throws WinDivertException If the operation fails to start.
+     */
+    public WinDivertAsyncResult<Packet> recvAsync(int bufsize) throws WinDivertException {
+        final WinDivertAddress address = new WinDivertAddress();
+        final Memory buffer = new Memory(bufsize);
+        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
+        overlapped.hEvent = Kernel32.INSTANCE.CreateEvent(null, true, false, null);
+
+        if (!dll.WinDivertRecvEx(handle, buffer, bufsize, null, 0, address.getPointer(), null, overlapped)) {
+            int err = Kernel32.INSTANCE.GetLastError();
+            if (err != WinNT.ERROR_IO_PENDING) {
+                throw new WinDivertException(err);
+            }
+        }
+
+        return new WinDivertAsyncResult<>(handle, overlapped, buffer, address, (len, buf, addr) -> {
+            byte[] raw = buf.getByteArray(0, len);
+            return new Packet(raw, addr);
+        });
     }
 
     /**
@@ -219,8 +260,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __in PVOID pPacket,
      *      __in UINT packetLen,
-     *      __in PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *sendLen
+     *      __out_opt UINT *sendLen,
+     *      __in PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -253,8 +294,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __in PVOID pPacket,
      *      __in UINT packetLen,
-     *      __in PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *sendLen
+     *      __out_opt UINT *sendLen,
+     *      __in PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -278,9 +319,67 @@ public class WinDivert {
 
         buffer.write(0, raw, 0, raw.length);
         address.write();
-        dll.WinDivertSend(handle, buffer, raw.length, address.getPointer(), sendLen);
+        dll.WinDivertSend(handle, buffer, raw.length, sendLen, address.getPointer());
         throwExceptionOnGetLastError();
         return sendLen.getValue();
+    }
+
+    /**
+     * Starts an asynchronous send operation.
+     *
+     * @param packet The packet to send.
+     * @return A {@link WinDivertAsyncResult} object to track the operation.
+     * @throws WinDivertException If the operation fails to start.
+     */
+    public WinDivertAsyncResult<Integer> sendAsync(Packet packet) throws WinDivertException {
+        return sendAsync(packet, true);
+    }
+
+    /**
+     * Starts an asynchronous send operation.
+     *
+     * @param packet              The packet to send.
+     * @param recalculateChecksum Whether to recalculate checksums.
+     * @param options             Options for checksum calculation.
+     * @return A {@link WinDivertAsyncResult} object to track the operation.
+     * @throws WinDivertException If the operation fails to start.
+     */
+    public WinDivertAsyncResult<Integer> sendAsync(Packet packet, boolean recalculateChecksum, CalcChecksumsOption... options) throws WinDivertException {
+        if (recalculateChecksum) {
+            packet.recalculateChecksum(options);
+        }
+        byte[] raw = packet.getRaw();
+        final Memory buffer = new Memory(raw.length);
+        buffer.write(0, raw, 0, raw.length);
+        
+        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
+        overlapped.hEvent = Kernel32.INSTANCE.CreateEvent(null, true, false, null);
+
+        WinDivertAddress addr = packet.getWinDivertAddress();
+        addr.write();
+        if (!dll.WinDivertSendEx(handle, buffer, raw.length, null, 0, addr.getPointer(), addr.size(), overlapped)) {
+            int err = Kernel32.INSTANCE.GetLastError();
+            if (err != WinNT.ERROR_IO_PENDING) {
+                throw new WinDivertException(err);
+            }
+        }
+
+        return new WinDivertAsyncResult<>(handle, overlapped, buffer, null, (len, buf, a) -> len);
+    }
+
+    /**
+     * Shutdown the WinDivert handle.
+     *
+     * @param how The shutdown mode.
+     * @throws WinDivertException If the operation fails.
+     */
+    public void shutdown(Shutdown how) throws WinDivertException {
+        if (!isOpen()) {
+            throw new IllegalStateException("WinDivert handle not in OPEN state");
+        }
+        if (!dll.WinDivertShutdown(handle, how.getValue())) {
+            throwExceptionOnGetLastError();
+        }
     }
 
     /**
@@ -354,14 +453,11 @@ public class WinDivert {
      * @return String representation of the operational mode
      */
     public String getMode() {
-        StringBuilder mode = new StringBuilder();
-        for (Flag flag : Flag.values()) {
-            if (is(flag)) {
-                mode.append(flag).append("|");
-            }
-        }
-        mode.deleteCharAt(mode.length() - 1);
-        return mode.toString();
+        String mode = Stream.of(Flag.values())
+                .filter(this::is)
+                .map(Enum::toString)
+                .collect(Collectors.joining("|"));
+        return mode.isEmpty() ? "DEFAULT" : mode;
     }
 
     @Override

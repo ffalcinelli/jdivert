@@ -18,9 +18,9 @@
 package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -28,8 +28,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.FIN;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 06/11/2016.
@@ -39,7 +39,7 @@ public class LiveCaptureTestCase {
     EchoServer srv;
     EchoClient clt;
 
-    @Before
+    @BeforeEach
     public void setUp() throws IOException {
         srv = new EchoServer();
         clt = new EchoClient(srv.getAddress(), srv.getPort(), "Test message.");
@@ -53,7 +53,7 @@ public class LiveCaptureTestCase {
         clt.start();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws InterruptedException {
         endThreads();
     }
@@ -68,7 +68,7 @@ public class LiveCaptureTestCase {
 
     @Test
     public void passThrough() throws WinDivertException, InterruptedException {
-        startupWithFilter("tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
+        startupWithFilter("loopback and tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
         wd.open();
         Packet p = wd.recv();
         assertTrue(p.isTcp());
@@ -79,7 +79,7 @@ public class LiveCaptureTestCase {
 
     @Test
     public void editPacket() throws WinDivertException, InterruptedException {
-        startupWithFilter("tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
+        startupWithFilter("loopback and tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
         wd.open();
         String message = "Echo message.";
         Packet p = wd.recv();
@@ -94,8 +94,8 @@ public class LiveCaptureTestCase {
     public void divert() throws IOException, WinDivertException, InterruptedException {
         EchoServer spoofer = new EchoServer();
         spoofer.start();
-        startupWithFilter("tcp.DstPort == " + srv.getPort() + " or " +
-                "tcp.SrcPort == " + spoofer.getPort());
+        startupWithFilter("loopback and (tcp.DstPort == " + srv.getPort() + " or " +
+                "tcp.SrcPort == " + spoofer.getPort() + ")");
         wd.open();
         Packet p;
         do {
@@ -177,7 +177,7 @@ public class LiveCaptureTestCase {
         private boolean stop;
 
         public EchoServer(int portNumber) throws IOException {
-            socket = new ServerSocket(portNumber);
+            socket = new ServerSocket(portNumber, 50, InetAddress.getByName("127.0.0.1"));
         }
 
         public EchoServer() throws IOException {

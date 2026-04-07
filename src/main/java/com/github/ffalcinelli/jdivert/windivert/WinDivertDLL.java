@@ -22,6 +22,7 @@ import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 
+import static com.sun.jna.platform.win32.WinBase.OVERLAPPED;
 import static com.sun.jna.platform.win32.WinDef.BOOL;
 import static com.sun.jna.platform.win32.WinNT.HANDLE;
 
@@ -42,39 +43,73 @@ public interface WinDivertDLL extends Library {
             long flags
     );
 
-    BOOL WinDivertRecv(
+    boolean WinDivertRecv(
             HANDLE handle,
             Pointer pPacket,
             int packetLen,
-            Pointer pAddr,
-            IntByReference recvLen
+            IntByReference recvLen,
+            Pointer pAddr
     );
 
-    BOOL WinDivertSend(
+    boolean WinDivertRecvEx(
             HANDLE handle,
             Pointer pPacket,
             int packetLen,
+            IntByReference recvLen,
+            long flags,
             Pointer pAddr,
-            IntByReference sendLen
+            IntByReference addrLen,
+            OVERLAPPED lpOverlapped
     );
 
-    BOOL WinDivertSetParam(
+    boolean WinDivertSend(
+            HANDLE handle,
+            Pointer pPacket,
+            int packetLen,
+            IntByReference sendLen,
+            Pointer pAddr
+    );
+
+    boolean WinDivertSendEx(
+            HANDLE handle,
+            Pointer pPacket,
+            int packetLen,
+            IntByReference sendLen,
+            long flags,
+            Pointer pAddr,
+            int addrLen,
+            OVERLAPPED lpOverlapped
+    );
+
+    boolean WinDivertShutdown(
+            HANDLE handle,
+            int how
+    );
+
+    boolean WinDivertSetParam(
             HANDLE handle,
             int param,
             long value);
 
-    BOOL WinDivertGetParam(
+    boolean WinDivertGetParam(
             HANDLE handle,
             int param,
             LongByReference pValue);
 
-    BOOL WinDivertClose(
+    boolean WinDivertClose(
             HANDLE handle
     );
 
     int WinDivertHelperCalcChecksums(
             Pointer pPacket,
             int packetLen,
+            Pointer pAddr,
             long flags
+    );
+
+    long WinDivertHelperHashPacket(
+            Pointer pPacket,
+            int packetLen,
+            long seed
     );
 }

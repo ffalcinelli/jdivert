@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Fabio Falcinelli 2016.
+ * Copyright (c) Fabio Falcinelli 2024.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -17,15 +17,15 @@
 
 package com.github.ffalcinelli.jdivert.headers;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol;
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 29/10/2016.
@@ -42,7 +42,7 @@ public abstract class IPTestCase {
     protected Protocol protocol;
     protected int ipHeaderLength;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rawData = parseHexBinary(rawDataHexString);
     }

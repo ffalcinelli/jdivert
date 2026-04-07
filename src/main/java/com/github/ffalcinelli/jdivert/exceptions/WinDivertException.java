@@ -26,7 +26,6 @@ import com.sun.jna.platform.win32.Kernel32Util;
  */
 public class WinDivertException extends Exception {
     protected int code;
-    protected String message;
     protected LastErrorException lee;
 
     public WinDivertException(int code) {
@@ -67,7 +66,7 @@ public class WinDivertException extends Exception {
     public String toString() {
         return "WinDivertException{" +
                 "code=" + code +
-                ", message='" + message + '\'' +
+                ", message='" + getMessage() + '\'' +
                 '}';
     }
 }

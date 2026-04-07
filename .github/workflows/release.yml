@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        # Using v4 - de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up JDK 17
+        # Using v5.2.0 - be666c2fcd27ec809703dec50e508c2fdc7f6654
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Publish to Maven Central
+        run: ./gradlew publishAllPublicationsToMavenCentralRepository -PsigningInMemoryKey="${{ secrets.GPG_PRIVATE_KEY }}" -PsigningInMemoryKeyPassword="${{ secrets.GPG_PASSPHRASE }}" -PmavenCentralUsername="${{ secrets.SONATYPE_PORTAL_TOKEN_USERNAME }}" -PmavenCentralPassword="${{ secrets.SONATYPE_PORTAL_TOKEN_PASSWORD }}"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            build/libs/*.jar \
+            --repo="$GITHUB_REPOSITORY" \
+            --title="Release ${{ github.ref_name }}" \
+            --generate-notes
