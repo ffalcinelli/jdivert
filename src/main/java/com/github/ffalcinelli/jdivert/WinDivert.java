@@ -160,8 +160,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __out PVOID pPacket,
      *      __in UINT packetLen,
-     *      __out_opt PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *recvLen
+     *      __out_opt UINT *recvLen,
+     *      __out_opt PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -186,8 +186,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __out PVOID pPacket,
      *      __in UINT packetLen,
-     *      __out_opt PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *recvLen
+     *      __out_opt UINT *recvLen,
+     *      __out_opt PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -260,8 +260,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __in PVOID pPacket,
      *      __in UINT packetLen,
-     *      __in PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *sendLen
+     *      __out_opt UINT *sendLen,
+     *      __in PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -294,8 +294,8 @@ public class WinDivert {
      *      __in HANDLE handle,
      *      __in PVOID pPacket,
      *      __in UINT packetLen,
-     *      __in PWINDIVERT_ADDRESS pAddr,
-     *      __out_opt UINT *sendLen
+     *      __out_opt UINT *sendLen,
+     *      __in PWINDIVERT_ADDRESS pAddr
      * );
      * }</pre>
      * <p>
@@ -312,14 +312,14 @@ public class WinDivert {
         if (recalculateChecksum) {
             packet.recalculateChecksum(options);
         }
+        WinDivertAddress address = packet.getWinDivertAddress();
         IntByReference sendLen = new IntByReference();
         byte[] raw = packet.getRaw();
         Memory buffer = new Memory(raw.length);
 
         buffer.write(0, raw, 0, raw.length);
-        WinDivertAddress addr = packet.getWinDivertAddress();
-        addr.write();
-        dll.WinDivertSend(handle, buffer, raw.length, sendLen, addr.getPointer());
+        address.write();
+        dll.WinDivertSend(handle, buffer, raw.length, sendLen, address.getPointer());
         throwExceptionOnGetLastError();
         return sendLen.getValue();
     }
