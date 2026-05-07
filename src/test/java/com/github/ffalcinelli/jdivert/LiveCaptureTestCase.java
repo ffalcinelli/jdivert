@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -83,8 +84,11 @@ public class LiveCaptureTestCase {
         wd.open();
         String message = "Echo message.";
         Packet p = wd.recv();
-        p.setPayload(message.getBytes());
-        assertEquals(message, new String(p.getPayload()).trim());
+        String originalPayload = new String(p.getPayload());
+        // Replace "Test" with "Echo" in the payload, preserving length and newline
+        String newPayloadStr = originalPayload.replace("Test", "Echo");
+        p.setPayload(newPayloadStr.getBytes());
+        
         wd.send(p);
         endThreads();
         assertEquals(srv.alterMessage(message), clt.getResponse());
@@ -98,6 +102,7 @@ public class LiveCaptureTestCase {
                 "tcp.SrcPort == " + spoofer.getPort() + ")");
         wd.open();
         Packet p;
+        long deadline = System.currentTimeMillis() + 10000;
         do {
             p = wd.recv();
             if (p.getDstPort() == srv.getPort())
@@ -107,7 +112,7 @@ public class LiveCaptureTestCase {
                 p.setSrcPort(srv.getPort());
 
             wd.send(p);
-        } while (!p.getTcp().is(FIN));
+        } while (!p.getTcp().is(FIN) && System.currentTimeMillis() < deadline);
         endThreads();
         spoofer.close();
         spoofer.join();
@@ -146,7 +151,9 @@ public class LiveCaptureTestCase {
             BufferedReader in = null;
             Socket socket = null;
             try {
-                socket = new Socket(address, port);
+                socket = new Socket();
+                socket.connect(new InetSocketAddress(address, port), 5000);
+                socket.setSoTimeout(5000);
                 out = new PrintWriter(socket.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 

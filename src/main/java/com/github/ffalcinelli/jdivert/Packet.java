@@ -42,7 +42,7 @@ import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throw
  */
 public class Packet {
 
-    private final ByteBuffer raw;
+    private ByteBuffer raw;
     private final Direction direction;
     private final int[] iface;
     private Transport transHdr;
@@ -317,8 +317,53 @@ public class Packet {
      * @param payload The byte array to use as payload.
      */
     public void setPayload(byte[] payload) {
-        //TODO: adjust length!
-        Util.setBytesAtOffset(raw, getHeadersLength(), payload.length, payload);
+        int headersLength = getHeadersLength();
+        int newTotalLength = headersLength + payload.length;
+
+        if (newTotalLength != raw.capacity()) {
+            byte[] newRaw = new byte[newTotalLength];
+            // Copy headers
+            System.arraycopy(raw.array(), 0, newRaw, 0, headersLength);
+            // Copy new payload
+            System.arraycopy(payload, 0, newRaw, headersLength, payload.length);
+
+            // Update this.raw
+            this.raw = ByteBuffer.wrap(newRaw);
+            this.raw.order(ByteOrder.BIG_ENDIAN);
+
+            // Re-build headers to point to new buffer
+            rebuildHeaders();
+        } else {
+            // Same length, just overwrite
+            Util.setBytesAtOffset(raw, headersLength, payload.length, payload);
+        }
+
+        // Update lengths in headers
+        if (isIpv4()) {
+            getIpv4().setTotalLength(newTotalLength);
+        } else if (isIpv6()) {
+            getIpv6().setPayloadLength((short) (newTotalLength - 40));
+        }
+
+        if (isUdp()) {
+            getUdp().setLength(payload.length + getUdp().getHeaderLength());
+        }
+    }
+
+    private void rebuildHeaders() {
+        byte[] rawBytes = raw.array();
+        ipHdr = null;
+        transHdr = null;
+        icmpHdr = null;
+        for (Header header : Header.buildHeaders(rawBytes)) {
+            if (header instanceof Ip) {
+                ipHdr = (Ip) header;
+            } else if (header instanceof Icmp) {
+                icmpHdr = (Icmp) header;
+            } else {
+                transHdr = (Transport) header;
+            }
+        }
     }
 
     /**
