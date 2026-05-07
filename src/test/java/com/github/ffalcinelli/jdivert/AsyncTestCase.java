@@ -39,8 +39,8 @@ public class AsyncTestCase {
 
     @Test
     public void testRecvAsync() throws WinDivertException, IOException, InterruptedException {
-        // Use a filter that doesn't capture anything to test async logic without side effects
-        wd = new WinDivert("false").open();
+        // Use a filter that captures ICMP traffic
+        wd = new WinDivert("icmp").open();
         
         final WinDivertAsyncResult<Packet> asyncResult = wd.recvAsync();
         assertFalse(asyncResult.isCompleted(), "Operation should be pending");
@@ -68,7 +68,7 @@ public class AsyncTestCase {
 
     @Test
     public void testSendAsync() throws WinDivertException, IOException {
-        wd = new WinDivert("false").open(); 
+        wd = new WinDivert("true").open(); 
         
         // Create a dummy ICMP packet to send
         byte[] raw = Util.parseHexBinary("4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
