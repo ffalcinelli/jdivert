@@ -32,8 +32,9 @@ Vagrant.configure("2") do |config|
  -----------------------------------------------------------------------
  Windows 11 VM for JDivert is up and running!
 
- To run tests within the VM:
- vagrant powershell -c 'cd C:/jdivert; ./gradlew test'
+ To run tests within the VM (using a local folder to avoid synced folder issues):
+ vagrant winrm --command "xcopy C:\\jdivert C:\\local_jdivert /E /I /H /Y"
+ vagrant winrm --command "cd C:\\local_jdivert; .\\gradlew.bat test --no-daemon"
 
  To get an interactive PowerShell session:
  vagrant powershell

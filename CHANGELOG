@@ -6,6 +6,10 @@ Version 3.0.0
     - Added Vagrantfile for Windows testing.
     - Security policy (SECURITY.md) added.
     - Dual-licensed under GPLv2 and LGPLv3.
+    - Implement payload resizing in Packet.setPayload.
+    - Make WinDivert implement AutoCloseable for try-with-resources.
+    - Improved test robustness and timeouts.
+    - Fixed memory issues in Vagrant VM by increasing WinRM limits.
 
 Version 1.1
     - Initial support for WinDivert 1.4.

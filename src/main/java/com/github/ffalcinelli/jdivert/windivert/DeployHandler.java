@@ -118,7 +118,7 @@ public class DeployHandler {
             File temp = deployDirManager.createTempDir();
             if (temp != null && temp.delete() && temp.mkdir()) {
                 System.setProperty("jna.library.path", deployInTempDir(temp));
-                return (WinDivertDLL) Native.loadLibrary("WinDivert64", WinDivertDLL.class);
+                return Native.load("WinDivert64", WinDivertDLL.class);
             } else {
                 throw new IOException("Could not create a proper temp dir");
             }

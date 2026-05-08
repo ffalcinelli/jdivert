@@ -313,6 +313,15 @@ public class Packet {
 
     /**
      * Sets the given byte array as {@link Packet} payload.
+     * <p>
+     * This method automatically handles packet resizing by reallocating the internal buffer
+     * if the new payload size differs from the original. It also updates the appropriate
+     * length fields in the IP and Transport headers.
+     * </p>
+     * <p>
+     * Note: After modifying the payload, you should call {@link #recalculateChecksum()}
+     * (or let {@link WinDivert#send(Packet)} do it) to ensure the packet remains valid.
+     * </p>
      *
      * @param payload The byte array to use as payload.
      */

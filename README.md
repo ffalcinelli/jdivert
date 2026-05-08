@@ -76,7 +76,7 @@ When you call `.recv()`, the packet is **taken out** of the Windows network stac
 
 ### Packet Modification
 
-You can easily modify packet headers and recalculate checksums automatically.
+You can easily modify packet headers and payloads. JDivert handles automatic resizing and header length updates.
 
 ```java
 import com.github.ffalcinelli.jdivert.WinDivert;
@@ -86,10 +86,14 @@ try (WinDivert w = new WinDivert("tcp.DstPort == 1234")) {
     w.open();
     while (true) {
         Packet packet = w.recv();
-        // Redirect traffic to port 80
+        
+        // 1. Modify header
         packet.getTcp().setDstPort(80);
         
-        // WinDivert handles checksum recalculation by default when sending
+        // 2. Modify payload (JDivert handles buffer reallocation and length updates)
+        packet.setPayload("New Payload Content".getBytes());
+        
+        // 3. WinDivert handles checksum recalculation by default when sending
         w.send(packet);
     }
 }
@@ -133,7 +137,9 @@ For information on supported versions, reporting vulnerabilities, and security b
 To set up a development environment:
 
 1. Clone the repository.
-2. Run tests (requires Admin): `./gradlew test`
+2. Run tests (requires Administrator privileges):
+   - **Windows:** `.\gradlew test`
+   - **Linux/macOS:** `./gradlew test` (requires a Windows environment, see Vagrant below)
 
 ### Testing on other Operating Systems (using Vagrant)
 
@@ -151,9 +157,17 @@ Since JDivert requires Windows and Administrator privileges, you can use **Vagra
     ```
 
 2.  **Run the tests:**
+    Due to known issues with VirtualBox synced folders (UNC paths) and some Java versions, it is recommended to copy the project to a local folder inside the VM before running tests. You can use `vagrant winrm` to execute these commands:
+
     ```bash
-    vagrant powershell -c 'cd C:/jdivert; ./gradlew test'
+    # 1. Copy project to a local folder in the VM
+    vagrant winrm --command "xcopy C:\jdivert C:\local_jdivert /E /I /H /Y"
+    
+    # 2. Run tests from the local folder
+    vagrant winrm --command "cd C:\local_jdivert; .\gradlew.bat test --no-daemon"
     ```
+
+    *Note: `vagrant powershell` can also be used for an interactive session.*
 
 ## API Reference
 
