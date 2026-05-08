@@ -37,10 +37,12 @@ jobs:
         cache: 'gradle'
 
     - name: Build with Gradle
-      run: ./gradlew build -Porg.gradle.java.installations.paths="${{ steps.setup-toolchain.outputs.path }}" -Porg.gradle.java.installations.auto-download=false
+      shell: bash
+      run: ./gradlew build -Porg.gradle.java.installations.paths='${{ steps.setup-toolchain.outputs.path }}' -Porg.gradle.java.installations.auto-download=false
 
     - name: Run Tests
-      run: ./gradlew test jacocoTestReport -Porg.gradle.java.installations.paths="${{ steps.setup-toolchain.outputs.path }}" -Porg.gradle.java.installations.auto-download=false
+      shell: bash
+      run: ./gradlew test jacocoTestReport -Porg.gradle.java.installations.paths='${{ steps.setup-toolchain.outputs.path }}' -Porg.gradle.java.installations.auto-download=false
 
     - name: Upload coverage to Codecov
       if: matrix.java == '17'
