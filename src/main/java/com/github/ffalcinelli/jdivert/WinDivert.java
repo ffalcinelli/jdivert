@@ -43,7 +43,7 @@ import static com.sun.jna.platform.win32.WinNT.HANDLE;
  * </p>
  * Created by fabio on 20/10/2016.
  */
-public class WinDivert {
+public class WinDivert implements AutoCloseable {
     public static int DEFAULT_PACKET_BUFFER_SIZE = 1500;
     private final WinDivertDLL dll = WinDivertDLL.INSTANCE;
     private final String filter;

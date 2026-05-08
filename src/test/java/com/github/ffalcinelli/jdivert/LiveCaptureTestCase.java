@@ -235,15 +235,9 @@ public class LiveCaptureTestCase {
 
     public static void closeAnyway(Object... toClose) {
         for (Object obj : toClose) {
-            if (obj != null) {
+            if (obj instanceof AutoCloseable) {
                 try {
-                    //TODO: from Java 1.7 Socket and ServerSocket implement Closeable so this code could be refactored
-                    if (obj instanceof Socket)
-                        ((Socket) obj).close();
-                    else if (obj instanceof ServerSocket)
-                        ((ServerSocket) obj).close();
-                    else if (obj instanceof Closeable)
-                        ((Closeable) obj).close();
+                    ((AutoCloseable) obj).close();
                 } catch (Exception ignore) {
                 }
             }
