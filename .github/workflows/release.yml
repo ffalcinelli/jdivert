@@ -32,10 +32,12 @@ jobs:
           cache: 'gradle'
 
       - name: Build with Gradle
-        run: ./gradlew build -Porg.gradle.java.installations.paths="${{ steps.setup-java-8.outputs.path }}" -Porg.gradle.java.installations.auto-download=false
+        shell: bash
+        run: ./gradlew build -Porg.gradle.java.installations.paths='${{ steps.setup-java-8.outputs.path }}' -Porg.gradle.java.installations.auto-download=false
 
       - name: Publish to Maven Central
-        run: ./gradlew publishAllPublicationsToMavenCentralRepository -PsigningInMemoryKey="${{ secrets.GPG_PRIVATE_KEY }}" -PsigningInMemoryKeyPassword="${{ secrets.GPG_PASSPHRASE }}" -PmavenCentralUsername="${{ secrets.SONATYPE_PORTAL_TOKEN_USERNAME }}" -PmavenCentralPassword="${{ secrets.SONATYPE_PORTAL_TOKEN_PASSWORD }}" -Porg.gradle.java.installations.paths="${{ steps.setup-java-8.outputs.path }}" -Porg.gradle.java.installations.auto-download=false
+        shell: bash
+        run: ./gradlew publishAllPublicationsToMavenCentralRepository -PsigningInMemoryKey="${{ secrets.GPG_PRIVATE_KEY }}" -PsigningInMemoryKeyPassword="${{ secrets.GPG_PASSPHRASE }}" -PmavenCentralUsername="${{ secrets.SONATYPE_PORTAL_TOKEN_USERNAME }}" -PmavenCentralPassword="${{ secrets.SONATYPE_PORTAL_TOKEN_PASSWORD }}" -Porg.gradle.java.installations.paths='${{ steps.setup-java-8.outputs.path }}' -Porg.gradle.java.installations.auto-download=false
 
       - name: Create GitHub Release
         env:
