@@ -1,7 +1,7 @@
 # JDivert
 
-[![Build and Test](https://github.com/ffalcinelli/jdivert/actions/workflows/test.yml/badge.svg)](https://github.com/ffalcinelli/jdivert/actions/workflows/test.yml)
-[![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/master.svg)](https://codecov.io/github/ffalcinelli/jdivert)
+[![Build and Test](https://github.com/ffalcinelli/jdivert/actions/workflows/ci.yml/badge.svg)](https://github.com/ffalcinelli/jdivert/actions/workflows/ci.yml)
+[![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/main.svg)](https://codecov.io/github/ffalcinelli/jdivert)
 [![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)](https://search.maven.org/artifact/com.github.ffalcinelli/jdivert/3.0.0/jar)
 [![license](https://img.shields.io/badge/license-LGPLv3%20%7C%20GPLv2-blue.svg)](https://github.com/ffalcinelli/jdivert/blob/master/LICENSE)
 
