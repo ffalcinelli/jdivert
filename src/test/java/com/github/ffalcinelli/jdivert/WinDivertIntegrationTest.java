@@ -1,6 +1,7 @@
 package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
+import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -161,59 +162,52 @@ public class WinDivertIntegrationTest {
     }
 
     @Test
-    @Disabled("Flaky in some virtualized environments (loopback inbound/outbound capture)")
+    @Disabled("Consistently fails/times out in some virtualized environments (like VirtualBox/Vagrant) where re-injected loopback packets are not reliably captured by multiple handles.")
     public void testInboundOutboundLogic() throws Exception {
-        // Using loopback UDP to verify inbound/outbound bits
+        // Use two handles to test direction bit handling. 
         int port;
         try (DatagramSocket socket = new DatagramSocket(0)) {
             port = socket.getLocalPort();
         }
 
-        WinDivert udpWd = new WinDivert("loopback and udp.DstPort == " + port).open();
-        try {
-            AtomicReference<Packet> outbound = new AtomicReference<>();
-            AtomicReference<Packet> inbound = new AtomicReference<>();
+        try (WinDivert wd1 = new WinDivert("udp.DstPort == " + port, Enums.Layer.NETWORK, 100, Enums.Flag.DEFAULT).open();
+             WinDivert wd2 = new WinDivert("udp.DstPort == " + port, Enums.Layer.NETWORK, 0, Enums.Flag.DEFAULT).open()) {
             
-            Thread trigger = new Thread(() -> {
-                try {
-                    InetAddress addr = InetAddress.getByName("127.0.0.1");
-                    byte[] data = "ping".getBytes();
-                    while (outbound.get() == null || inbound.get() == null) {
-                        try (DatagramSocket socket = new DatagramSocket()) {
-                            socket.send(new DatagramPacket(data, data.length, addr, port));
-                        }
-                        Thread.sleep(200);
-                    }
+            // Start a receiver to avoid stack drops
+            Thread receiver = new Thread(() -> {
+                try (DatagramSocket socket = new DatagramSocket(port)) {
+                    byte[] buf = new byte[1024];
+                    DatagramPacket p = new DatagramPacket(buf, buf.length);
+                    socket.setSoTimeout(5000);
+                    socket.receive(p);
                 } catch (Exception ignore) {}
             });
-            trigger.setDaemon(true);
-            trigger.start();
+            receiver.start();
 
-            // Capture packets until we have both or timeout
-            long deadline = System.currentTimeMillis() + 10000;
-            while ((outbound.get() == null || inbound.get() == null) && System.currentTimeMillis() < deadline) {
-                WinDivertAsyncResult<Packet> asyncRecv = udpWd.recvAsync();
-                long recvDeadline = System.currentTimeMillis() + 1000;
-                while (!asyncRecv.isCompleted() && System.currentTimeMillis() < recvDeadline) {
-                    Thread.sleep(50);
-                }
-                
-                if (asyncRecv.isCompleted()) {
-                    Packet p = asyncRecv.get();
-                    if (p.isOutbound()) outbound.set(p);
-                    else inbound.set(p);
-                    udpWd.send(p); 
-                }
+            // 1. Trigger an outbound packet via the OS
+            try (DatagramSocket socket = new DatagramSocket()) {
+                byte[] data = "ping".getBytes();
+                socket.send(new DatagramPacket(data, data.length, InetAddress.getByName("127.0.0.1"), port));
             }
+            
+            Packet p = wd1.recv();
+            assertNotNull(p, "wd1 should have captured the OS-triggered outbound packet");
+            assertTrue(p.isOutbound(), "Captured packet should be outbound");
+            
+            // Get real interface indices
+            WinDivertAddress addr = p.getWinDivertAddress();
+            int ifIdx = addr.Union.Network.IfIdx;
+            int subIfIdx = addr.Union.Network.SubIfIdx;
 
-            assertNotNull(outbound.get(), "Should have captured an outbound UDP packet");
-            assertNotNull(inbound.get(), "Should have captured an inbound UDP packet");
+            // 2. Re-inject as INBOUND via wd1 using same interface
+            Packet pIn = new Packet(p.getRaw(), new int[]{ifIdx, subIfIdx}, Enums.Direction.INBOUND);
+            wd1.send(pIn);
             
-            assertTrue(outbound.get().isOutbound());
-            assertTrue(inbound.get().isInbound());
+            Packet rIn = wd2.recv();
+            assertNotNull(rIn, "wd2 should have captured the manually injected inbound packet from wd1");
+            assertTrue(rIn.isInbound(), "Captured packet should be inbound");
             
-        } finally {
-            udpWd.close();
+            receiver.join(2000);
         }
     }
 }

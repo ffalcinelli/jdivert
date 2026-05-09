@@ -8,7 +8,7 @@ JDivert is a Java wrapper for [WinDivert](https://reqrypt.org/windivert.html), a
 - **Main Technologies:**
   - **Java:** Source compatibility set to Java 1.8.
   - **JNA (Java Native Access):** Used to interface with the native WinDivert DLL.
-  - **Gradle:** Build system and dependency management.
+  - **Maven:** Build system and dependency management.
   - **WinDivert:** Bundles WinDivert 2.2.2 binaries (`.dll` and `.sys`) for 64-bit architecture. 32-bit support is dropped.
   - **GitHub Actions:** CI/CD platform for automated building and testing on Windows across multiple JDK versions (8, 11, 17, 21).
 - **Architecture:**
@@ -19,26 +19,26 @@ JDivert is a Java wrapper for [WinDivert](https://reqrypt.org/windivert.html), a
 
 ## Building and Running
 
-The project uses the Gradle wrapper (`gradlew`) for all build tasks.
+The project uses Maven for all build tasks.
 
 - **Build the project:**
   ```bash
-  ./gradlew build
+  mvn clean verify
   ```
 - **Run tests:**
   ```bash
-  ./gradlew test
+  mvn test
   ```
   *Note: Many tests require Windows and Administrator privileges to interact with the WinDivert driver.*
 - **Clean the build directory:**
   ```bash
-  ./gradlew clean
+  mvn clean
   ```
 - **Generate Javadoc:**
   ```bash
-  ./gradlew javadoc
+  mvn javadoc:javadoc
   ```
-  The project has a custom task `copyJavadoc` that moves generated Javadocs to the `docs/` directory for GitHub Pages.
+  Javadocs are generated directly into the `docs/` directory for GitHub Pages.
 
 ## Development Conventions
 
