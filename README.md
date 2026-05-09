@@ -132,14 +132,13 @@ try (WinDivert w = new WinDivert("true", Layer.FLOW)) {
 
 For information on supported versions, reporting vulnerabilities, and security best practices, please see our [Security Policy](SECURITY.md).
 
-## Development
+### Development
 
 To set up a development environment:
 
 1. Clone the repository.
 2. Run tests (requires Administrator privileges):
-   - **Windows:** `.\gradlew test`
-   - **Linux/macOS:** `./gradlew test` (requires a Windows environment, see Vagrant below)
+   - `mvn clean test`
 
 ### Testing on other Operating Systems (using Vagrant)
 
@@ -162,10 +161,11 @@ Since JDivert requires Windows and Administrator privileges, you can use **Vagra
     ```bash
     # 1. Copy project to a local folder in the VM
     vagrant winrm --command "xcopy C:\jdivert C:\local_jdivert /E /I /H /Y"
-    
+
     # 2. Run tests from the local folder
-    vagrant winrm --command "cd C:\local_jdivert; .\gradlew.bat test --no-daemon"
+    vagrant winrm --command "cd C:\local_jdivert; mvn clean test"
     ```
+
 
     *Note: `vagrant powershell` can also be used for an interactive session.*
 

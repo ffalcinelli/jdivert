@@ -1,7 +1,15 @@
-# Gradle
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.nextSnapshot
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+# If you use a Maven wrapper:
+#!.mvn/wrapper/maven-wrapper.jar
 
 # IntelliJ IDEA
 .idea/
@@ -51,3 +59,4 @@ desktop.ini
 *.dmp
 *.dump
 *.hprof
+docs
