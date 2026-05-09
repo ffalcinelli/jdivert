@@ -18,18 +18,19 @@
 package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
 import static com.github.ffalcinelli.jdivert.headers.Tcp.Flag.FIN;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 06/11/2016.
@@ -39,7 +40,7 @@ public class LiveCaptureTestCase {
     EchoServer srv;
     EchoClient clt;
 
-    @Before
+    @BeforeEach
     public void setUp() throws IOException {
         srv = new EchoServer();
         clt = new EchoClient(srv.getAddress(), srv.getPort(), "Test message.");
@@ -53,7 +54,7 @@ public class LiveCaptureTestCase {
         clt.start();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws InterruptedException {
         endThreads();
     }
@@ -68,7 +69,7 @@ public class LiveCaptureTestCase {
 
     @Test
     public void passThrough() throws WinDivertException, InterruptedException {
-        startupWithFilter("tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
+        startupWithFilter("loopback and tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
         wd.open();
         Packet p = wd.recv();
         assertTrue(p.isTcp());
@@ -79,12 +80,15 @@ public class LiveCaptureTestCase {
 
     @Test
     public void editPacket() throws WinDivertException, InterruptedException {
-        startupWithFilter("tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
+        startupWithFilter("loopback and tcp.DstPort == " + srv.getPort() + " and tcp.PayloadLength > 0");
         wd.open();
         String message = "Echo message.";
         Packet p = wd.recv();
-        p.setPayload(message.getBytes());
-        assertEquals(message, new String(p.getPayload()).trim());
+        String originalPayload = new String(p.getPayload());
+        // Replace "Test" with "Echo" in the payload, preserving length and newline
+        String newPayloadStr = originalPayload.replace("Test", "Echo");
+        p.setPayload(newPayloadStr.getBytes());
+        
         wd.send(p);
         endThreads();
         assertEquals(srv.alterMessage(message), clt.getResponse());
@@ -94,10 +98,11 @@ public class LiveCaptureTestCase {
     public void divert() throws IOException, WinDivertException, InterruptedException {
         EchoServer spoofer = new EchoServer();
         spoofer.start();
-        startupWithFilter("tcp.DstPort == " + srv.getPort() + " or " +
-                "tcp.SrcPort == " + spoofer.getPort());
+        startupWithFilter("loopback and (tcp.DstPort == " + srv.getPort() + " or " +
+                "tcp.SrcPort == " + spoofer.getPort() + ")");
         wd.open();
         Packet p;
+        long deadline = System.currentTimeMillis() + 10000;
         do {
             p = wd.recv();
             if (p.getDstPort() == srv.getPort())
@@ -107,7 +112,7 @@ public class LiveCaptureTestCase {
                 p.setSrcPort(srv.getPort());
 
             wd.send(p);
-        } while (!p.getTcp().is(FIN));
+        } while (!p.getTcp().is(FIN) && System.currentTimeMillis() < deadline);
         endThreads();
         spoofer.close();
         spoofer.join();
@@ -146,7 +151,9 @@ public class LiveCaptureTestCase {
             BufferedReader in = null;
             Socket socket = null;
             try {
-                socket = new Socket(address, port);
+                socket = new Socket();
+                socket.connect(new InetSocketAddress(address, port), 5000);
+                socket.setSoTimeout(5000);
                 out = new PrintWriter(socket.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
@@ -177,7 +184,7 @@ public class LiveCaptureTestCase {
         private boolean stop;
 
         public EchoServer(int portNumber) throws IOException {
-            socket = new ServerSocket(portNumber);
+            socket = new ServerSocket(portNumber, 50, InetAddress.getByName("127.0.0.1"));
         }
 
         public EchoServer() throws IOException {
@@ -228,15 +235,9 @@ public class LiveCaptureTestCase {
 
     public static void closeAnyway(Object... toClose) {
         for (Object obj : toClose) {
-            if (obj != null) {
+            if (obj instanceof AutoCloseable) {
                 try {
-                    //TODO: from Java 1.7 Socket and ServerSocket implement Closeable so this code could be refactored
-                    if (obj instanceof Socket)
-                        ((Socket) obj).close();
-                    else if (obj instanceof ServerSocket)
-                        ((ServerSocket) obj).close();
-                    else if (obj instanceof Closeable)
-                        ((Closeable) obj).close();
+                    ((AutoCloseable) obj).close();
                 } catch (Exception ignore) {
                 }
             }

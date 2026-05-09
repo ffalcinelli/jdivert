@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Fabio Falcinelli 2016.
+ * Copyright (c) Fabio Falcinelli 2024.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,14 +18,14 @@
 package com.github.ffalcinelli.jdivert.headers;
 
 import com.github.ffalcinelli.jdivert.Enums;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ROUTING;
 import static com.github.ffalcinelli.jdivert.headers.Ipv4.Flag.*;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -34,7 +34,7 @@ public abstract class IPv4TestCase extends IPTestCase {
 
     protected Ipv4 ipv4Hdr;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         super.setUp();
         ipv4Hdr = new Ipv4(ByteBuffer.wrap(rawData));
@@ -63,13 +63,14 @@ public abstract class IPv4TestCase extends IPTestCase {
         assertEquals(ROUTING, ipv4Hdr.getProtocol());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void illegalProtocol() {
-        ipv4Hdr.setProtocol(Enums.Protocol.fromValue(11));
+        assertThrows(IllegalArgumentException.class, () -> ipv4Hdr.setProtocol(Enums.Protocol.fromValue(11)));
     }
 
     @Test
-    public void headerLengthBis() {
+    public void headerLength() {
+        super.headerLength();
         assertNull(ipv4Hdr.getOptions());
         assertEquals(ipHeaderLength, ipHdr.getRawHeaderBytes().length);
     }
@@ -112,9 +113,9 @@ public abstract class IPv4TestCase extends IPTestCase {
         assertEquals(null, ipv4Hdr.getOptions());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void optionsIllegalSize() {
-        ipv4Hdr.setOptions(new byte[]{0x1, 0x2, 0x3, 0x4});
+        assertThrows(IllegalStateException.class, () -> ipv4Hdr.setOptions(new byte[]{0x1, 0x2, 0x3, 0x4}));
     }
 
     @Test

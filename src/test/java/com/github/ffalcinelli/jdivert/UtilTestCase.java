@@ -18,13 +18,13 @@
 package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.windivert.DeployHandler;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -49,14 +49,14 @@ public class UtilTestCase {
         assertEquals("0123456789ABCDEF", printHexBinary(buffer));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void hexConversionOddCharacters() {
-        assertEquals("0123456789ABCDE", printHexBinary(parseHexBinary("0123456789ABCDE")));
+        assertThrows(IllegalArgumentException.class, () -> parseHexBinary("0123456789ABCDE"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void hexConversionInvalidCharacters() {
-        assertEquals("0123456789ABCDEZ", printHexBinary(parseHexBinary("0123456789ABCDEZ")));
+        assertThrows(IllegalArgumentException.class, () -> parseHexBinary("0123456789ABCDEZ"));
     }
 
     @Test
@@ -64,5 +64,27 @@ public class UtilTestCase {
         byte[] source = new byte[]{0x1, 0x2, 0x3, 0x4};
         assertArrayEquals(new byte[]{0x1, 0x2, 0x3, 0x4, 0x0, 0x0}, Util.zeroPadArray(source, 6));
         assertArrayEquals(new byte[]{0x1, 0x2}, Util.zeroPadArray(source, 2));
+        assertArrayEquals(new byte[0], Util.zeroPadArray(source, 0));
+    }
+
+    @Test
+    public void bufferOperations() {
+        ByteBuffer buffer = ByteBuffer.allocate(10);
+        byte[] data = new byte[]{0x1, 0x2, 0x3};
+        Util.setBytesAtOffset(buffer, 2, 3, data);
+        
+        assertArrayEquals(data, Util.getBytesAtOffset(buffer, 2, 3));
+        assertEquals(0, buffer.position());
+    }
+
+    @Test
+    public void unsignedConversions() {
+        assertEquals(255, Util.unsigned((byte) -1));
+        assertEquals(0, Util.unsigned((byte) 0));
+        assertEquals(127, Util.unsigned((byte) 127));
+
+        assertEquals(65535, Util.unsigned((short) -1));
+        assertEquals(0, Util.unsigned((short) 0));
+        assertEquals(32767, Util.unsigned((short) 32767));
     }
 }

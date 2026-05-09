@@ -17,12 +17,12 @@
 
 package com.github.ffalcinelli.jdivert.headers;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.UDP;
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 02/11/2016.
@@ -34,7 +34,7 @@ public class UDPIPv4TestCase extends IPv4TestCase {
     protected int dstPort;
     protected String payload = "528e01000001000000000000013801380138013807696e2d61646472046172706100000c0001";
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rawDataHexString = "4500004281bf000040112191c0a82b09c0a82b01c9dd0035002ef268528e01000001000000000000013801380138013807696e2d61646472046172706100000c0001";
         super.setUp();

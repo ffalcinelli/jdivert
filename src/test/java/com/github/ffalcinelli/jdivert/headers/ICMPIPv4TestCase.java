@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Fabio Falcinelli 2016.
+ * Copyright (c) Fabio Falcinelli 2024.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -17,11 +17,11 @@
 
 package com.github.ffalcinelli.jdivert.headers;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ICMP;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 02/11/2016.
@@ -31,7 +31,7 @@ public class ICMPIPv4TestCase extends IPv4TestCase {
     protected Icmpv4 icmpHdr;
     protected byte[] restOfHeader;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rawDataHexString = "4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637";
         super.setUp();

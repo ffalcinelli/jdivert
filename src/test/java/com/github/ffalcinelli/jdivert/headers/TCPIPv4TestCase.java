@@ -17,11 +17,11 @@
 
 package com.github.ffalcinelli.jdivert.headers;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.TCP;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 29/10/2016.
@@ -36,7 +36,7 @@ public class TCPIPv4TestCase extends IPv4TestCase {
     protected int tcpCksum;
     Tcp tcpHdr;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rawDataHexString = "45000051476040008006f005c0a856a936f274fdd84201bb0876cfd0c19f9320501800ff8dba0000170303" +
                 "00240000000000000c2f53831a37ed3c3a632f47440594cab95283b558bf82cb7784344c3314";
@@ -110,7 +110,7 @@ public class TCPIPv4TestCase extends IPv4TestCase {
     public void flags() {
         tcpHdr.setFlags(0x0);
         for (Tcp.Flag flag : Tcp.Flag.values()) {
-            assertFalse(flag.name() + " is not false", tcpHdr.is(flag));
+            assertFalse(tcpHdr.is(flag), flag.name() + " is not false");
             tcpHdr.set(flag, true);
         }
         assertEquals(0x01FF, tcpHdr.getFlags());
@@ -140,7 +140,7 @@ public class TCPIPv4TestCase extends IPv4TestCase {
 
     @Test
     public void options() {
-        super.options();
+        super.adjustLengthAndAddOptions();
         assertNull(tcpHdr.getOptions());
         byte[] options = new byte[]{0x1, 0x2, 0x3, 0x4};
         tcpHdr.setDataOffset(6);
@@ -148,9 +148,9 @@ public class TCPIPv4TestCase extends IPv4TestCase {
         assertArrayEquals(options, tcpHdr.getOptions());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void optionsIllegalSizeTcp() {
-        tcpHdr.setOptions(new byte[]{0x1, 0x2, 0x3, 0x4});
+        assertThrows(IllegalStateException.class, () -> tcpHdr.setOptions(new byte[]{0x1, 0x2, 0x3, 0x4}));
     }
 
     @Test

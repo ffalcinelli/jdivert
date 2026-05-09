@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Fabio Falcinelli 2016.
+ * Copyright (c) Fabio Falcinelli 2024.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,14 +18,13 @@
 package com.github.ffalcinelli.jdivert.headers;
 
 import com.github.ffalcinelli.jdivert.Enums;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ROUTING;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -35,7 +34,7 @@ public abstract class IPv6TestCase extends IPTestCase {
     protected Ipv6 ipv6Hdr;
     protected int hopLimit;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         super.setUp();
         ipv6Hdr = new Ipv6(ByteBuffer.wrap(rawData));
@@ -65,9 +64,9 @@ public abstract class IPv6TestCase extends IPTestCase {
         assertEquals(ROUTING, ipv6Hdr.getNextHeader());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void illegalNextHeader() {
-        ipv6Hdr.setNextHeader(Enums.Protocol.fromValue(11));
+        assertThrows(IllegalArgumentException.class, () -> ipv6Hdr.setNextHeader(Enums.Protocol.fromValue(11)));
     }
 
     @Test

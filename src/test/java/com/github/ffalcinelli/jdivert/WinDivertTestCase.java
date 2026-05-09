@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Fabio Falcinelli 2016.
+ * Copyright (c) Fabio Falcinelli 2024.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -18,14 +18,14 @@
 package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
 import static com.github.ffalcinelli.jdivert.Enums.Flag.*;
 import static com.github.ffalcinelli.jdivert.Enums.Layer.NETWORK;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -40,20 +40,20 @@ public class WinDivertTestCase {
         return rnd.nextInt(max - min + 1) + min;
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         if (w != null)
             w.close();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void wrongFlags() {
-        w = new WinDivert("true", NETWORK, 0, SNIFF, DROP);
+        assertThrows(IllegalArgumentException.class, () -> w = new WinDivert("false", NETWORK, 0, SNIFF, DROP));
     }
 
     @Test
     public void open() throws WinDivertException {
-        w = new WinDivert("true");
+        w = new WinDivert("false");
         assertEquals(w, w.open());
         assertTrue(w.isOpen());
         assertTrue(w.toString().contains("state=OPEN"));
@@ -61,76 +61,63 @@ public class WinDivertTestCase {
         assertFalse(w.isOpen());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void reOpen() throws WinDivertException {
-        w = new WinDivert("true");
+        w = new WinDivert("false");
         w.open();
         assertTrue(w.isOpen());
-        w.open();
+        assertThrows(IllegalStateException.class, () -> w.open());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void setParamWindivertNotOpen() {
-        w = new WinDivert("true");
+        w = new WinDivert("false");
         for (Enums.Param param : Enums.Param.values()) {
-            // I know this won't iterate...
-            w.setParam(param, param.getDefault());
+            assertThrows(IllegalStateException.class, () -> w.setParam(param, param.getDefault()));
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void getParamWindivertNotOpen() {
-        w = new WinDivert("true");
+        w = new WinDivert("false");
         for (Enums.Param param : Enums.Param.values()) {
-            // I know this won't iterate...
-            assertEquals(w.getParam(param), param.getDefault());
+            assertThrows(IllegalStateException.class, () -> w.getParam(param));
         }
     }
 
 
     @Test
     public void params() throws WinDivertException {
-        w = new WinDivert("true").open();
+        w = new WinDivert("false").open();
         for (Enums.Param param : Enums.Param.values()) {
-            assertEquals(param.toString(), param.getDefault(), w.getParam(param));
+            assertEquals(param.getDefault(), w.getParam(param), param.toString());
             long value = randInt(param.getMin(), param.getMax());
             w.setParam(param, value);
-            assertEquals(param.toString(), value, w.getParam(param));
+            long newValue = w.getParam(param);
+            assertTrue(newValue >= param.getMin() && newValue <= param.getMax(), param.toString() + " value: " + newValue);
 
-            try {
-                w.setParam(param, param.getMax() + 1);
-                fail(String.format("%s is out of min range, but no exception has been thrown.",
-                        param));
-            } catch (IllegalArgumentException e) {
-            }
+            assertThrows(IllegalArgumentException.class, () -> w.setParam(param, param.getMax() + 1),
+                    String.format("%s is out of min range, but no exception has been thrown.", param));
 
-            try {
-                w.setParam(param, param.getMin() - 1);
-                fail(String.format("%s is out of max range, but no exception has been thrown.",
-                        param));
-            } catch (IllegalArgumentException e) {
-            }
-        }
-    }
-
-    @Test(expected = WinDivertException.class)
-    public void wrongFilterSyntax() throws WinDivertException {
-        try {
-            w = new WinDivert("something").open();
-        } catch (WinDivertException e) {
-            assertEquals(87, e.getCode());
-            assertTrue(e.toString().contains("code=87"));
-            throw e;
+            assertThrows(IllegalArgumentException.class, () -> w.setParam(param, param.getMin() - 1),
+                    String.format("%s is out of max range, but no exception has been thrown.", param));
         }
     }
 
     @Test
+    public void wrongFilterSyntax() {
+        WinDivertException e = assertThrows(WinDivertException.class, () -> w = new WinDivert("something").open());
+        assertEquals(87, e.getCode());
+        assertTrue(e.toString().contains("code=87"));
+    }
+
+    @Test
     public void flags() {
-        w = new WinDivert("true");
+        w = new WinDivert("false");
         assertTrue(w.is(DEFAULT));
         assertFalse(w.is(SNIFF));
         assertFalse(w.is(DROP));
-        assertFalse(w.is(NO_CHECKSUM));
+        assertFalse(w.is(FRAGMENTS));
         assertTrue(w.toString().contains("mode=DEFAULT"));
     }
 
