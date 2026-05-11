@@ -25,7 +25,7 @@ public class WinDivertIntegrationTest {
     private WinDivert wd;
 
     @AfterEach
-    public void tearDown() {
+    public void tearDown() throws Exception {
         if (wd != null && wd.isOpen()) {
             wd.close();
         }
@@ -150,7 +150,7 @@ public class WinDivertIntegrationTest {
         sender.start();
 
         Packet p = wd.recv();
-        assertEquals(portA, p.getDstPort());
+        assertEquals(portA, p.getDstPort().get());
         
         // Redirect to Port B
         p.setDstPort(portB);

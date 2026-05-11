@@ -18,56 +18,44 @@
 package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
+import com.github.ffalcinelli.jdivert.windivert.NativeAdapter;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
-import com.github.ffalcinelli.jdivert.windivert.WinDivertDLL;
-import com.sun.jna.Memory;
-import com.sun.jna.Native;
-import com.sun.jna.platform.win32.Kernel32;
-import com.sun.jna.platform.win32.WinBase;
-import com.sun.jna.platform.win32.WinNT;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.win32.W32APIOptions;
-
-import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throwExceptionOnGetLastError;
 
 /**
  * Encapsulates the result of an asynchronous WinDivert operation.
  *
  * @param <T> The type of the result (e.g., Packet or Integer for bytes sent).
  */
-public class WinDivertAsyncResult<T> {
-    private final WinNT.HANDLE handle;
-    private final WinBase.OVERLAPPED overlapped;
-    private final Memory buffer;
+public class WinDivertAsyncResult<T> implements AutoCloseable {
+    private final NativeAdapter.Handle handle;
+    private final NativeAdapter.Buffer buffer;
     private final WinDivertAddress address;
-    private final IntByReference transferLen;
     private final ResultConverter<T> converter;
+    private final AsyncImplementation implementation;
     private boolean completed = false;
+    private boolean released = false;
     private T result;
 
-    private static final int STATUS_PENDING = 0x103;
-
-    private interface MyKernel32 extends Kernel32 {
-        MyKernel32 INSTANCE = Native.load("kernel32", MyKernel32.class, W32APIOptions.DEFAULT_OPTIONS);
-
-        boolean GetOverlappedResult(HANDLE hFile, WinBase.OVERLAPPED lpOverlapped, IntByReference lpNumberOfBytesTransferred, boolean bWait);
-    }
-
+    @FunctionalInterface
     public interface ResultConverter<T> {
-        T convert(int len, Memory buffer, WinDivertAddress address);
+        T convert(int len, NativeAdapter.Buffer buffer, WinDivertAddress address);
     }
 
-    WinDivertAsyncResult(WinNT.HANDLE handle, WinBase.OVERLAPPED overlapped, Memory buffer, WinDivertAddress address, ResultConverter<T> converter) {
+    /**
+     * Internal interface for platform-specific asynchronous implementation.
+     */
+    public interface AsyncImplementation {
+        boolean isCompleted();
+
+        int waitAndGetResult() throws WinDivertException;
+    }
+
+    public WinDivertAsyncResult(NativeAdapter.Handle handle, NativeAdapter.Buffer buffer, WinDivertAddress address, ResultConverter<T> converter, AsyncImplementation implementation) {
         this.handle = handle;
-        this.overlapped = overlapped;
         this.buffer = buffer;
         this.address = address;
-        this.transferLen = new IntByReference();
         this.converter = converter;
-    }
-
-    private boolean hasOverlappedIoCompleted(WinBase.OVERLAPPED lpOverlapped) {
-        return lpOverlapped.Internal.intValue() != STATUS_PENDING;
+        this.implementation = implementation;
     }
 
     /**
@@ -77,12 +65,12 @@ public class WinDivertAsyncResult<T> {
      */
     public boolean isCompleted() {
         if (completed) return true;
-        if (hasOverlappedIoCompleted(overlapped)) {
+        if (implementation.isCompleted()) {
             try {
-                get(); // This will populate result and set completed
+                get();
                 return true;
             } catch (WinDivertException e) {
-                return true; // Operation completed even if it failed
+                return true;
             }
         }
         return false;
@@ -97,23 +85,34 @@ public class WinDivertAsyncResult<T> {
     public synchronized T get() throws WinDivertException {
         if (completed) return result;
 
-        if (!MyKernel32.INSTANCE.GetOverlappedResult(handle, overlapped, transferLen, true)) {
-            throwExceptionOnGetLastError();
+        try {
+            int len = implementation.waitAndGetResult();
+            result = converter.convert(len, buffer, address);
+            completed = true;
+            return result;
+        } finally {
+            close();
         }
-        
-        if (address != null) {
-            address.read();
-        }
+    }
 
-        result = converter.convert(transferLen.getValue(), buffer, address);
-        completed = true;
-        
-        // Clean up event handle
-        if (overlapped.hEvent != null && overlapped.hEvent != WinNT.INVALID_HANDLE_VALUE) {
-            Kernel32.INSTANCE.CloseHandle(overlapped.hEvent);
-            overlapped.hEvent = null;
-        }
+    /**
+     * Cancels the asynchronous operation and releases the associated native buffer.
+     */
+    public void cancel() {
+        close();
+    }
 
-        return result;
+    /**
+     * Releases the native buffer associated with this result.
+     * This is automatically called by {@link #get()} after completion.
+     */
+    @Override
+    public synchronized void close() {
+        if (!released) {
+            if (buffer != null) {
+                buffer.close();
+            }
+            released = true;
+        }
     }
 }

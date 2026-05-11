@@ -59,4 +59,4 @@ desktop.ini
 *.dmp
 *.dump
 *.hprof
-docs
+docs/apidocs

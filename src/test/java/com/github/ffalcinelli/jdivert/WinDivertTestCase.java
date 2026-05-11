@@ -41,7 +41,7 @@ public class WinDivertTestCase {
     }
 
     @AfterEach
-    public void tearDown() {
+    public void tearDown() throws WinDivertException {
         if (w != null)
             w.close();
     }
@@ -91,6 +91,9 @@ public class WinDivertTestCase {
         w = new WinDivert("false").open();
         for (Enums.Param param : Enums.Param.values()) {
             assertEquals(param.getDefault(), w.getParam(param), param.toString());
+            if (param.isReadOnly()) {
+                continue;
+            }
             long value = randInt(param.getMin(), param.getMax());
             w.setParam(param, value);
             long newValue = w.getParam(param);

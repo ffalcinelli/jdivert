@@ -17,19 +17,16 @@
 
 package com.github.ffalcinelli.jdivert.exceptions;
 
-import com.sun.jna.LastErrorException;
-import com.sun.jna.Native;
-import com.sun.jna.platform.win32.Kernel32Util;
+import com.github.ffalcinelli.jdivert.windivert.NativeAdapterFactory;
 
 /**
  * Created by fabio on 21/10/2016.
  */
 public class WinDivertException extends Exception {
     protected int code;
-    protected LastErrorException lee;
 
     public WinDivertException(int code) {
-        this(code, Kernel32Util.formatMessage(code));
+        this(code, NativeAdapterFactory.getAdapter().formatMessage(code));
     }
 
     public WinDivertException(int code, String message) {
@@ -46,12 +43,13 @@ public class WinDivertException extends Exception {
      * <ul>
      * <li>0 (Success)</li>
      * <li>997 (Overlapped I/O is in progress)</li>
-     *</ul>
+     * </ul>
+     *
      * @return The GetLastError code.
      * @throws WinDivertException When {@code GetLastError} returns a code different from 0 or 997, {@link WinDivertException} is thrown.
      */
     public static int throwExceptionOnGetLastError() throws WinDivertException {
-        int lastError = Native.getLastError();
+        int lastError = NativeAdapterFactory.getAdapter().getLastError();
         if (lastError != 0 && lastError != 997) {
             throw new WinDivertException(lastError);
         }

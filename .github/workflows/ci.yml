@@ -14,23 +14,38 @@ jobs:
     name: Build and Test (JDK ${{ matrix.java }})
     strategy:
       matrix:
-        java: [ '8', '11', '17', '21' ]
+        java: [ '8', '11', '17', '21', '25' ]
 
     steps:
     - name: Checkout repository
       # Using v4 - de0fac2e4500dabe0009e67214ff5f5447ce83dd
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-    - name: Set up JDK ${{ matrix.java }}
-      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 
+    - name: Set up JDK 25 (for building)
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
       with:
-        java-version: ${{ matrix.java }}
+        java-version: '25'
         distribution: 'temurin'
         cache: 'maven'
 
+    - name: Set up JDK ${{ matrix.java }} (for testing)
+      if: matrix.java != '25'
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+
     - name: Build and Test with Maven
       shell: bash
-      run: mvn -B clean verify
+      run: |
+        if [ "${{ matrix.java }}" == "25" ]; then
+          mvn -B clean verify
+        else
+          # Use the matrix JDK for testing via surefire's jvm parameter
+          # We need to find the path to the matrix JDK. setup-java sets JAVA_HOME.
+          # When we setup 25 then matrix.java, JAVA_HOME points to matrix.java.
+          mvn -B clean verify -Dsurefire.jvm="$JAVA_HOME/bin/java"
+        fi
 
     - name: Upload coverage to Codecov
       if: matrix.java == '17'

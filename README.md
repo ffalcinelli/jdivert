@@ -7,30 +7,42 @@
 
 **JDivert** is a powerful Java binding for [WinDivert](https://reqrypt.org/windivert.html), a Windows driver that allows user-mode applications to capture, modify, and drop network packets sent to or from the Windows network stack.
 
-## Features
+---
 
-- **Capture** network packets matching a specific filter.
-- **Modify** packet headers and payloads on the fly.
-- **Drop** unwanted packets.
-- **Inject** new or modified packets into the network stack.
-- **Support for WinDivert 2.2+** advanced features (FLOW, SOCKET, and REFLECT layers).
-- **Bundled Binaries**: No need to manually install WinDivert; the 64-bit DLL and driver are included.
+## 🚀 Quick Start
 
-## Requirements
+Capture and re-inject all TCP traffic on port 80:
 
-- **Java 8+** (64-bit)
-- **Windows 11** (64-bit) or Windows Server 2008 R2+
-- **Administrator Privileges** (required to interact with the WinDivert driver)
+```java
+try (WinDivert w = new WinDivert("tcp.DstPort == 80").open()) {
+    while (true) {
+        Packet packet = w.recv();
+        System.out.println("Captured: " + packet);
+        w.send(packet); 
+    }
+}
+```
 
-> [!NOTE]
-> Windows Server is currently untested but likely works if it meets the architecture requirements.
+For more complex scenarios, see our [Examples Guide](docs/examples.md).
 
-## Installation
+---
 
-Add JDivert as a dependency in your project:
+## 🏗️ Architecture
+
+JDivert bridges the gap between Java and the native WinDivert C library using **JNA** (with **Project Panama** support on Java 22+). 
+
+- **Zero-Copy**: Leverages direct buffers to process packets without redundant memory copying.
+- **Memory-Safe**: Uses `try-with-resources` and deterministic cleanup to prevent native memory leaks.
+- **Zero-Install**: WinDivert binaries are bundled and extracted automatically into versioned directories.
+- **Idiomatic Java**: Provides a high-level, `AutoCloseable` API.
+
+Read the full [Architecture Overview](docs/architecture.md) for more details.
+
+---
+
+## 🛠️ Installation
 
 ### Maven
-
 ```xml
 <dependency>
   <groupId>com.github.ffalcinelli</groupId>
@@ -40,144 +52,41 @@ Add JDivert as a dependency in your project:
 ```
 
 ### Gradle
-
 ```groovy
-dependencies {
-    implementation 'com.github.ffalcinelli:jdivert:3.0.0'
-}
+implementation 'com.github.ffalcinelli:jdivert:3.0.0'
 ```
 
-JDivert bundles WinDivert 2.2.2 into its JAR file distribution. The first time
-`WinDivertDLL` interface gets initialized, it will copy WinDivert .sys and .dll files (64-bit) inside a temporary directory and will point JNA to
-load them by this directory by setting `jna.library.path` system property.
+---
 
-## Quick Start
+## ⚡ Performance & Advanced Usage
 
-The main entry points are `com.github.ffalcinelli.jdivert.WinDivert` for capturing and `com.github.ffalcinelli.jdivert.Packet` for manipulation.
+JDivert is designed for high-performance packet processing. Key features include:
 
-### Basic Capture and Re-injection
+- **Zero-Copy Path**: End-to-end processing using direct `ByteBuffer` objects.
+- **Asynchronous I/O**: Non-blocking packet capture via `recvAsync()`.
+- **Multithreading**: Safe concurrent capture and injection.
+- **Multi-Layer Support**: Support for `NETWORK`, `FLOW`, and `SOCKET` layers.
 
-```java
-import com.github.ffalcinelli.jdivert.WinDivert;
-import com.github.ffalcinelli.jdivert.Packet;
+Check out the [Performance Guide](docs/performance.md) for optimization tips.
 
-// Capture only TCP packets to port 80 (HTTP requests)
-try (WinDivert w = new WinDivert("tcp.DstPort == 80")) {
-    w.open();
-    while (true) {
-        Packet packet = w.recv();
-        System.out.println("Captured: " + packet);
-        w.send(packet);  // Re-inject the packet back into the stack
-    }
-}
-```
+---
 
-When you call `.recv()`, the packet is **taken out** of the Windows network stack. It will not reach its destination unless you explicitly call `.send(packet)`.
+## ❓ Troubleshooting
 
-### Packet Modification
+Common issues like `Access is denied` (missing Administrator privileges) are covered in our [Troubleshooting Guide](docs/troubleshooting.md).
 
-You can easily modify packet headers and payloads. JDivert handles automatic resizing and header length updates.
+---
 
-```java
-import com.github.ffalcinelli.jdivert.WinDivert;
-import com.github.ffalcinelli.jdivert.Packet;
+## 📚 Documentation
 
-try (WinDivert w = new WinDivert("tcp.DstPort == 1234")) {
-    w.open();
-    while (true) {
-        Packet packet = w.recv();
-        
-        // 1. Modify header
-        packet.getTcp().setDstPort(80);
-        
-        // 2. Modify payload (JDivert handles buffer reallocation and length updates)
-        packet.setPayload("New Payload Content".getBytes());
-        
-        // 3. WinDivert handles checksum recalculation by default when sending
-        w.send(packet);
-    }
-}
-```
+- [Full API Reference (Javadoc)](https://ffalcinelli.github.io/jdivert/api/apidocs/)
+- [Architecture Overview](docs/architecture.md)
+- [Filter Language Guide](docs/filters.md)
+- [Examples Guide](docs/examples.md)
+- [Performance Considerations](docs/performance.md)
+- [Troubleshooting Guide](docs/troubleshooting.md)
+- [Security Policy](SECURITY.md)
 
-## Common Use Cases
+## ⚖️ License
 
-### 1. Simple Firewall (Dropping Packets)
-By simply not calling `.send(packet)`, the packet is effectively dropped and never reaches its destination.
-
-### 2. Payload Inspection and Modification
-You can inspect or modify the raw bytes of the packet payload.
-
-### 3. Traffic Logging
-Log detailed information about network flows.
-
-## WinDivert Layers
-
-WinDivert supports different layers for capturing different types of traffic:
-
-- `Layer.NETWORK` (default): Captures IP packets.
-- `Layer.FLOW`: Captures connection events.
-- `Layer.SOCKET`: Captures socket-level events.
-
-```java
-import com.github.ffalcinelli.jdivert.WinDivert;
-import com.github.ffalcinelli.jdivert.Enums.Layer;
-
-try (WinDivert w = new WinDivert("true", Layer.FLOW)) {
-    w.open();
-    // ...
-}
-```
-
-## Security
-
-For information on supported versions, reporting vulnerabilities, and security best practices, please see our [Security Policy](SECURITY.md).
-
-### Development
-
-To set up a development environment:
-
-1. Clone the repository.
-2. Run tests (requires Administrator privileges):
-   - `mvn clean test`
-
-### Testing on other Operating Systems (using Vagrant)
-
-Since JDivert requires Windows and Administrator privileges, you can use **Vagrant** to run the test suite on a Windows 11 virtual machine from a Linux or macOS host.
-
-**Prerequisites:**
-- [Vagrant](https://www.vagrantup.com/)
-- [VirtualBox](https://www.virtualbox.org/)
-
-**Steps:**
-
-1.  **Bring up the VM:**
-    ```bash
-    vagrant up
-    ```
-
-2.  **Run the tests:**
-    Due to known issues with VirtualBox synced folders (UNC paths) and some Java versions, it is recommended to copy the project to a local folder inside the VM before running tests. You can use `vagrant winrm` to execute these commands:
-
-    ```bash
-    # 1. Copy project to a local folder in the VM
-    vagrant winrm --command "xcopy C:\jdivert C:\local_jdivert /E /I /H /Y"
-
-    # 2. Run tests from the local folder
-    vagrant winrm --command "cd C:\local_jdivert; mvn clean test"
-    ```
-
-
-    *Note: `vagrant powershell` can also be used for an interactive session.*
-
-## API Reference
-
-The full API documentation is available at [https://ffalcinelli.github.io/jdivert/](https://ffalcinelli.github.io/jdivert/).
-
-## License
-
-JDivert is dual-licensed under the **LGPL-3.0-or-later** and **GPL-2.0-or-later** licenses to match the WinDivert driver's licensing strategy.
-
-- [GNU Lesser General Public License v3.0 or later](LICENSE-LGPL-3.0-or-later)
-- [GNU General Public License v2.0 or later](LICENSE-GPL-2.0-or-later)
-
-See the [LICENSE](LICENSE) file for more details.
+JDivert is dual-licensed under **LGPL-3.0-or-later** and **GPL-2.0-or-later**.

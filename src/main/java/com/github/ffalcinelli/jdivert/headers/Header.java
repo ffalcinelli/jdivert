@@ -52,9 +52,20 @@ public abstract class Header {
      * @param data The data's array of bytes
      * @return A pair of headers, first of which is a {@link com.github.ffalcinelli.jdivert.headers.Ip} header while the second
      * is either a {@link com.github.ffalcinelli.jdivert.headers.Transport} or {@link com.github.ffalcinelli.jdivert.headers.Icmp} header
+     * @deprecated Use {@link #buildHeaders(ByteBuffer)} for better performance.
      */
+    @Deprecated
     public static Header[] buildHeaders(byte[] data) {
-        ByteBuffer raw = ByteBuffer.wrap(data);
+        return buildHeaders(ByteBuffer.wrap(data));
+    }
+
+    /**
+     * Build headers from a {@link ByteBuffer}.
+     *
+     * @param raw The raw packet data.
+     * @return An array of headers.
+     */
+    public static Header[] buildHeaders(ByteBuffer raw) {
         raw.order(BIG_ENDIAN);
         Ip ipHdr;
         Header[] headers = new Header[2];

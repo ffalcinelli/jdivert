@@ -31,7 +31,7 @@ public class AsyncTestCase {
     private WinDivert wd;
 
     @AfterEach
-    public void tearDown() {
+    public void tearDown() throws WinDivertException {
         if (wd != null) {
             wd.close();
         }
@@ -46,14 +46,11 @@ public class AsyncTestCase {
         assertFalse(asyncResult.isCompleted(), "Operation should be pending");
         
         // Trigger some ICMP traffic in the background
-        Thread trigger = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Thread.sleep(500);
-                    InetAddress.getByName("127.0.0.1").isReachable(1000);
-                } catch (Exception ignore) {}
-            }
+        Thread trigger = new Thread(() -> {
+            try {
+                Thread.sleep(500);
+                InetAddress.getByName("127.0.0.1").isReachable(1000);
+            } catch (Exception ignore) {}
         });
         trigger.start();
         
@@ -64,6 +61,22 @@ public class AsyncTestCase {
         assertTrue(asyncResult.isCompleted());
         
         trigger.join();
+    }
+
+    @Test
+    public void testAsyncCancel() throws WinDivertException {
+        wd = new WinDivert("false").open();
+        WinDivertAsyncResult<Packet> asyncResult = wd.recvAsync();
+        assertFalse(asyncResult.isCompleted());
+        asyncResult.cancel();
+        // Closing the handle while an async op is pending is usually okay if cancelled.
+        wd.close();
+        wd = null;
+    }
+
+    @Test
+    public void testDefaultBufferSize() {
+        assertEquals(65575, WinDivert.DEFAULT_PACKET_BUFFER_SIZE);
     }
 
     @Test

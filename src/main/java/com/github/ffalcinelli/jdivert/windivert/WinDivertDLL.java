@@ -23,7 +23,6 @@ import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 
 import static com.sun.jna.platform.win32.WinBase.OVERLAPPED;
-import static com.sun.jna.platform.win32.WinDef.BOOL;
 import static com.sun.jna.platform.win32.WinNT.HANDLE;
 
 /**

@@ -18,6 +18,8 @@
 package com.github.ffalcinelli.jdivert.headers;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import static com.github.ffalcinelli.jdivert.Util.unsigned;
 import static com.github.ffalcinelli.jdivert.Util.zeroPadArray;
@@ -137,10 +139,10 @@ public class Tcp extends Transport {
 
     @Override
     public String toString() {
-        StringBuilder flags = new StringBuilder();
-        for (Flag flag : Flag.values()) {
-            flags.append(flag).append("=").append(is(flag) ? 1 : 0).append(", ");
-        }
+        String flags = Arrays.stream(Flag.values())
+                .map(flag -> flag.name() + "=" + (is(flag) ? 1 : 0))
+                .collect(Collectors.joining(", ", "", ", "));
+
         return String.format("TCP {srcPort=%d, dstPort=%d, seqNum=%d, ackNum=%d, dataOffset=%d, " +
                         "Reserved=%s, " +
                         "%s window=%d, cksum=%s, urgPtr=%d}"

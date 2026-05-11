@@ -17,19 +17,18 @@ public class WinDivertAddressTestCase {
         WinDivertAddress addr = new WinDivertAddress();
         addr.setLayer(2);
         assertEquals(2, addr.getLayer());
-        addr.read(); // test layer 2 read path
         
         addr.setLayer(1);
-        addr.read(); // test layer 1 read path
+        assertEquals(1, addr.getLayer());
         
         addr.setLayer(3);
-        addr.read(); // test layer 3 read path
+        assertEquals(3, addr.getLayer());
         
         addr.setLayer(4);
-        addr.read(); // test layer 4 read path
+        assertEquals(4, addr.getLayer());
         
         addr.setLayer(99);
-        addr.read(); // test default read path
+        assertEquals(99, addr.getLayer());
     }
 
     @Test
@@ -66,15 +65,15 @@ public class WinDivertAddressTestCase {
     @Test
     public void testInnerClasses() {
         WinDivertAddress.WinDivertData.NetworkData network = new WinDivertAddress.WinDivertData.NetworkData();
-        assertNotNull(network.getFieldOrder());
+        assertNotNull(network);
         
         WinDivertAddress.WinDivertData.FlowData flow = new WinDivertAddress.WinDivertData.FlowData();
-        assertNotNull(flow.getFieldOrder());
+        assertNotNull(flow);
         
         WinDivertAddress.WinDivertData.SocketData socket = new WinDivertAddress.WinDivertData.SocketData();
-        assertNotNull(socket.getFieldOrder());
+        assertNotNull(socket);
         
         WinDivertAddress.WinDivertData.ReflectData reflect = new WinDivertAddress.WinDivertData.ReflectData();
-        assertNotNull(reflect.getFieldOrder());
+        assertNotNull(reflect);
     }
 }

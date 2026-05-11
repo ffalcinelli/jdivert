@@ -46,7 +46,6 @@ public class PacketTestCase {
     public void setUp() {
         addr = new WinDivertAddress();
         addr.setLayer(0); // NETWORK
-        addr.Union.setType(WinDivertAddress.WinDivertData.NetworkData.class);
         addr.Union.Network.IfIdx = 0;
         addr.Union.Network.SubIfIdx = 1;
         addr.setOutbound(true);
@@ -66,29 +65,29 @@ public class PacketTestCase {
     public void icmp() {
         packet = new Packet(parseHexBinary("4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637"), addr);
         assertTrue(packet.isIcmpv4());
-        assertNotNull(packet.getIcmpv4());
+        assertTrue(packet.getIcmpv4().isPresent());
         assertFalse(packet.isTcp());
-        assertNull(packet.getTcp());
+        assertFalse(packet.getTcp().isPresent());
         assertTrue(packet.isIpv4());
-        assertNotNull(packet.getIpv4());
+        assertTrue(packet.getIpv4().isPresent());
     }
 
     @Test
     public void tcp() {
         assertTrue(packet.isTcp());
-        assertNotNull(packet.getTcp());
+        assertTrue(packet.getTcp().isPresent());
         assertTrue(packet.isOutbound());
         assertTrue(packet.isIpv4());
-        assertNotNull(packet.getIpv4());
+        assertTrue(packet.getIpv4().isPresent());
         assertFalse(packet.isLoopback());
         assertFalse(packet.isUdp());
-        assertNull(packet.getUdp());
+        assertFalse(packet.getUdp().isPresent());
         assertFalse(packet.isIpv6());
-        assertNull(packet.getIpv6());
+        assertFalse(packet.getIpv6().isPresent());
         assertFalse(packet.isIcmpv4());
-        assertNull(packet.getIcmpv4());
+        assertFalse(packet.getIcmpv4().isPresent());
         assertFalse(packet.isIcmpv6());
-        assertNull(packet.getIcmpv6());
+        assertFalse(packet.getIcmpv6().isPresent());
         assertFalse(packet.isInbound());
         assertArrayEquals(payload, packet.getPayload());
         assertArrayEquals(raw, packet.getRaw());
@@ -99,16 +98,16 @@ public class PacketTestCase {
     @Test
     public void convenienceMethods() throws UnknownHostException {
         packet.setSrcAddr(localhost);
-        assertEquals(localhost, packet.getSrcAddr());
+        assertEquals(localhost, packet.getSrcAddr().get());
         packet.setDstAddr(localhost);
-        assertEquals(localhost, packet.getDstAddr());
+        assertEquals(localhost, packet.getDstAddr().get());
     }
 
 
     @Test
     public void fin() {
         Packet p = new Packet(parseHexBinary("4500002841734000800600000A00020F0A00020FF4162B678A5FC6E30139B9515011080564650000"), addr);
-        assertTrue(p.getTcp().is(FIN));
+        assertTrue(p.getTcp().get().is(FIN));
     }
 
     @Test
@@ -116,33 +115,33 @@ public class PacketTestCase {
         Packet p2 = new Packet(raw, addr);
         Packet p3 = new Packet(parseHexBinary("4500002841734000800600000A00020F0A00020FF4162B678A5FC6E30139B9515011080564650000"), addr);
 
-        assertTrue(packet.equals(p2));
+        assertEquals(packet, p2);
         assertEquals(packet.hashCode(), p2.hashCode());
-        assertFalse(packet.equals(p3));
+        assertNotEquals(packet, p3);
         assertNotEquals(packet.hashCode(), p3.hashCode());
     }
 
     @Test
     public void noDstPort() {
         Packet p = new Packet(parseHexBinary("4500003C5C8800007F011181C0A801010A00020F00005552000100096162636465666768696A6B6C6D6E6F7071727374757677616263646566676869"), addr);
-        assertNull(p.getDstPort());
+        assertFalse(p.getDstPort().isPresent());
         assertThrows(IllegalStateException.class, () -> p.setDstPort(8080));
     }
 
     @Test
     public void noSrcPort() {
         Packet p = new Packet(parseHexBinary("4500003C5C8800007F011181C0A801010A00020F00005552000100096162636465666768696A6B6C6D6E6F7071727374757677616263646566676869"), addr);
-        assertNull(p.getSrcPort());
+        assertFalse(p.getSrcPort().isPresent());
         assertThrows(IllegalStateException.class, () -> p.setSrcPort(8080));
     }
 
     @Test
     public void excludeChecksums() throws WinDivertException {
-        int cksum = packet.getTcp().getChecksum();
+        int cksum = packet.getTcp().get().getChecksum();
         packet.setSrcPort(8080);
         packet.recalculateChecksum(NO_TCP_CHECKSUM);
-        assertEquals(cksum, packet.getTcp().getChecksum());
+        assertEquals(cksum, packet.getTcp().get().getChecksum());
         packet.recalculateChecksum();
-        assertNotEquals(cksum, packet.getTcp().getChecksum());
+        assertNotEquals(cksum, packet.getTcp().get().getChecksum());
     }
 }
