@@ -28,15 +28,16 @@ Vagrant.configure("2") do |config|
  # Run the provisioning script to install dependencies
  config.vm.provision "shell", path: "scripts/vagrant-provision.ps1"
 
- config.vm.post_up_message = <<-MESSAGE
+  config.vm.post_up_message = <<-MESSAGE
  -----------------------------------------------------------------------
- Windows 11 VM for JDivert is up and running!
+  Windows 11 VM for JDivert is up and running!
 
- To run tests within the VM (using a local folder to avoid synced folder issues):
- vagrant winrm --command "robocopy C:\\jdivert C:\\local_jdivert /MIR /XD .git .vagrant target"
- vagrant winrm --command "cd C:\\local_jdivert; mvn clean test"
+  To run tests within the VM (using a local folder to avoid synced folder issues):
+  vagrant winrm --command "robocopy C:\\jdivert C:\\local_jdivert /MIR /XD .git .vagrant target"
+  vagrant winrm --command "cd C:\\local_jdivert; mvn clean test"
 
- To get an interactive PowerShell session:
- vagrant powershell
+  To get an interactive PowerShell session:
+  vagrant powershell
  -----------------------------------------------------------------------
- MESSAGEend
+  MESSAGE
+end
