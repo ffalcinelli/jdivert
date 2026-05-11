@@ -17,7 +17,9 @@ Capture and re-inject all TCP traffic on port 80:
 try (WinDivert w = new WinDivert("tcp.DstPort == 80").open()) {
     while (true) {
         Packet packet = w.recv();
-        System.out.println("Captured: " + packet);
+        packet.getTcp().ifPresent(tcp -> {
+            System.out.println("Captured TCP packet to port: " + tcp.getDstPort());
+        });
         w.send(packet); 
     }
 }
@@ -45,19 +47,23 @@ For more complex scenarios, see our [Examples Guide](docs/examples.md).
 
 ### Prerequisites
 *   Maven 3.9+
-*   Windows 10/11 with Administrator access.
+*   Vagrant & VirtualBox (Required for full test execution)
 
 ### Running Tests
-To run the full test suite, execute:
-```bash
-mvn clean test
-```
-*Note: Many integration tests will be skipped or fail if not run on Windows with elevated privileges.*
+Due to the nature of the WinDivert driver and its requirement for specific network stack interactions and Administrator privileges, the full test suite is designed to be executed within a clean, isolated Windows 11 environment managed by **Vagrant**.
 
-### Local Development with Vagrant
-If you are developing on a non-Windows machine, a `Vagrantfile` is provided to spin up a Windows 11 environment:
-1.  Run `vagrant up` to boot the VM.
-2.  Follow the instructions in the `Vagrantfile` output to sync your code and run tests inside the VM.
+1.  **Boot the VM**:
+    ```bash
+    vagrant up
+    ```
+2.  **Sync and Execute**:
+    Run the following commands to sync the latest code to a local directory in the VM (avoiding synced folder permission issues) and execute the tests:
+    ```bash
+    vagrant winrm --command "robocopy C:\jdivert C:\local_jdivert /MIR /XD .git .vagrant target"
+    vagrant winrm --command "cd C:\local_jdivert; mvn clean test"
+    ```
+
+*Note: While you can compile the project on any OS, actual packet capture tests will only succeed in the provided Vagrant environment or an elevated Windows session.*
 
 ---
 

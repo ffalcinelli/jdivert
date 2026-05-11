@@ -23,9 +23,15 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
-import static com.github.ffalcinelli.jdivert.Enums.Flag.*;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.DEFAULT;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.DROP;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.FRAGMENTS;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.SNIFF;
 import static com.github.ffalcinelli.jdivert.Enums.Layer.NETWORK;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -97,7 +103,7 @@ public class WinDivertTestCase {
             long value = randInt(param.getMin(), param.getMax());
             w.setParam(param, value);
             long newValue = w.getParam(param);
-            assertTrue(newValue >= param.getMin() && newValue <= param.getMax(), param.toString() + " value: " + newValue);
+            assertTrue(newValue >= param.getMin() && newValue <= param.getMax(), param + " value: " + newValue);
 
             assertThrows(IllegalArgumentException.class, () -> w.setParam(param, param.getMax() + 1),
                     String.format("%s is out of min range, but no exception has been thrown.", param));

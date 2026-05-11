@@ -24,8 +24,15 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ROUTING;
-import static com.github.ffalcinelli.jdivert.headers.Ipv4.Flag.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.github.ffalcinelli.jdivert.headers.Ipv4.Flag.DF;
+import static com.github.ffalcinelli.jdivert.headers.Ipv4.Flag.MF;
+import static com.github.ffalcinelli.jdivert.headers.Ipv4.Flag.RESERVED;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -110,7 +117,7 @@ public abstract class IPv4TestCase extends IPTestCase {
 
     @Test
     public void options() {
-        assertEquals(null, ipv4Hdr.getOptions());
+        assertNull(ipv4Hdr.getOptions());
     }
 
     @Test
@@ -135,7 +142,7 @@ public abstract class IPv4TestCase extends IPTestCase {
     @Test
     public void equalsAndHashCode() {
         Ipv4 ipHdr2 = new Ipv4(ByteBuffer.wrap(rawData));
-        assertTrue(ipHdr.equals(ipHdr2));
+        assertEquals(ipHdr, ipHdr2);
         assertEquals(ipHdr.hashCode(), ipHdr2.hashCode());
     }
 

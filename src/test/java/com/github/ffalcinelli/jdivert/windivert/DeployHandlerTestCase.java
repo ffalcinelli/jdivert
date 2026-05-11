@@ -18,9 +18,12 @@
 package com.github.ffalcinelli.jdivert.windivert;
 
 import org.junit.jupiter.api.Test;
+
 import java.io.File;
 import java.nio.file.Path;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DeployHandlerTestCase {
 
@@ -30,19 +33,19 @@ public class DeployHandlerTestCase {
             Path dllPath = DeployHandler.deployToPath();
             assertNotNull(dllPath);
             assertTrue(dllPath.toString().endsWith("WinDivert64.dll"));
-            
+
             File dllFile = dllPath.toFile();
             assertTrue(dllFile.exists(), "DLL should exist after deployment");
-            
+
             File sysFile = new File(dllFile.getParentFile(), "WinDivert64.sys");
             assertTrue(sysFile.exists(), "SYS should exist after deployment");
-            
+
             // Verify it's in a stable directory
             String tmpDir = System.getProperty("java.io.tmpdir");
             assertTrue(dllPath.toString().contains("jdivert-3.0.0"), "Should use versioned stable directory: " + dllPath);
         } catch (Throwable t) {
             if (t.getMessage() != null && t.getMessage().contains("64-bit")) {
-                return; 
+                return;
             }
             if (t instanceof ExceptionInInitializerError && t.getCause() != null && t.getCause().getMessage().contains("Unable to deploy")) {
                 // Could be resource not found in this environment

@@ -21,7 +21,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.TCP;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 29/10/2016.
@@ -111,7 +115,7 @@ public class TCPIPv6TestCase extends IPv6TestCase {
     public void tcpFlags() {
         tcpHdr.setFlags(0x0);
         for (Tcp.Flag flag : Tcp.Flag.values()) {
-                assertFalse(tcpHdr.is(flag), flag.name() + " is not false");
+            assertFalse(tcpHdr.is(flag), flag.name() + " is not false");
         }
         tcpHdr.setFlags(0x01FF);
         for (Tcp.Flag flag : Tcp.Flag.values()) {
@@ -161,9 +165,9 @@ public class TCPIPv6TestCase extends IPv6TestCase {
     }
 
     @Test
-    public void equalsAndHashCodeBis(){
+    public void equalsAndHashCodeBis() {
         Tcp tcpHdr2 = new Tcp(ipHdr.getByteBuffer(), ipHeaderLength);
-        assertTrue(tcpHdr.equals(tcpHdr2));
+        assertEquals(tcpHdr, tcpHdr2);
         assertEquals(tcpHdr.hashCode(), tcpHdr2.hashCode());
     }
 }

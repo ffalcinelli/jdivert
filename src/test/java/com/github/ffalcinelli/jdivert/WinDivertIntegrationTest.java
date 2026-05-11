@@ -1,6 +1,5 @@
 package com.github.ffalcinelli.jdivert;
 
-import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
@@ -8,12 +7,22 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
-import java.io.*;
-import java.net.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Robust integration tests for WinDivert.
@@ -49,7 +58,7 @@ public class WinDivertIntegrationTest {
                 try (Socket clientSocket = serverSocket.accept();
                      InputStream is = clientSocket.getInputStream();
                      OutputStream os = clientSocket.getOutputStream()) {
-                    
+
                     byte[] buffer = new byte[1024];
                     int read = is.read(buffer);
                     if (read > 0) {
@@ -58,7 +67,8 @@ public class WinDivertIntegrationTest {
                         os.flush();
                     }
                 }
-            } catch (IOException ignore) {}
+            } catch (IOException ignore) {
+            }
         });
         serverThread.setDaemon(true);
         serverThread.start();
@@ -71,14 +81,14 @@ public class WinDivertIntegrationTest {
         Thread clientThread = new Thread(() -> {
             try {
                 // Wait for wd.recv to be ready
-                Thread.sleep(1000); 
+                Thread.sleep(1000);
                 try (Socket socket = new Socket("127.0.0.1", port);
                      OutputStream os = socket.getOutputStream();
                      InputStream is = socket.getInputStream()) {
-                    
+
                     os.write(originalMessage.getBytes(StandardCharsets.UTF_8));
                     os.flush();
-                    
+
                     byte[] buf = new byte[1024];
                     int read = is.read(buf);
                     if (read > 0) {
@@ -94,7 +104,7 @@ public class WinDivertIntegrationTest {
         // 5. Interceptor Logic
         boolean modified = false;
         long deadline = System.currentTimeMillis() + 10000;
-        
+
         while (!modified && System.currentTimeMillis() < deadline) {
             Packet p = wd.recv();
             if (p.getPayload() != null && p.getPayload().length > 0) {
@@ -105,7 +115,7 @@ public class WinDivertIntegrationTest {
                     modified = true;
                 }
             }
-            wd.send(p); 
+            wd.send(p);
         }
 
         clientThread.join(10000);
@@ -145,13 +155,14 @@ public class WinDivertIntegrationTest {
                     byte[] buf = "RedirectMe".getBytes(StandardCharsets.UTF_8);
                     socket.send(new DatagramPacket(buf, buf.length, InetAddress.getByName("127.0.0.1"), portA));
                 }
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+            }
         });
         sender.start();
 
         Packet p = wd.recv();
         assertEquals(portA, p.getDstPort().get());
-        
+
         // Redirect to Port B
         p.setDstPort(portB);
         p.recalculateChecksum();
@@ -172,7 +183,7 @@ public class WinDivertIntegrationTest {
 
         try (WinDivert wd1 = new WinDivert("udp.DstPort == " + port, Enums.Layer.NETWORK, 100, Enums.Flag.DEFAULT).open();
              WinDivert wd2 = new WinDivert("udp.DstPort == " + port, Enums.Layer.NETWORK, 0, Enums.Flag.DEFAULT).open()) {
-            
+
             // Start a receiver to avoid stack drops
             Thread receiver = new Thread(() -> {
                 try (DatagramSocket socket = new DatagramSocket(port)) {
@@ -180,7 +191,8 @@ public class WinDivertIntegrationTest {
                     DatagramPacket p = new DatagramPacket(buf, buf.length);
                     socket.setSoTimeout(5000);
                     socket.receive(p);
-                } catch (Exception ignore) {}
+                } catch (Exception ignore) {
+                }
             });
             receiver.start();
 
@@ -189,11 +201,11 @@ public class WinDivertIntegrationTest {
                 byte[] data = "ping".getBytes();
                 socket.send(new DatagramPacket(data, data.length, InetAddress.getByName("127.0.0.1"), port));
             }
-            
+
             Packet p = wd1.recv();
             assertNotNull(p, "wd1 should have captured the OS-triggered outbound packet");
             assertTrue(p.isOutbound(), "Captured packet should be outbound");
-            
+
             // Get real interface indices
             WinDivertAddress addr = p.getWinDivertAddress();
             int ifIdx = addr.Union.Network.IfIdx;
@@ -202,11 +214,11 @@ public class WinDivertIntegrationTest {
             // 2. Re-inject as INBOUND via wd1 using same interface
             Packet pIn = new Packet(p.getRaw(), new int[]{ifIdx, subIfIdx}, Enums.Direction.INBOUND);
             wd1.send(pIn);
-            
+
             Packet rIn = wd2.recv();
             assertNotNull(rIn, "wd2 should have captured the manually injected inbound packet from wd1");
             assertTrue(rIn.isInbound(), "Captured packet should be inbound");
-            
+
             receiver.join(2000);
         }
     }

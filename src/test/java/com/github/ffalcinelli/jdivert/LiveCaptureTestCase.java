@@ -22,7 +22,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -39,6 +42,18 @@ public class LiveCaptureTestCase {
     WinDivert wd;
     EchoServer srv;
     EchoClient clt;
+
+    public static void closeAnyway(Object... toClose) {
+        java.util.Arrays.stream(toClose)
+                .filter(obj -> obj instanceof AutoCloseable)
+                .map(obj -> (AutoCloseable) obj)
+                .forEach(ac -> {
+                    try {
+                        ac.close();
+                    } catch (Exception ignore) {
+                    }
+                });
+    }
 
     @BeforeEach
     public void setUp() throws IOException {
@@ -88,7 +103,7 @@ public class LiveCaptureTestCase {
         // Replace "Test" with "Echo" in the payload, preserving length and newline
         String newPayloadStr = originalPayload.replace("Test", "Echo");
         p.setPayload(newPayloadStr.getBytes());
-        
+
         wd.send(p);
         endThreads();
         assertEquals(srv.alterMessage(message), clt.getResponse());
@@ -118,7 +133,6 @@ public class LiveCaptureTestCase {
         spoofer.join();
         assertEquals(spoofer.alterMessage(clt.getMessage()), clt.getResponse());
     }
-
 
     public static class EchoClient extends Thread {
         InetAddress address;
@@ -175,7 +189,7 @@ public class LiveCaptureTestCase {
     }
 
     public static class EchoServer extends Thread {
-        private ServerSocket socket;
+        private final ServerSocket socket;
         private boolean stop;
 
         public EchoServer(int portNumber) throws IOException {
@@ -219,17 +233,5 @@ public class LiveCaptureTestCase {
             closeAnyway(socket);
             stop = true;
         }
-    }
-
-    public static void closeAnyway(Object... toClose) {
-        java.util.Arrays.stream(toClose)
-                .filter(obj -> obj instanceof AutoCloseable)
-                .map(obj -> (AutoCloseable) obj)
-                .forEach(ac -> {
-                    try {
-                        ac.close();
-                    } catch (Exception ignore) {
-                    }
-                });
     }
 }

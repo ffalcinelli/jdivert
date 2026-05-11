@@ -25,7 +25,10 @@ import java.util.Arrays;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol;
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 29/10/2016.

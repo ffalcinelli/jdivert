@@ -96,7 +96,7 @@ public class JnaNativeAdapter implements NativeAdapter {
     public int send(Handle handle, java.nio.ByteBuffer packet, WinDivertAddress address) throws WinDivertException {
         JnaHandle jnaHandle = (JnaHandle) handle;
         IntByReference sendLen = new IntByReference();
-        
+
         Pointer memory;
         if (packet.isDirect()) {
             memory = Native.getDirectBufferPointer(packet);
@@ -105,7 +105,7 @@ public class JnaNativeAdapter implements NativeAdapter {
             mem.write(0, packet.array(), packet.arrayOffset() + packet.position(), packet.remaining());
             memory = mem;
         }
-        
+
         JnaWinDivertAddress jnaAddr = new JnaWinDivertAddress();
         mapFromPojo(address, jnaAddr);
         jnaAddr.write();
@@ -122,7 +122,7 @@ public class JnaNativeAdapter implements NativeAdapter {
         JnaBuffer jnaBuffer = new JnaBuffer(packet.remaining());
         java.nio.ByteBuffer dest = jnaBuffer.getByteBuffer();
         dest.put(packet.duplicate());
-        
+
         JnaWinDivertAddress jnaAddr = new JnaWinDivertAddress();
         mapFromPojo(address, jnaAddr);
         jnaAddr.write();

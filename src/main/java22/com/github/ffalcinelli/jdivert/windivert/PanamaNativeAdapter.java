@@ -45,20 +45,12 @@ import static java.lang.foreign.ValueLayout.JAVA_SHORT;
  */
 public class PanamaNativeAdapter implements NativeAdapter {
 
-    private static final SymbolLookup LOOKUP;
-    private static final Linker LINKER = Linker.nativeLinker();
     public static final int ERROR_IO_PENDING = 997;
     public static final int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
     public static final int DEFAULT_BUFFER_SIZE = 1024;
     public static final long OVERLAPPED_ADDRESS = 0x103L;
-
-    static {
-        // Deploy binaries first
-        Path dllPath = DeployHandler.deployToPath();
-        System.load(dllPath.toAbsolutePath().toString());
-        LOOKUP = SymbolLookup.loaderLookup();
-    }
-
+    private static final SymbolLookup LOOKUP;
+    private static final Linker LINKER = Linker.nativeLinker();
     // Native Function Handles
     private static final MethodHandle WinDivertOpen = link("WinDivertOpen", FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_SHORT, JAVA_LONG));
     private static final MethodHandle WinDivertClose = link("WinDivertClose", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG));
@@ -71,7 +63,6 @@ public class PanamaNativeAdapter implements NativeAdapter {
     private static final MethodHandle WinDivertGetParam = link("WinDivertGetParam", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_INT, ADDRESS));
     private static final MethodHandle WinDivertHelperCalcChecksums = link("WinDivertHelperCalcChecksums", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG));
     private static final MethodHandle WinDivertHelperHashPacket = link("WinDivertHelperHashPacket", FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_LONG));
-
     // Kernel32 Function Handles
     private static final SymbolLookup KERNEL32_LOOKUP = SymbolLookup.libraryLookup("kernel32", Arena.global());
     private static final MethodHandle GetLastError = link(KERNEL32_LOOKUP, "GetLastError", FunctionDescriptor.of(JAVA_INT));
@@ -79,15 +70,6 @@ public class PanamaNativeAdapter implements NativeAdapter {
     private static final MethodHandle CreateEventW = link(KERNEL32_LOOKUP, "CreateEventW", FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_BOOLEAN, JAVA_BOOLEAN, ADDRESS));
     private static final MethodHandle CloseHandle = link(KERNEL32_LOOKUP, "CloseHandle", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS));
     private static final MethodHandle GetOverlappedResult = link(KERNEL32_LOOKUP, "GetOverlappedResult", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS, ADDRESS, ADDRESS, JAVA_BOOLEAN));
-
-    private static MethodHandle link(String name, FunctionDescriptor desc) {
-        return link(LOOKUP, name, desc);
-    }
-
-    private static MethodHandle link(SymbolLookup lookup, String name, FunctionDescriptor desc) {
-        return lookup.find(name).map(s -> LINKER.downcallHandle(s, desc)).orElseThrow(() -> new UnsatisfiedLinkError(name));
-    }
-
     // Memory Layouts
     private static final StructLayout OVERLAPPED_LAYOUT = MemoryLayout.structLayout(
             ADDRESS.withName("Internal"),
@@ -96,7 +78,6 @@ public class PanamaNativeAdapter implements NativeAdapter {
             JAVA_INT.withName("OffsetHigh"),
             ADDRESS.withName("hEvent")
     );
-
     private static final StructLayout ADDRESS_LAYOUT = MemoryLayout.structLayout(
             JAVA_LONG.withName("Timestamp"),
             JAVA_INT.withName("bitfield1"),
@@ -136,6 +117,21 @@ public class PanamaNativeAdapter implements NativeAdapter {
                     MemoryLayout.sequenceLayout(64, JAVA_BYTE).withName("Reserved3")
             ).withName("Union")
     );
+
+    static {
+        // Deploy binaries first
+        Path dllPath = DeployHandler.deployToPath();
+        System.load(dllPath.toAbsolutePath().toString());
+        LOOKUP = SymbolLookup.loaderLookup();
+    }
+
+    private static MethodHandle link(String name, FunctionDescriptor desc) {
+        return link(LOOKUP, name, desc);
+    }
+
+    private static MethodHandle link(SymbolLookup lookup, String name, FunctionDescriptor desc) {
+        return lookup.find(name).map(s -> LINKER.downcallHandle(s, desc)).orElseThrow(() -> new UnsatisfiedLinkError(name));
+    }
 
     @Override
     public Handle open(String filter, int layer, short priority, long flags) throws WinDivertException {
@@ -428,22 +424,22 @@ public class PanamaNativeAdapter implements NativeAdapter {
     private record PanamaHandle(long handle) implements Handle {
 
         @Override
-            public void close() throws WinDivertException {
-                try {
-                    if (!(boolean) WinDivertClose.invokeExact(handle)) {
-                        WinDivertException.throwExceptionOnGetLastError();
-                    }
-                } catch (Throwable t) {
-                    if (t instanceof WinDivertException) throw (WinDivertException) t;
-                    throw new RuntimeException(t);
+        public void close() throws WinDivertException {
+            try {
+                if (!(boolean) WinDivertClose.invokeExact(handle)) {
+                    WinDivertException.throwExceptionOnGetLastError();
                 }
-            }
-
-            @Override
-            public boolean isValid() {
-                return handle != -1L;
+            } catch (Throwable t) {
+                if (t instanceof WinDivertException) throw (WinDivertException) t;
+                throw new RuntimeException(t);
             }
         }
+
+        @Override
+        public boolean isValid() {
+            return handle != -1L;
+        }
+    }
 
     private static class PanamaBuffer implements Buffer {
         final MemorySegment segment;

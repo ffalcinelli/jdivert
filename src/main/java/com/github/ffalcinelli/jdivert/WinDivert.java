@@ -48,7 +48,7 @@ import static com.github.ffalcinelli.jdivert.Enums.Shutdown;
  * </p>
  * <h3>Zero-Copy Architecture</h3>
  * <p>
- * JDivert uses a zero-copy architecture where captured packets are wrapped in direct 
+ * JDivert uses a zero-copy architecture where captured packets are wrapped in direct
  * {@link java.nio.ByteBuffer} objects. This allows the Java application to read and modify
  * packet data directly in native memory, eliminating redundant heap allocations and memory copies.
  * </p>
