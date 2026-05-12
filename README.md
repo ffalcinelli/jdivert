@@ -60,7 +60,7 @@ Due to the nature of the WinDivert driver and its requirement for specific netwo
     Run the following commands to sync the latest code to a local directory in the VM (avoiding synced folder permission issues) and execute the tests:
     ```bash
     vagrant winrm --command "robocopy C:\jdivert C:\local_jdivert /MIR /XD .git .vagrant target"
-    vagrant winrm --command "cd C:\local_jdivert; mvn clean test"
+    vagrant winrm --command "cd C:\local_jdivert; mvn clean verify"
     ```
 
 *Note: While you can compile the project on any OS, actual packet capture tests will only succeed in the provided Vagrant environment or an elevated Windows session.*

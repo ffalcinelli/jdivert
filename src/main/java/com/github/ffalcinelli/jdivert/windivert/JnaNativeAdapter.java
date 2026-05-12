@@ -42,12 +42,6 @@ public class JnaNativeAdapter implements NativeAdapter {
 
     private final WinDivertDLL dll = WinDivertDLL.INSTANCE;
 
-    private interface MyKernel32 extends Kernel32 {
-        MyKernel32 INSTANCE = Native.load("kernel32", MyKernel32.class, W32APIOptions.DEFAULT_OPTIONS);
-
-        boolean GetOverlappedResult(HANDLE hFile, WinBase.OVERLAPPED lpOverlapped, IntByReference lpNumberOfBytesTransferred, boolean bWait);
-    }
-
     @Override
     public Handle open(String filter, int layer, short priority, long flags) throws WinDivertException {
         WinNT.HANDLE handle = dll.WinDivertOpen(filter, layer, priority, flags);
@@ -285,6 +279,12 @@ public class JnaNativeAdapter implements NativeAdapter {
         }
     }
 
+    private interface MyKernel32 extends Kernel32 {
+        MyKernel32 INSTANCE = Native.load("kernel32", MyKernel32.class, W32APIOptions.DEFAULT_OPTIONS);
+
+        boolean GetOverlappedResult(HANDLE hFile, WinBase.OVERLAPPED lpOverlapped, IntByReference lpNumberOfBytesTransferred, boolean bWait);
+    }
+
     private static class JnaHandle implements Handle {
         final WinNT.HANDLE handle;
 
@@ -329,44 +329,6 @@ public class JnaNativeAdapter implements NativeAdapter {
         }
     }
 
-    private class JnaAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
-        private final JnaHandle handle;
-        private final WinBase.OVERLAPPED overlapped;
-        private final JnaWinDivertAddress jnaAddr;
-        private final WinDivertAddress address;
-        private static final int STATUS_PENDING = 0x103;
-
-        JnaAsyncImplementation(JnaHandle handle, WinBase.OVERLAPPED overlapped, JnaWinDivertAddress jnaAddr, WinDivertAddress address) {
-            this.handle = handle;
-            this.overlapped = overlapped;
-            this.jnaAddr = jnaAddr;
-            this.address = address;
-        }
-
-        @Override
-        public boolean isCompleted() {
-            return overlapped.Internal.intValue() != STATUS_PENDING;
-        }
-
-        @Override
-        public int waitAndGetResult() throws WinDivertException {
-            IntByReference transferLen = new IntByReference();
-            if (!MyKernel32.INSTANCE.GetOverlappedResult(handle.handle, overlapped, transferLen, true)) {
-                WinDivertException.throwExceptionOnGetLastError();
-            }
-            if (jnaAddr != null) {
-                jnaAddr.read();
-                mapToPojo(jnaAddr, address);
-            }
-            // Clean up event handle
-            if (overlapped.hEvent != null && overlapped.hEvent != WinNT.INVALID_HANDLE_VALUE) {
-                Kernel32.INSTANCE.CloseHandle(overlapped.hEvent);
-                overlapped.hEvent = null;
-            }
-            return transferLen.getValue();
-        }
-    }
-
     /**
      * Internal JNA structure matching WinDivertAddress layout.
      */
@@ -375,6 +337,39 @@ public class JnaNativeAdapter implements NativeAdapter {
         public int bitfield1;
         public int Reserved2;
         public WinDivertData Union;
+
+        public JnaWinDivertAddress() {
+            Union = new WinDivertData();
+        }
+
+        @Override
+        protected List<String> getFieldOrder() {
+            return Arrays.asList("Timestamp", "bitfield1", "Reserved2", "Union");
+        }
+
+        @Override
+        public void read() {
+            super.read();
+            int layer = bitfield1 & 0xFF;
+            switch (layer) {
+                case 0:
+                case 1:
+                    Union.setType(WinDivertData.NetworkData.class);
+                    break;
+                case 2:
+                    Union.setType(WinDivertData.FlowData.class);
+                    break;
+                case 3:
+                    Union.setType(WinDivertData.SocketData.class);
+                    break;
+                case 4:
+                    Union.setType(WinDivertData.ReflectData.class);
+                    break;
+                default:
+                    Union.setType(byte[].class);
+            }
+            Union.read();
+        }
 
         public static class WinDivertData extends Union {
             public NetworkData Network;
@@ -438,38 +433,43 @@ public class JnaNativeAdapter implements NativeAdapter {
                 }
             }
         }
+    }
 
-        public JnaWinDivertAddress() {
-            Union = new WinDivertData();
+    private class JnaAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
+        private static final int STATUS_PENDING = 0x103;
+        private final JnaHandle handle;
+        private final WinBase.OVERLAPPED overlapped;
+        private final JnaWinDivertAddress jnaAddr;
+        private final WinDivertAddress address;
+
+        JnaAsyncImplementation(JnaHandle handle, WinBase.OVERLAPPED overlapped, JnaWinDivertAddress jnaAddr, WinDivertAddress address) {
+            this.handle = handle;
+            this.overlapped = overlapped;
+            this.jnaAddr = jnaAddr;
+            this.address = address;
         }
 
         @Override
-        protected List<String> getFieldOrder() {
-            return Arrays.asList("Timestamp", "bitfield1", "Reserved2", "Union");
+        public boolean isCompleted() {
+            return overlapped.Internal.intValue() != STATUS_PENDING;
         }
 
         @Override
-        public void read() {
-            super.read();
-            int layer = bitfield1 & 0xFF;
-            switch (layer) {
-                case 0:
-                case 1:
-                    Union.setType(WinDivertData.NetworkData.class);
-                    break;
-                case 2:
-                    Union.setType(WinDivertData.FlowData.class);
-                    break;
-                case 3:
-                    Union.setType(WinDivertData.SocketData.class);
-                    break;
-                case 4:
-                    Union.setType(WinDivertData.ReflectData.class);
-                    break;
-                default:
-                    Union.setType(byte[].class);
+        public int waitAndGetResult() throws WinDivertException {
+            IntByReference transferLen = new IntByReference();
+            if (!MyKernel32.INSTANCE.GetOverlappedResult(handle.handle, overlapped, transferLen, true)) {
+                WinDivertException.throwExceptionOnGetLastError();
             }
-            Union.read();
+            if (jnaAddr != null) {
+                jnaAddr.read();
+                mapToPojo(jnaAddr, address);
+            }
+            // Clean up event handle
+            if (overlapped.hEvent != null && overlapped.hEvent != WinNT.INVALID_HANDLE_VALUE) {
+                Kernel32.INSTANCE.CloseHandle(overlapped.hEvent);
+                overlapped.hEvent = null;
+            }
+            return transferLen.getValue();
         }
     }
 }

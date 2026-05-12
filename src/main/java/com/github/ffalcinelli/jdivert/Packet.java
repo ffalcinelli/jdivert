@@ -66,8 +66,8 @@ import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
  */
 public class Packet {
 
-    private ByteBuffer raw;
     private final WinDivertAddress addr;
+    private ByteBuffer raw;
     private Ip ipHdr;
     private Transport transHdr;
     private Icmp icmpHdr;

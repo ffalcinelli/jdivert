@@ -141,6 +141,35 @@ public class PacketTestCase {
     }
 
     @Test
+    public void isLoopback() {
+        assertFalse(packet.isLoopback());
+        addr.setLoopback(true);
+        assertTrue(packet.isLoopback());
+        
+        addr.setLoopback(false);
+        addr.setLayer(0); // NETWORK
+        addr.Union.Network.IfIdx = 1;
+        assertTrue(packet.isLoopback());
+    }
+
+    @Test
+    public void emptyOptionals() {
+        // TCP packet, so ICMP and UDP should be empty
+        assertFalse(packet.getIcmpv4().isPresent());
+        assertFalse(packet.getIcmpv6().isPresent());
+        assertFalse(packet.getUdp().isPresent());
+        assertFalse(packet.getIpv6().isPresent());
+    }
+
+    @Test
+    public void setPortsNoTransport() {
+        // ICMP packet has no transport header
+        Packet icmp = new Packet(parseHexBinary("4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637"), addr);
+        assertThrows(IllegalStateException.class, () -> icmp.setSrcPort(80));
+        assertThrows(IllegalStateException.class, () -> icmp.setDstPort(80));
+    }
+
+    @Test
     public void excludeChecksums() throws WinDivertException {
         int cksum = packet.getTcp().get().getChecksum();
         packet.setSrcPort(8080);

@@ -26,7 +26,6 @@ import java.nio.ByteBuffer;
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ROUTING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 26/10/2016.

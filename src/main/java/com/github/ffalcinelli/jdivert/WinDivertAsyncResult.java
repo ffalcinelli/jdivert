@@ -36,20 +36,6 @@ public class WinDivertAsyncResult<T> implements AutoCloseable {
     private boolean released = false;
     private T result;
 
-    @FunctionalInterface
-    public interface ResultConverter<T> {
-        T convert(int len, NativeAdapter.Buffer buffer, WinDivertAddress address);
-    }
-
-    /**
-     * Internal interface for platform-specific asynchronous implementation.
-     */
-    public interface AsyncImplementation {
-        boolean isCompleted();
-
-        int waitAndGetResult() throws WinDivertException;
-    }
-
     public WinDivertAsyncResult(NativeAdapter.Handle handle, NativeAdapter.Buffer buffer, WinDivertAddress address, ResultConverter<T> converter, AsyncImplementation implementation) {
         this.handle = handle;
         this.buffer = buffer;
@@ -114,5 +100,19 @@ public class WinDivertAsyncResult<T> implements AutoCloseable {
             }
             released = true;
         }
+    }
+
+    @FunctionalInterface
+    public interface ResultConverter<T> {
+        T convert(int len, NativeAdapter.Buffer buffer, WinDivertAddress address);
+    }
+
+    /**
+     * Internal interface for platform-specific asynchronous implementation.
+     */
+    public interface AsyncImplementation {
+        boolean isCompleted();
+
+        int waitAndGetResult() throws WinDivertException;
     }
 }

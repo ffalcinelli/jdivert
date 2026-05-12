@@ -68,6 +68,63 @@ public class WinDivertAddressTestCase {
     }
 
     @Test
+    public void testBitfields() {
+        WinDivertAddress addr = new WinDivertAddress();
+        
+        addr.setSniffed(true);
+        assertTrue(addr.isSniffed());
+        addr.setSniffed(false);
+        assertFalse(addr.isSniffed());
+
+        addr.setLoopback(true);
+        assertTrue(addr.isLoopback());
+        addr.setLoopback(false);
+        assertFalse(addr.isLoopback());
+
+        addr.setImpostor(true);
+        assertTrue(addr.isImpostor());
+        addr.setImpostor(false);
+        assertFalse(addr.isImpostor());
+
+        addr.setIPv6(true);
+        assertTrue(addr.isIPv6());
+        addr.setIPv6(false);
+        assertFalse(addr.isIPv6());
+
+        addr.setIPChecksum(true);
+        assertTrue(addr.hasIPChecksum());
+        addr.setIPChecksum(false);
+        assertFalse(addr.hasIPChecksum());
+
+        addr.setTCPChecksum(true);
+        assertTrue(addr.hasTCPChecksum());
+        addr.setTCPChecksum(false);
+        assertFalse(addr.hasTCPChecksum());
+
+        addr.setUDPChecksum(true);
+        assertTrue(addr.hasUDPChecksum());
+        addr.setUDPChecksum(false);
+        assertFalse(addr.hasUDPChecksum());
+    }
+
+    @Test
+    public void testEqualsNonNetworkLayer() {
+        WinDivertAddress addr1 = new WinDivertAddress();
+        addr1.setLayer(1); // FLOW
+        WinDivertAddress addr2 = new WinDivertAddress();
+        addr2.setLayer(1);
+        
+        assertEquals(addr1, addr2);
+        assertEquals(addr1.hashCode(), addr2.hashCode());
+        
+        addr1.Timestamp = 12345L;
+        assertNotEquals(addr1, addr2);
+        
+        addr2.Timestamp = 12345L;
+        assertEquals(addr1, addr2);
+    }
+
+    @Test
     public void testInnerClasses() {
         WinDivertAddress.WinDivertData.NetworkData network = new WinDivertAddress.WinDivertData.NetworkData();
         assertNotNull(network);

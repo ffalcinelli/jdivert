@@ -25,28 +25,6 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
  * Abstracted to support both JNA and Project Panama (FFM API).
  */
 public interface NativeAdapter {
-    /**
-     * Handle type for native handles.
-     */
-    interface Handle extends AutoCloseable {
-        @Override
-        void close() throws WinDivertException;
-
-        boolean isValid();
-    }
-
-    /**
-     * Native buffer for packet data.
-     */
-    interface Buffer extends AutoCloseable {
-        java.nio.ByteBuffer getByteBuffer();
-
-        int capacity();
-
-        @Override
-        void close();
-    }
-
     Handle open(String filter, int layer, short priority, long flags) throws WinDivertException;
 
     int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException;
@@ -72,4 +50,26 @@ public interface NativeAdapter {
     String formatMessage(int errorCode);
 
     int getLastError();
+
+    /**
+     * Handle type for native handles.
+     */
+    interface Handle extends AutoCloseable {
+        @Override
+        void close() throws WinDivertException;
+
+        boolean isValid();
+    }
+
+    /**
+     * Native buffer for packet data.
+     */
+    interface Buffer extends AutoCloseable {
+        java.nio.ByteBuffer getByteBuffer();
+
+        int capacity();
+
+        @Override
+        void close();
+    }
 }

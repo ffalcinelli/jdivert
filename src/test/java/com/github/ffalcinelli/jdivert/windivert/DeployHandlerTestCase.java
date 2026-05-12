@@ -22,10 +22,39 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DeployHandlerTestCase {
+
+    @Test
+    public void testCloseIgnoreExceptions() {
+        // Should not throw even with null or non-closeable (though it only accepts Closeable now)
+        DeployHandler.closeIgnoreExceptions((java.io.Closeable) null);
+        
+        java.io.ByteArrayInputStream is = new java.io.ByteArrayInputStream(new byte[0]);
+        DeployHandler.closeIgnoreExceptions(is);
+        // is should be closed, but we can't easily check without a spy
+    }
+
+    @Test
+    public void testDeployInInvalidDir() {
+        File invalidDir = new File("Z:\\invalid\\path\\that\\should\\not\\exist");
+        assertThrows(java.io.IOException.class, () -> DeployHandler.deployInTempDir(invalidDir));
+    }
+
+    @Test
+    public void testCopy() throws java.io.IOException {
+        byte[] data = "Hello World".getBytes();
+        java.io.ByteArrayInputStream source = new java.io.ByteArrayInputStream(data);
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        long n = DeployHandler.copy(source, sink);
+        assertEquals(data.length, n);
+        assertArrayEquals(data, sink.toByteArray());
+    }
 
     @Test
     public void testDeployToPath() {

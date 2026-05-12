@@ -322,6 +322,7 @@ public class WinDivert implements AutoCloseable {
      */
     public String getMode() {
         String mode = Stream.of(Flag.values())
+                .filter(f -> f != Flag.DEFAULT)
                 .filter(this::is)
                 .map(Enum::toString)
                 .collect(Collectors.joining("|"));
