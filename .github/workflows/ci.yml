@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ master, main ]
 
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: windows-latest
@@ -55,3 +61,52 @@ jobs:
         files: target/site/jacoco/jacoco.xml
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
+
+  pages:
+    # Deploy Javadocs only on push to master/main and after build success
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Generate Javadoc
+        run: mvn javadoc:javadoc
+
+      - name: Prepare Pages Artifact
+        run: |
+          # The Javadoc plugin outputs to docs/api/apidocs based on current pom.xml
+          # We want the root of the site to include the handwritten docs too.
+          mkdir -p _site
+          cp -r docs/*.md _site/
+          cp -r docs/api _site/
+          # Create a basic index.html if it doesn't exist, or just rely on README.md being handled by Jekyll
+          # Actually, GitHub Pages can serve the docs/ folder directly if configured.
+          # But here we want a specific layout.
+
+      - name: Setup Pages
+        uses: actions/configure-pages@983d7736d9061a7ca39f85c76bd30190ee4cd391
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@a5170d4c35870471965e3633bb9ee39b90bc4f56
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6dbca28e605967bd7f607d72221665a31793740
