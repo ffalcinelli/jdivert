@@ -54,7 +54,7 @@ jobs:
         fi
 
     - name: Upload coverage to Codecov
-      if: matrix.java == '17'
+      if: matrix.java == '17' || matrix.java == '25'
       # Using v5 - 57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
       uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
       with:

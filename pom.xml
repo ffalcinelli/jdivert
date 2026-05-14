@@ -124,7 +124,7 @@
                 <version>${jacoco.version}</version>
                 <configuration>
                     <excludes>
-                        <exclude>**/META-INF/versions/**</exclude>
+                        <exclude>**/META-INF/versions/**/NativeAdapterFactory.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>
