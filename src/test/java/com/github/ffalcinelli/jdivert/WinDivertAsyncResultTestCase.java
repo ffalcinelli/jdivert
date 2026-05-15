@@ -58,4 +58,51 @@ public class WinDivertAsyncResultTestCase {
             assertEquals(10, result.get());
         }
     }
+
+    @Test
+    public void testIdempotentClose() {
+        WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
+                null,
+                null,
+                new WinDivertAddress(),
+                (len, buffer, address) -> 10,
+                new WinDivertAsyncResult.AsyncImplementation() {
+                    @Override
+                    public boolean isCompleted() {
+                        return true;
+                    }
+
+                    @Override
+                    public int waitAndGetResult() {
+                        return 10;
+                    }
+                }
+        );
+        result.close();
+        result.close(); // Should not throw
+    }
+
+    @Test
+    public void testMultipleGetCalls() throws WinDivertException {
+        try (WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
+                null,
+                null,
+                new WinDivertAddress(),
+                (len, buffer, address) -> 10,
+                new WinDivertAsyncResult.AsyncImplementation() {
+                    @Override
+                    public boolean isCompleted() {
+                        return true;
+                    }
+
+                    @Override
+                    public int waitAndGetResult() {
+                        return 10;
+                    }
+                }
+        )) {
+            assertEquals(10, result.get());
+            assertEquals(10, result.get());
+        }
+    }
 }

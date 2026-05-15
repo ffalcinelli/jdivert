@@ -193,7 +193,7 @@ public class JnaNativeAdapter implements NativeAdapter {
         return Native.getLastError();
     }
 
-    private void mapToPojo(JnaWinDivertAddress jna, WinDivertAddress pojo) {
+    void mapToPojo(JnaWinDivertAddress jna, WinDivertAddress pojo) {
         pojo.Timestamp = jna.Timestamp;
         pojo.bitfield1 = jna.bitfield1;
         pojo.Reserved2 = jna.Reserved2;
@@ -234,7 +234,7 @@ public class JnaNativeAdapter implements NativeAdapter {
         }
     }
 
-    private void mapFromPojo(WinDivertAddress pojo, JnaWinDivertAddress jna) {
+    void mapFromPojo(WinDivertAddress pojo, JnaWinDivertAddress jna) {
         jna.Timestamp = pojo.Timestamp;
         jna.bitfield1 = pojo.bitfield1;
         jna.Reserved2 = pojo.Reserved2;
@@ -340,6 +340,22 @@ public class JnaNativeAdapter implements NativeAdapter {
 
         public JnaWinDivertAddress() {
             Union = new WinDivertData();
+        }
+
+        public int getLayer() {
+            return bitfield1 & 0xFF;
+        }
+
+        public boolean isOutbound() {
+            return ((bitfield1 >> 17) & 1) != 0;
+        }
+
+        public boolean isLoopback() {
+            return ((bitfield1 >> 18) & 1) != 0;
+        }
+
+        public boolean isImpostor() {
+            return ((bitfield1 >> 19) & 1) != 0;
         }
 
         @Override

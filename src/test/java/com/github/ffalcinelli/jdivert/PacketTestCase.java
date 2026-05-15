@@ -178,4 +178,29 @@ public class PacketTestCase {
         packet.recalculateChecksum();
         assertNotEquals(cksum, packet.getTcp().get().getChecksum());
     }
+
+    @Test
+    public void testSetPayloadReallocation() {
+        byte[] newPayload = new byte[1000];
+        for (int i = 0; i < 1000; i++) {
+            newPayload[i] = (byte) (i % 256);
+        }
+        packet.setPayload(newPayload);
+        assertArrayEquals(newPayload, packet.getPayload());
+        assertEquals(raw.length - payload.length + 1000, packet.getRaw().length);
+    }
+
+    @Test
+    public void testSetPayloadIPv6UDP() {
+        String ipv6UdpHex = "60000000002711403ffe050700000001020086fffe0580da3ffe0501481900000000000000000042095d0035002746b700060100000100000000000003777777057961686f6f03636f6d00000f0001";
+        Packet p = new Packet(parseHexBinary(ipv6UdpHex), addr);
+        byte[] newPayload = new byte[]{0x1, 0x2, 0x3, 0x4};
+        p.setPayload(newPayload);
+        assertArrayEquals(newPayload, p.getPayload());
+        assertTrue(p.isUdp());
+        assertTrue(p.isIpv6());
+        assertEquals(40 + 8 + 4, p.getRaw().length);
+        assertEquals(40 + 8 + 4, p.getIpv6().get().getPayloadLength() + 40);
+        assertEquals(8 + 4, p.getUdp().get().getLength());
+    }
 }

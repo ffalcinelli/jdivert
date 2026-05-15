@@ -157,4 +157,16 @@ public class WinDivertTestCase {
         assertTrue(w.toString().contains("mode=DEFAULT"));
     }
 
+    @Test
+    public void shutdownNotOpen() {
+        w = new WinDivert("false");
+        assertThrows(IllegalStateException.class, () -> w.shutdown(Enums.Shutdown.BOTH));
+    }
+
+    @Test
+    public void combinedFlagsMode() {
+        w = new WinDivert("true", Enums.Layer.NETWORK, 0, Enums.Flag.SNIFF, Enums.Flag.FRAGMENTS);
+        assertEquals("SNIFF|FRAGMENTS", w.getMode());
+    }
+
 }

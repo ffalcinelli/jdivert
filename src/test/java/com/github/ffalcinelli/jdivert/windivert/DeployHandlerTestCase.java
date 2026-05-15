@@ -83,4 +83,26 @@ public class DeployHandlerTestCase {
             throw t;
         }
     }
+
+    @Test
+    public void testDeployExistingFile() throws java.io.IOException {
+        File tempDir = new File(System.getProperty("java.io.tmpdir"), "jdivert-test-" + java.util.UUID.randomUUID());
+        if (!tempDir.mkdirs()) return;
+        try {
+            DeployHandler.deployInTempDir(tempDir);
+            File dllFile = new File(tempDir, "WinDivert64.dll");
+            assertTrue(dllFile.exists());
+            long length = dllFile.length();
+            
+            // Re-deploy should skip
+            DeployHandler.deployInTempDir(tempDir);
+            assertEquals(length, dllFile.length());
+        } finally {
+            File[] files = tempDir.listFiles();
+            if (files != null) {
+                for (File f : files) f.delete();
+            }
+            tempDir.delete();
+        }
+    }
 }

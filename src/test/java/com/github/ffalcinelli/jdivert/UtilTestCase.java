@@ -50,6 +50,10 @@ public class UtilTestCase {
         assertEquals("0123456789ABCDEF", printHexBinary(bytes));
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
         assertEquals("0123456789ABCDEF", printHexBinary(buffer));
+
+        // Test lowercase
+        byte[] bytesLower = parseHexBinary("0123456789abcdef");
+        assertArrayEquals(bytes, bytesLower);
     }
 
     @Test
