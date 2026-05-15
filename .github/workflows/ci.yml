@@ -79,7 +79,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up JDK 25
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
         with:
           java-version: '25'
           distribution: 'temurin'
@@ -100,13 +100,13 @@ jobs:
           # But here we want a specific layout.
 
       - name: Setup Pages
-        uses: actions/configure-pages@983d7736d9061a7ca39f85c76bd30190ee4cd391
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@a5170d4c35870471965e3633bb9ee39b90bc4f56
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0 
         with:
           path: '_site'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6dbca28e605967bd7f607d72221665a31793740
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0
