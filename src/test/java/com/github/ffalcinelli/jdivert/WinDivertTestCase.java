@@ -23,9 +23,16 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
-import static com.github.ffalcinelli.jdivert.Enums.Flag.*;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.DEFAULT;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.DROP;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.FRAGMENTS;
+import static com.github.ffalcinelli.jdivert.Enums.Flag.SNIFF;
 import static com.github.ffalcinelli.jdivert.Enums.Layer.NETWORK;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -41,7 +48,7 @@ public class WinDivertTestCase {
     }
 
     @AfterEach
-    public void tearDown() {
+    public void tearDown() throws WinDivertException {
         if (w != null)
             w.close();
     }
@@ -91,10 +98,13 @@ public class WinDivertTestCase {
         w = new WinDivert("false").open();
         for (Enums.Param param : Enums.Param.values()) {
             assertEquals(param.getDefault(), w.getParam(param), param.toString());
+            if (param.isReadOnly()) {
+                continue;
+            }
             long value = randInt(param.getMin(), param.getMax());
             w.setParam(param, value);
             long newValue = w.getParam(param);
-            assertTrue(newValue >= param.getMin() && newValue <= param.getMax(), param.toString() + " value: " + newValue);
+            assertTrue(newValue >= param.getMin() && newValue <= param.getMax(), param + " value: " + newValue);
 
             assertThrows(IllegalArgumentException.class, () -> w.setParam(param, param.getMax() + 1),
                     String.format("%s is out of min range, but no exception has been thrown.", param));
@@ -102,6 +112,32 @@ public class WinDivertTestCase {
             assertThrows(IllegalArgumentException.class, () -> w.setParam(param, param.getMin() - 1),
                     String.format("%s is out of max range, but no exception has been thrown.", param));
         }
+    }
+
+    @Test
+    public void sniffAndDropError() {
+        assertThrows(IllegalArgumentException.class, () -> new WinDivert("true", Enums.Layer.NETWORK, 0, Enums.Flag.SNIFF, Enums.Flag.DROP));
+    }
+
+    @Test
+    public void testGetMode() {
+        w = new WinDivert("true", Enums.Layer.NETWORK, 0, Enums.Flag.SNIFF);
+        assertEquals("SNIFF", w.getMode());
+        
+        w = new WinDivert("true", Enums.Layer.NETWORK, 0, Enums.Flag.DROP);
+        assertEquals("DROP", w.getMode());
+        
+        w = new WinDivert("true", Enums.Layer.NETWORK, 0);
+        assertEquals("DEFAULT", w.getMode());
+    }
+
+    @Test
+    public void testToString() {
+        w = new WinDivert("true");
+        String s = w.toString();
+        assertNotNull(s);
+        assertTrue(s.contains("filter=true"));
+        assertTrue(s.contains("state=CLOSED"));
     }
 
     @Test
@@ -119,6 +155,18 @@ public class WinDivertTestCase {
         assertFalse(w.is(DROP));
         assertFalse(w.is(FRAGMENTS));
         assertTrue(w.toString().contains("mode=DEFAULT"));
+    }
+
+    @Test
+    public void shutdownNotOpen() {
+        w = new WinDivert("false");
+        assertThrows(IllegalStateException.class, () -> w.shutdown(Enums.Shutdown.BOTH));
+    }
+
+    @Test
+    public void combinedFlagsMode() {
+        w = new WinDivert("true", Enums.Layer.NETWORK, 0, Enums.Flag.SNIFF, Enums.Flag.FRAGMENTS);
+        assertEquals("SNIFF|FRAGMENTS", w.getMode());
     }
 
 }

@@ -17,40 +17,62 @@
 
 package com.github.ffalcinelli.jdivert;
 
-
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
+import com.github.ffalcinelli.jdivert.windivert.NativeAdapter;
+import com.github.ffalcinelli.jdivert.windivert.NativeAdapterFactory;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
-import com.github.ffalcinelli.jdivert.windivert.WinDivertDLL;
-import com.sun.jna.Memory;
-import com.sun.jna.platform.win32.Kernel32;
-import com.sun.jna.platform.win32.WinBase;
-import com.sun.jna.platform.win32.WinNT;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.LongByReference;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.github.ffalcinelli.jdivert.Enums.*;
-import static com.github.ffalcinelli.jdivert.exceptions.WinDivertException.throwExceptionOnGetLastError;
-import static com.sun.jna.platform.win32.WinNT.HANDLE;
+import static com.github.ffalcinelli.jdivert.Enums.CalcChecksumsOption;
+import static com.github.ffalcinelli.jdivert.Enums.Flag;
+import static com.github.ffalcinelli.jdivert.Enums.Layer;
+import static com.github.ffalcinelli.jdivert.Enums.Param;
+import static com.github.ffalcinelli.jdivert.Enums.Shutdown;
 
 /**
- * A WinDivert handle that can be used to capture packets.<p>
- * The main methods are {@link #open()}, {@link #recv()}, {@link #send(Packet)} and {@link #close()}.
+ * A WinDivert handle used to capture, modify, and inject network packets.
+ * <p>
+ * This class is the primary entry point for the JDivert library. It provides an idiomatic Java
+ * interface to the native WinDivert driver.
  * </p>
- * Created by fabio on 20/10/2016.
+ * <h3>Resource Management</h3>
+ * <p>
+ * This class implements {@link AutoCloseable}. It is critical to call {@link #close()} or use
+ * a try-with-resources block to ensure the native handle is released and the driver is unloaded
+ * when no longer needed. Internal native buffers allocated during {@link #recv()} are
+ * automatically managed and released using robust {@code try-finally} blocks.
+ * </p>
+ * <h3>Zero-Copy Architecture</h3>
+ * <p>
+ * JDivert uses a zero-copy architecture where captured packets are wrapped in direct
+ * {@link java.nio.ByteBuffer} objects. This allows the Java application to read and modify
+ * packet data directly in native memory, eliminating redundant heap allocations and memory copies.
+ * </p>
+ * <h3>Thread Safety</h3>
+ * <p>
+ * Instances of {@code WinDivert} are thread-safe for {@link #recv()} and {@link #send(Packet)}
+ * operations. Multiple threads can concurrently call {@code recv()} on the same handle; the
+ * underlying driver will distribute captured packets among the calling threads.
+ * </p>
+ * <h3>Zero-Install</h3>
+ * <p>
+ * JDivert bundles the necessary native WinDivert binaries. On first use, it extracts them
+ * to a temporary directory and configures the environment to load them automatically.
+ * Note that **Administrator privileges** are required to open a handle.
+ * </p>
  */
 public class WinDivert implements AutoCloseable {
-    public static int DEFAULT_PACKET_BUFFER_SIZE = 1500;
-    private final WinDivertDLL dll = WinDivertDLL.INSTANCE;
+    public static int DEFAULT_PACKET_BUFFER_SIZE = 65575;
+    private final NativeAdapter adapter = NativeAdapterFactory.getAdapter();
     private final String filter;
     private final Layer layer;
     private final int priority;
     private final int flags;
-    private HANDLE handle;
+    private NativeAdapter.Handle handle;
 
     /**
      * Create a new WinDivert instance based upon the given filter for
@@ -80,30 +102,13 @@ public class WinDivert implements AutoCloseable {
         if (flagList.contains(Flag.SNIFF) && flagList.contains(Flag.DROP)) {
             throw new IllegalArgumentException(String.format("A filter cannot be set with flags %s and %s at same time.", Flag.SNIFF, Flag.DROP));
         }
-        int flagsValue = 0;
-        for (Flag flag : flags) {
-            flagsValue |= flag.getValue();
-        }
-        this.flags = flagsValue;
+        this.flags = Stream.of(flags).map(Flag::getValue).reduce(0, (a, b) -> a | b);
     }
 
     /**
      * Opens a WinDivert handle for the given filter.<br>
      * Unless otherwise specified by flags, any packet that matches the filter will be diverted to the handle.<br>
      * Diverted packets can be read by the application with {@link #recv() recv}.
-     * <p>
-     * The remapped function is {@code WinDivertOpen}:
-     * </p>
-     * <pre>{@code
-     * HANDLE WinDivertOpen(
-     *      __in const char *filter,
-     *      __in WINDIVERT_LAYER layer,
-     *      __in INT16 priority,
-     *      __in UINT64 flags
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_open">http://reqrypt.org/windivert-doc.html#divert_open</a>
      *
      * @return this instance to allow call chaining (e.g. {@code Windivert w = new WinDivert("true").open()})
      * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
@@ -113,8 +118,7 @@ public class WinDivert implements AutoCloseable {
         if (isOpen()) {
             throw new IllegalStateException("The instance is already in open state");
         }
-        handle = dll.WinDivertOpen(filter, layer.getValue(), (short) priority, flags);
-        throwExceptionOnGetLastError();
+        handle = adapter.open(filter, layer.getValue(), (short) priority, flags);
         //Allow call chaining
         return this;
     }
@@ -125,26 +129,15 @@ public class WinDivert implements AutoCloseable {
      * @return True if the handle is open, false otherwise
      */
     public boolean isOpen() {
-        return handle != null;
+        return handle != null && handle.isValid();
     }
 
     /**
      * Closes the handle opened by {@link #open() open}.
-     * <p>
-     * The remapped function is {@code WinDivertClose}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertClose(
-     *      __in HANDLE handle
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_close">http://reqrypt.org/windivert-doc.html#divert_close</a>
-     * """
      */
-    public void close() {
+    public void close() throws WinDivertException {
         if (isOpen()) {
-            dll.WinDivertClose(handle);
+            handle.close();
             handle = null;
         }
     }
@@ -152,20 +145,6 @@ public class WinDivert implements AutoCloseable {
     /**
      * Receives a diverted packet that matched the filter.<br>
      * The return value is a {@link com.github.ffalcinelli.jdivert.Packet packet}.
-     * <p>
-     * The remapped function is {@code WinDivertRecv}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertRecv(
-     *      __in HANDLE handle,
-     *      __out PVOID pPacket,
-     *      __in UINT packetLen,
-     *      __out_opt UINT *recvLen,
-     *      __out_opt PWINDIVERT_ADDRESS pAddr
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_recv">http://reqrypt.org/windivert-doc.html#divert_recv</a>
      *
      * @return A {@link com.github.ffalcinelli.jdivert.Packet Packet} instance
      * @throws WinDivertException Whenever the DLL call sets a LastError different by 0 (Success) or 997 (Overlapped I/O
@@ -178,20 +157,6 @@ public class WinDivert implements AutoCloseable {
     /**
      * Receives a diverted packet that matched the filter.<br>
      * The return value is a {@link com.github.ffalcinelli.jdivert.Packet packet}.
-     * <p>
-     * The remapped function is {@code WinDivertRecv}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertRecv(
-     *      __in HANDLE handle,
-     *      __out PVOID pPacket,
-     *      __in UINT packetLen,
-     *      __out_opt UINT *recvLen,
-     *      __out_opt PWINDIVERT_ADDRESS pAddr
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_recv">http://reqrypt.org/windivert-doc.html#divert_recv</a>
      *
      * @param bufsize The size for the buffer to allocate
      * @return A {@link com.github.ffalcinelli.jdivert.Packet Packet} instance
@@ -200,13 +165,13 @@ public class WinDivert implements AutoCloseable {
      */
     public Packet recv(int bufsize) throws WinDivertException {
         WinDivertAddress address = new WinDivertAddress();
-        Memory buffer = new Memory(bufsize);
-        IntByReference recvLen = new IntByReference();
-        dll.WinDivertRecv(handle, buffer, bufsize, recvLen, address.getPointer());
-        throwExceptionOnGetLastError();
-        address.read();
-        byte[] raw = buffer.getByteArray(0, recvLen.getValue());
-        return new Packet(raw, address);
+        try (NativeAdapter.Buffer buffer = adapter.allocateBuffer(bufsize)) {
+            int len = adapter.recv(handle, buffer, address);
+            java.nio.ByteBuffer bb = buffer.getByteBuffer();
+            bb.position(0);
+            bb.limit(len);
+            return new Packet(bb, address);
+        }
     }
 
     /**
@@ -227,21 +192,11 @@ public class WinDivert implements AutoCloseable {
      * @throws WinDivertException If the operation fails to start.
      */
     public WinDivertAsyncResult<Packet> recvAsync(int bufsize) throws WinDivertException {
-        final WinDivertAddress address = new WinDivertAddress();
-        final Memory buffer = new Memory(bufsize);
-        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
-        overlapped.hEvent = Kernel32.INSTANCE.CreateEvent(null, true, false, null);
-
-        if (!dll.WinDivertRecvEx(handle, buffer, bufsize, null, 0, address.getPointer(), null, overlapped)) {
-            int err = Kernel32.INSTANCE.GetLastError();
-            if (err != WinNT.ERROR_IO_PENDING) {
-                throw new WinDivertException(err);
-            }
-        }
-
-        return new WinDivertAsyncResult<>(handle, overlapped, buffer, address, (len, buf, addr) -> {
-            byte[] raw = buf.getByteArray(0, len);
-            return new Packet(raw, addr);
+        return adapter.recvAsync(handle, bufsize, (len, buf, addr) -> {
+            java.nio.ByteBuffer bb = buf.getByteBuffer();
+            bb.position(0);
+            bb.limit(len);
+            return new Packet(bb, addr);
         });
     }
 
@@ -249,23 +204,6 @@ public class WinDivert implements AutoCloseable {
      * Injects a packet into the headers stack.<br>
      * Recalculates the checksum before sending.<br>
      * The return value is the number of bytes actually sent.<br>
-     * <p>
-     * The injected packet may be one received from {@link com.github.ffalcinelli.jdivert.WinDivert#recv() recv}, or a modified version, or a completely new packet.
-     * Injected packets can be captured and diverted again by other WinDivert handles with lower priorities.
-     * </p><p>
-     * The remapped function is {@code WinDivertSend}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertSend(
-     *      __in HANDLE handle,
-     *      __in PVOID pPacket,
-     *      __in UINT packetLen,
-     *      __out_opt UINT *sendLen,
-     *      __in PWINDIVERT_ADDRESS pAddr
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_send">http://reqrypt.org/windivert-doc.html#divert_send</a>
      *
      * @param packet The {@link com.github.ffalcinelli.jdivert.Packet Packet} to send
      * @return The number of bytes actually sent
@@ -283,23 +221,6 @@ public class WinDivert implements AutoCloseable {
      * <li>If {@code recalculateChecksum=false} then {@link Enums.CalcChecksumsOption options} are ignored.</li>
      * </ul>
      * The return value is the number of bytes actually sent.
-     * <p>
-     * The injected packet may be one received from {@link com.github.ffalcinelli.jdivert.WinDivert#recv() recv}, or a modified version, or a completely new packet.
-     * Injected packets can be captured and diverted again by other WinDivert handles with lower priorities.
-     * </p><p>
-     * The remapped function is {@code WinDivertSend}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertSend(
-     *      __in HANDLE handle,
-     *      __in PVOID pPacket,
-     *      __in UINT packetLen,
-     *      __out_opt UINT *sendLen,
-     *      __in PWINDIVERT_ADDRESS pAddr
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_send">http://reqrypt.org/windivert-doc.html#divert_send</a>
      *
      * @param packet              The {@link com.github.ffalcinelli.jdivert.Packet Packet} to send
      * @param recalculateChecksum Whether to recalculate the checksums or pass the {@link com.github.ffalcinelli.jdivert.Packet packet} as is.
@@ -312,16 +233,7 @@ public class WinDivert implements AutoCloseable {
         if (recalculateChecksum) {
             packet.recalculateChecksum(options);
         }
-        WinDivertAddress address = packet.getWinDivertAddress();
-        IntByReference sendLen = new IntByReference();
-        byte[] raw = packet.getRaw();
-        Memory buffer = new Memory(raw.length);
-
-        buffer.write(0, raw, 0, raw.length);
-        address.write();
-        dll.WinDivertSend(handle, buffer, raw.length, sendLen, address.getPointer());
-        throwExceptionOnGetLastError();
-        return sendLen.getValue();
+        return adapter.send(handle, packet.getByteBuffer(), packet.getWinDivertAddress());
     }
 
     /**
@@ -348,23 +260,7 @@ public class WinDivert implements AutoCloseable {
         if (recalculateChecksum) {
             packet.recalculateChecksum(options);
         }
-        byte[] raw = packet.getRaw();
-        final Memory buffer = new Memory(raw.length);
-        buffer.write(0, raw, 0, raw.length);
-        
-        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
-        overlapped.hEvent = Kernel32.INSTANCE.CreateEvent(null, true, false, null);
-
-        WinDivertAddress addr = packet.getWinDivertAddress();
-        addr.write();
-        if (!dll.WinDivertSendEx(handle, buffer, raw.length, null, 0, addr.getPointer(), addr.size(), overlapped)) {
-            int err = Kernel32.INSTANCE.GetLastError();
-            if (err != WinNT.ERROR_IO_PENDING) {
-                throw new WinDivertException(err);
-            }
-        }
-
-        return new WinDivertAsyncResult<>(handle, overlapped, buffer, null, (len, buf, a) -> len);
+        return adapter.sendAsync(handle, packet.getByteBuffer(), packet.getWinDivertAddress(), (len, buf, addr) -> len);
     }
 
     /**
@@ -377,64 +273,36 @@ public class WinDivert implements AutoCloseable {
         if (!isOpen()) {
             throw new IllegalStateException("WinDivert handle not in OPEN state");
         }
-        if (!dll.WinDivertShutdown(handle, how.getValue())) {
-            throwExceptionOnGetLastError();
-        }
+        adapter.shutdown(handle, how.getValue());
     }
 
     /**
      * Get a WinDivert parameter. See {@link Enums.Param Param} for the list of parameters.
-     * <p>
-     * The remapped function is {@code WinDivertGetParam}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertGetParam(
-     *      __in HANDLE handle,
-     *      __in WINDIVERT_PARAM param,
-     *      __out UINT64 *pValue
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_get_param">http://reqrypt.org/windivert-doc.html#divert_get_param</a>
      *
      * @param param The {@link Enums.Param param} to set
      * @return The value for the parameter
      */
-    public long getParam(Param param) {
+    public long getParam(Param param) throws WinDivertException {
         if (!isOpen()) {
             throw new IllegalStateException("WinDivert handle not in OPEN state");
         }
-        LongByReference value = new LongByReference();
-        dll.WinDivertGetParam(handle, param.getValue(), value);
-        return value.getValue();
+        return adapter.getParam(handle, param.getValue());
     }
 
     /**
      * Set a WinDivert parameter. See {@link Enums.Param Param} for the list of parameters.
-     * <p>
-     * The remapped function is {@code DivertSetParam}:
-     * </p>
-     * <pre>{@code
-     * BOOL WinDivertSetParam(
-     *      __in HANDLE handle,
-     *      __in WINDIVERT_PARAM param,
-     *      __in UINT64 value
-     * );
-     * }</pre>
-     * <p>
-     * For more info on the C call visit: <a href="http://reqrypt.org/windivert-doc.html#divert_set_param">http://reqrypt.org/windivert-doc.html#divert_set_param</a>
      *
      * @param param The {@link Enums.Param param} to set
      * @param value The value for the parameter
      */
-    public void setParam(Param param, long value) {
+    public void setParam(Param param, long value) throws WinDivertException {
         if (!isOpen()) {
             throw new IllegalStateException("WinDivert handle not in OPEN state");
         }
         if (param.getMin() > value || param.getMax() < value) {
             throw new IllegalArgumentException(String.format("%s must be in range %d, %d", param, param.getMin(), param.getMax()));
         }
-        dll.WinDivertSetParam(handle, param.getValue(), value);
+        adapter.setParam(handle, param.getValue(), value);
     }
 
     /**
@@ -454,6 +322,7 @@ public class WinDivert implements AutoCloseable {
      */
     public String getMode() {
         String mode = Stream.of(Flag.values())
+                .filter(f -> f != Flag.DEFAULT)
                 .filter(this::is)
                 .map(Enum::toString)
                 .collect(Collectors.joining("|"));
@@ -462,10 +331,9 @@ public class WinDivert implements AutoCloseable {
 
     @Override
     public String toString() {
-
-        return String.format("WinDivert{handle=%s, dll=%s, filter=%s, layer=%s, priority=%d, mode=%s, state=%s}"
+        return String.format("WinDivert{handle=%s, adapter=%s, filter=%s, layer=%s, priority=%d, mode=%s, state=%s}"
                 , handle
-                , dll
+                , adapter
                 , filter
                 , layer
                 , priority

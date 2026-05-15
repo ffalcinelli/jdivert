@@ -59,4 +59,6 @@ desktop.ini
 *.dmp
 *.dump
 *.hprof
-docs
+docs/api/
+docs/apidocs/
+_site/

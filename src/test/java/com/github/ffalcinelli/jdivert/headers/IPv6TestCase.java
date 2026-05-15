@@ -24,7 +24,8 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ROUTING;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -86,7 +87,7 @@ public abstract class IPv6TestCase extends IPTestCase {
     @Test
     public void equalsAndHashCode() {
         Ipv6 ipHdr2 = new Ipv6(ByteBuffer.wrap(rawData));
-        assertTrue(ipHdr.equals(ipHdr2));
+        assertEquals(ipHdr, ipHdr2);
         assertEquals(ipHdr.hashCode(), ipHdr2.hashCode());
     }
 }

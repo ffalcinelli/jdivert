@@ -10,6 +10,9 @@ Version 3.0.0
     - Make WinDivert implement AutoCloseable for try-with-resources.
     - Improved test robustness and timeouts.
     - Fixed memory issues in Vagrant VM by increasing WinRM limits.
+    - Fixed build failure on Java 25 by updating JaCoCo to 0.8.14.
+    - Improved code coverage reporting for Multi-Release JAR by refining JaCoCo exclusions.
+    - Centralized all Maven plugin versions in pom.xml properties.
 
 Version 1.1
     - Initial support for WinDivert 1.4.

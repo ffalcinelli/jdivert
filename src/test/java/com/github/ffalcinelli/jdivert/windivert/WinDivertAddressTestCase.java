@@ -1,7 +1,12 @@
 package com.github.ffalcinelli.jdivert.windivert;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class WinDivertAddressTestCase {
 
@@ -17,19 +22,18 @@ public class WinDivertAddressTestCase {
         WinDivertAddress addr = new WinDivertAddress();
         addr.setLayer(2);
         assertEquals(2, addr.getLayer());
-        addr.read(); // test layer 2 read path
-        
+
         addr.setLayer(1);
-        addr.read(); // test layer 1 read path
-        
+        assertEquals(1, addr.getLayer());
+
         addr.setLayer(3);
-        addr.read(); // test layer 3 read path
-        
+        assertEquals(3, addr.getLayer());
+
         addr.setLayer(4);
-        addr.read(); // test layer 4 read path
-        
+        assertEquals(4, addr.getLayer());
+
         addr.setLayer(99);
-        addr.read(); // test default read path
+        assertEquals(99, addr.getLayer());
     }
 
     @Test
@@ -52,29 +56,86 @@ public class WinDivertAddressTestCase {
     public void testEqualsAndHashCode() {
         WinDivertAddress addr1 = new WinDivertAddress();
         WinDivertAddress addr2 = new WinDivertAddress();
+
+        assertEquals(addr1, addr2);
+        assertEquals(addr1.hashCode(), addr2.hashCode());
+
+        addr1.setOutbound(true);
+        assertNotEquals(addr1, addr2);
+
+        addr2.setOutbound(true);
+        assertEquals(addr1, addr2);
+    }
+
+    @Test
+    public void testBitfields() {
+        WinDivertAddress addr = new WinDivertAddress();
+        
+        addr.setSniffed(true);
+        assertTrue(addr.isSniffed());
+        addr.setSniffed(false);
+        assertFalse(addr.isSniffed());
+
+        addr.setLoopback(true);
+        assertTrue(addr.isLoopback());
+        addr.setLoopback(false);
+        assertFalse(addr.isLoopback());
+
+        addr.setImpostor(true);
+        assertTrue(addr.isImpostor());
+        addr.setImpostor(false);
+        assertFalse(addr.isImpostor());
+
+        addr.setIPv6(true);
+        assertTrue(addr.isIPv6());
+        addr.setIPv6(false);
+        assertFalse(addr.isIPv6());
+
+        addr.setIPChecksum(true);
+        assertTrue(addr.hasIPChecksum());
+        addr.setIPChecksum(false);
+        assertFalse(addr.hasIPChecksum());
+
+        addr.setTCPChecksum(true);
+        assertTrue(addr.hasTCPChecksum());
+        addr.setTCPChecksum(false);
+        assertFalse(addr.hasTCPChecksum());
+
+        addr.setUDPChecksum(true);
+        assertTrue(addr.hasUDPChecksum());
+        addr.setUDPChecksum(false);
+        assertFalse(addr.hasUDPChecksum());
+    }
+
+    @Test
+    public void testEqualsNonNetworkLayer() {
+        WinDivertAddress addr1 = new WinDivertAddress();
+        addr1.setLayer(1); // FLOW
+        WinDivertAddress addr2 = new WinDivertAddress();
+        addr2.setLayer(1);
         
         assertEquals(addr1, addr2);
         assertEquals(addr1.hashCode(), addr2.hashCode());
         
-        addr1.setOutbound(true);
+        addr1.Timestamp = 12345L;
         assertNotEquals(addr1, addr2);
         
-        addr2.setOutbound(true);
+        addr2.Timestamp = 12345L;
         assertEquals(addr1, addr2);
     }
 
     @Test
     public void testInnerClasses() {
         WinDivertAddress.WinDivertData.NetworkData network = new WinDivertAddress.WinDivertData.NetworkData();
-        assertNotNull(network.getFieldOrder());
-        
+        assertNotNull(network);
+
         WinDivertAddress.WinDivertData.FlowData flow = new WinDivertAddress.WinDivertData.FlowData();
-        assertNotNull(flow.getFieldOrder());
-        
+        assertNotNull(flow);
+
         WinDivertAddress.WinDivertData.SocketData socket = new WinDivertAddress.WinDivertData.SocketData();
-        assertNotNull(socket.getFieldOrder());
-        
+        assertNotNull(socket);
+
         WinDivertAddress.WinDivertData.ReflectData reflect = new WinDivertAddress.WinDivertData.ReflectData();
-        assertNotNull(reflect.getFieldOrder());
+        assertNotNull(reflect);
     }
 }

@@ -39,7 +39,7 @@ public class Enums {
         FLOW(2),
         SOCKET(3),
         REFLECT(4);
-        private int value;
+        private final int value;
 
         Layer(int value) {
             this.value = value;
@@ -61,7 +61,7 @@ public class Enums {
         SEND_ONLY(8),
         NO_INSTALL(16),
         FRAGMENTS(32);
-        private int value;
+        private final int value;
 
         Flag(int value) {
             this.value = value;
@@ -81,16 +81,20 @@ public class Enums {
         QUEUE_SIZE(2, 65535, 33554432, 4194304),
         VERSION_MAJOR(3, 0, 99, 2),
         VERSION_MINOR(4, 0, 99, 2);
-        private int value;
-        private int min;
-        private int max;
-        private int def;
+        private final int value;
+        private final int min;
+        private final int max;
+        private final int def;
 
         Param(int value, int min, int max, int def) {
             this.value = value;
             this.min = min;
             this.max = max;
             this.def = def;
+        }
+
+        public boolean isReadOnly() {
+            return this == VERSION_MAJOR || this == VERSION_MINOR;
         }
 
         public int getValue() {
@@ -115,7 +119,7 @@ public class Enums {
      */
     public enum Direction {
         OUTBOUND(0), INBOUND(1);
-        private int value;
+        private final int value;
 
         Direction(int value) {
             this.value = value;
@@ -157,7 +161,7 @@ public class Enums {
          * Do not calculate the Udp checksum.
          */
         NO_UDP_CHECKSUM(16);
-        private int value;
+        private final int value;
 
         CalcChecksumsOption(int value) {
             this.value = value;
@@ -174,7 +178,7 @@ public class Enums {
      */
     public enum Protocol {
         HOPOPT(0), ICMP(1), TCP(6), UDP(17), ROUTING(43), FRAGMENT(44), AH(51), ICMPV6(58), NONE(59), DSTOPTS(60);
-        private int value;
+        private final int value;
 
         Protocol(int value) {
             this.value = value;
@@ -197,7 +201,7 @@ public class Enums {
      */
     public enum Shutdown {
         RECV(1), SEND(2), BOTH(3);
-        private int value;
+        private final int value;
 
         Shutdown(int value) {
             this.value = value;

@@ -22,7 +22,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -39,6 +42,18 @@ public class LiveCaptureTestCase {
     WinDivert wd;
     EchoServer srv;
     EchoClient clt;
+
+    public static void closeAnyway(Object... toClose) {
+        java.util.Arrays.stream(toClose)
+                .filter(obj -> obj instanceof AutoCloseable)
+                .map(obj -> (AutoCloseable) obj)
+                .forEach(ac -> {
+                    try {
+                        ac.close();
+                    } catch (Exception ignore) {
+                    }
+                });
+    }
 
     @BeforeEach
     public void setUp() throws IOException {
@@ -88,7 +103,7 @@ public class LiveCaptureTestCase {
         // Replace "Test" with "Echo" in the payload, preserving length and newline
         String newPayloadStr = originalPayload.replace("Test", "Echo");
         p.setPayload(newPayloadStr.getBytes());
-        
+
         wd.send(p);
         endThreads();
         assertEquals(srv.alterMessage(message), clt.getResponse());
@@ -105,20 +120,19 @@ public class LiveCaptureTestCase {
         long deadline = System.currentTimeMillis() + 10000;
         do {
             p = wd.recv();
-            if (p.getDstPort() == srv.getPort())
+            if (p.getDstPort().orElse(-1) == srv.getPort())
                 p.setDstPort(spoofer.getPort());
 
-            if (p.getSrcPort() == spoofer.getPort())
+            if (p.getSrcPort().orElse(-1) == spoofer.getPort())
                 p.setSrcPort(srv.getPort());
 
             wd.send(p);
-        } while (!p.getTcp().is(FIN) && System.currentTimeMillis() < deadline);
+        } while (!p.getTcp().get().is(FIN) && System.currentTimeMillis() < deadline);
         endThreads();
         spoofer.close();
         spoofer.join();
         assertEquals(spoofer.alterMessage(clt.getMessage()), clt.getResponse());
     }
-
 
     public static class EchoClient extends Thread {
         InetAddress address;
@@ -147,24 +161,19 @@ public class LiveCaptureTestCase {
 
         public void run() {
             waitForWindivert();
-            PrintWriter out = null;
-            BufferedReader in = null;
-            Socket socket = null;
-            try {
-                socket = new Socket();
+            try (Socket socket = new Socket()) {
                 socket.connect(new InetSocketAddress(address, port), 5000);
                 socket.setSoTimeout(5000);
-                out = new PrintWriter(socket.getOutputStream(), true);
-                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-                synchronized (this) {
-                    out.println(message);
-                    response = in.readLine();
+                    synchronized (this) {
+                        out.println(message);
+                        response = in.readLine();
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-            } finally {
-                closeAnyway(out, in, socket);
             }
         }
 
@@ -180,7 +189,7 @@ public class LiveCaptureTestCase {
     }
 
     public static class EchoServer extends Thread {
-        private ServerSocket socket;
+        private final ServerSocket socket;
         private boolean stop;
 
         public EchoServer(int portNumber) throws IOException {
@@ -200,26 +209,19 @@ public class LiveCaptureTestCase {
         }
 
         public void run() {
-            PrintWriter out = null;
-            BufferedReader in = null;
-            Socket clientSocket = null;
             try {
                 while (!stop) {
-                    clientSocket = socket.accept();
-                    out = new PrintWriter(clientSocket.getOutputStream(), true);
-                    in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                    try (Socket clientSocket = socket.accept();
+                         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
-                    String data = in.readLine();
-                    if (data != null)
-                        out.print(alterMessage(data));
-                    out.flush();
-
-                    closeAnyway(out, in, clientSocket);
+                        String data = in.readLine();
+                        if (data != null)
+                            out.print(alterMessage(data));
+                        out.flush();
+                    }
                 }
             } catch (IOException e) {
-
-            } finally {
-                closeAnyway(out, in, clientSocket);
             }
         }
 
@@ -230,17 +232,6 @@ public class LiveCaptureTestCase {
         public void close() {
             closeAnyway(socket);
             stop = true;
-        }
-    }
-
-    public static void closeAnyway(Object... toClose) {
-        for (Object obj : toClose) {
-            if (obj instanceof AutoCloseable) {
-                try {
-                    ((AutoCloseable) obj).close();
-                } catch (Exception ignore) {
-                }
-            }
         }
     }
 }

@@ -19,19 +19,21 @@ package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetAddress;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AsyncTestCase {
     private WinDivert wd;
 
     @AfterEach
-    public void tearDown() {
+    public void tearDown() throws WinDivertException {
         if (wd != null) {
             wd.close();
         }
@@ -41,45 +43,59 @@ public class AsyncTestCase {
     public void testRecvAsync() throws WinDivertException, IOException, InterruptedException {
         // Use a filter that captures ICMP traffic
         wd = new WinDivert("icmp").open();
-        
+
         final WinDivertAsyncResult<Packet> asyncResult = wd.recvAsync();
         assertFalse(asyncResult.isCompleted(), "Operation should be pending");
-        
+
         // Trigger some ICMP traffic in the background
-        Thread trigger = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Thread.sleep(500);
-                    InetAddress.getByName("127.0.0.1").isReachable(1000);
-                } catch (Exception ignore) {}
+        Thread trigger = new Thread(() -> {
+            try {
+                Thread.sleep(500);
+                InetAddress.getByName("127.0.0.1").isReachable(1000);
+            } catch (Exception ignore) {
             }
         });
         trigger.start();
-        
+
         // Wait for result
         Packet p = asyncResult.get();
         assertNotNull(p);
         assertTrue(p.isIcmpv4());
         assertTrue(asyncResult.isCompleted());
-        
+
         trigger.join();
     }
 
     @Test
+    public void testAsyncCancel() throws WinDivertException {
+        wd = new WinDivert("false").open();
+        WinDivertAsyncResult<Packet> asyncResult = wd.recvAsync();
+        assertFalse(asyncResult.isCompleted());
+        asyncResult.cancel();
+        // Closing the handle while an async op is pending is usually okay if cancelled.
+        wd.close();
+        wd = null;
+    }
+
+    @Test
+    public void testDefaultBufferSize() {
+        assertEquals(65575, WinDivert.DEFAULT_PACKET_BUFFER_SIZE);
+    }
+
+    @Test
     public void testSendAsync() throws WinDivertException, IOException {
-        wd = new WinDivert("true").open(); 
-        
+        wd = new WinDivert("true").open();
+
         // Create a dummy ICMP packet to send
         byte[] raw = Util.parseHexBinary("4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
         Packet p = new Packet(raw, new int[]{0, 0}, Enums.Direction.OUTBOUND);
         // Note: Sending may fail with "false" filter depending on driver version,
         // but we've already covered sending in WinDivertIntegrationTest.
-        
+
         try {
             WinDivertAsyncResult<Integer> asyncSend = wd.sendAsync(p);
             Integer sent = asyncSend.get();
-            assertEquals(raw.length, (int)sent);
+            assertEquals(raw.length, (int) sent);
             assertTrue(asyncSend.isCompleted());
         } catch (WinDivertException e) {
             // If the filter is "false", some versions of WinDivert might refuse to send.

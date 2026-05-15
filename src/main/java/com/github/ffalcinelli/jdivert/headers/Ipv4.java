@@ -19,6 +19,8 @@ package com.github.ffalcinelli.jdivert.headers;
 
 import java.net.Inet4Address;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol;
 import static com.github.ffalcinelli.jdivert.Util.unsigned;
@@ -188,10 +190,10 @@ public class Ipv4 extends Ip<Inet4Address> {
 
     @Override
     public String toString() {
-        StringBuilder flags = new StringBuilder();
-        for (Flag flag : Flag.values()) {
-            flags.append(flag.name()).append("=").append(is(flag)).append(", ");
-        }
+        String flags = Arrays.stream(Flag.values())
+                .map(flag -> flag.name() + "=" + is(flag))
+                .collect(Collectors.joining(", ", "", ", "));
+
         return String.format("IPv4 {version=%d, srcAddr=%s, dstAddr=%s, IHL=%d, DSCP=%d, ECN=%d, length=%d, ID=%s " +
                         "%s" +
                         "fragOff=%d TTL=%d " +

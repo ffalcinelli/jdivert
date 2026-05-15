@@ -17,10 +17,17 @@
 
 package com.github.ffalcinelli.jdivert.windivert;
 
-import com.sun.jna.Native;
-import com.sun.jna.Platform;
-
-import java.io.*;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Properties;
 
 /**
  * Handles WinDivert DLL and SYS files deployment to a temporary directory.
@@ -31,6 +38,20 @@ import java.io.*;
 public class DeployHandler {
 
     public static int BUFFER_SIZE = 512;
+    private static final String VERSION;
+
+    static {
+        String version = "unknown";
+        try (InputStream is = DeployHandler.class.getResourceAsStream("/jdivert.properties")) {
+            if (is != null) {
+                Properties props = new Properties();
+                props.load(is);
+                version = props.getProperty("version", "unknown");
+            }
+        } catch (IOException ignored) {
+        }
+        VERSION = version;
+    }
 
 
     /**
@@ -60,14 +81,14 @@ public class DeployHandler {
      * @param closeables The {@link java.io.Closeable} objects to close.
      */
     public static void closeIgnoreExceptions(Closeable... closeables) {
-        for (Closeable closeable : closeables) {
-            if (closeable != null) {
-                try {
-                    closeable.close();
-                } catch (IOException ignore) {
-                }
-            }
-        }
+        Arrays.stream(closeables)
+                .filter(Objects::nonNull)
+                .forEach(c -> {
+                    try {
+                        c.close();
+                    } catch (IOException ignore) {
+                    }
+                });
     }
 
     /**
@@ -78,16 +99,33 @@ public class DeployHandler {
      * @throws IOException Whenever the deploy process encounters an error.
      */
     public static String deployInTempDir(File deployDir) throws IOException {
+        if (!deployDir.exists() && !deployDir.mkdirs()) {
+            throw new IOException("Could not create deploy directory " + deployDir.getAbsolutePath());
+        }
         for (String file : new String[]{"WinDivert64.dll", "WinDivert64.sys"}) {
             File copyFile = new File(deployDir, file);
-            if (!copyFile.createNewFile()) {
-                throw new IOException("Could not create file " + copyFile.getAbsolutePath());
+
+            java.net.URL resource = DeployHandler.class.getClassLoader().getResource(file);
+            if (resource == null) {
+                // Try system class loader as fallback
+                resource = ClassLoader.getSystemClassLoader().getResource(file);
             }
-            try (InputStream source = ClassLoader.getSystemClassLoader().getResourceAsStream(file);
+            if (resource == null) {
+                throw new IOException("Resource " + file + " not found");
+            }
+
+            long resourceSize = -1;
+            try {
+                resourceSize = resource.openConnection().getContentLengthLong();
+            } catch (Exception ignore) {
+            }
+
+            if (copyFile.exists() && (resourceSize == -1 || copyFile.length() == resourceSize)) {
+                continue; // Skip extraction if file exists and has same size
+            }
+
+            try (InputStream source = resource.openStream();
                  OutputStream sink = new FileOutputStream(copyFile)) {
-                if (source == null) {
-                    throw new IOException("Resource " + file + " not found");
-                }
                 copy(source, sink);
             }
         }
@@ -95,39 +133,46 @@ public class DeployHandler {
     }
 
     /**
-     * Deploys WinDivert 64-bit binaries.
+     * Deploys WinDivert 64-bit binaries and returns the path to the DLL.
      *
-     * @return The {@link WinDivertDLL} instance to use.
+     * @return The path to WinDivert64.dll.
      */
-    public static WinDivertDLL deploy() {
-        return deploy(() -> File.createTempFile("temp", Long.toString(System.nanoTime())));
+    public static Path deployToPath() {
+        if (!is64Bit()) {
+            throw new RuntimeException("JDivert supports 64-bit architecture only.");
+        }
+        try {
+            String tmpDir = System.getProperty("java.io.tmpdir");
+            File deployDir = new File(tmpDir, "jdivert-" + VERSION);
+
+            String deployedPath = deployInTempDir(deployDir);
+            return Paths.get(deployedPath, "WinDivert64.dll");
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(new Exception("Unable to deploy WinDivert", e));
+        }
     }
 
     /**
-     * Deploys WinDivert binaries.
+     * Compatibility method for JNA.
      *
-     * @param deployDirManager The TemporaryDirManager to create the temp directory where to store the files.
-     * @return The {@link WinDivertDLL} instance to use.
+     * @return The WinDivertDLL instance.
      */
-    public static WinDivertDLL deploy(TemporaryDirManager deployDirManager) {
-        if (!Platform.is64Bit()) {
-            throw new RuntimeException("JDivert supports 64-bit architecture only.");
-        }
+    public static WinDivertDLL deploy() {
+        Path dllPath = deployToPath();
+        String deployedPath = dllPath.getParent().toString();
         String jnaLibraryPath = System.getProperty("jna.library.path");
         try {
-            File temp = deployDirManager.createTempDir();
-            if (temp != null && temp.delete() && temp.mkdir()) {
-                System.setProperty("jna.library.path", deployInTempDir(temp));
-                return Native.load("WinDivert64", WinDivertDLL.class);
-            } else {
-                throw new IOException("Could not create a proper temp dir");
-            }
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(new Exception("Unable to deploy WinDivert", e));
+            System.setProperty("jna.library.path", deployedPath);
+            return com.sun.jna.Native.load("WinDivert64", WinDivertDLL.class);
         } finally {
             if (jnaLibraryPath != null)
                 System.setProperty("jna.library.path", jnaLibraryPath);
         }
+    }
+
+    private static boolean is64Bit() {
+        String arch = System.getProperty("os.arch");
+        return arch.contains("64");
     }
 
 }

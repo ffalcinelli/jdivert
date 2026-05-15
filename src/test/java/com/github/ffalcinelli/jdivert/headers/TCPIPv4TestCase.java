@@ -21,7 +21,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.TCP;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 29/10/2016.
@@ -156,7 +161,7 @@ public class TCPIPv4TestCase extends IPv4TestCase {
     @Test
     public void equalsAndHashCodeBis() {
         Tcp tcpHdr2 = new Tcp(ipHdr.getByteBuffer(), ipHeaderLength);
-        assertTrue(tcpHdr.equals(tcpHdr2));
+        assertEquals(tcpHdr, tcpHdr2);
         assertEquals(tcpHdr.hashCode(), tcpHdr2.hashCode());
     }
 

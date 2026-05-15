@@ -2,46 +2,107 @@ package com.github.ffalcinelli.jdivert;
 
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
-import com.sun.jna.Memory;
-import com.sun.jna.platform.win32.WinBase;
-import com.sun.jna.platform.win32.WinNT;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class WinDivertAsyncResultTestCase {
 
     @Test
     public void testConstructorAndPending() {
-        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
-        overlapped.Internal = new com.sun.jna.platform.win32.BaseTSD.ULONG_PTR(0x103); // STATUS_PENDING
-        
-        WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
-                WinNT.INVALID_HANDLE_VALUE,
-                overlapped,
-                new Memory(10),
+        try (WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
+                null,
+                null,
                 new WinDivertAddress(),
-                (len, buffer, address) -> len
-        );
-        
-        assertFalse(result.isCompleted());
+                (len, buffer, address) -> len,
+                new WinDivertAsyncResult.AsyncImplementation() {
+                    @Override
+                    public boolean isCompleted() {
+                        return false;
+                    }
+
+                    @Override
+                    public int waitAndGetResult() {
+                        return 0;
+                    }
+                }
+        )) {
+
+            assertFalse(result.isCompleted());
+        }
     }
 
     @Test
-    public void testAlreadyCompleted() {
-        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
-        overlapped.Internal = new com.sun.jna.platform.win32.BaseTSD.ULONG_PTR(0x0); // SUCCESS
-        
-        WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
-                WinNT.INVALID_HANDLE_VALUE,
-                overlapped,
-                new Memory(10),
+    public void testAlreadyCompleted() throws WinDivertException {
+        try (WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
+                null,
+                null,
                 new WinDivertAddress(),
-                (len, buffer, address) -> len
+                (len, buffer, address) -> 10,
+                new WinDivertAsyncResult.AsyncImplementation() {
+                    @Override
+                    public boolean isCompleted() {
+                        return true;
+                    }
+
+                    @Override
+                    public int waitAndGetResult() {
+                        return 10;
+                    }
+                }
+        )) {
+
+            assertTrue(result.isCompleted());
+            assertEquals(10, result.get());
+        }
+    }
+
+    @Test
+    public void testIdempotentClose() {
+        WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
+                null,
+                null,
+                new WinDivertAddress(),
+                (len, buffer, address) -> 10,
+                new WinDivertAsyncResult.AsyncImplementation() {
+                    @Override
+                    public boolean isCompleted() {
+                        return true;
+                    }
+
+                    @Override
+                    public int waitAndGetResult() {
+                        return 10;
+                    }
+                }
         );
-        
-        // This will attempt to call GetOverlappedResult which will throw because the handle is invalid,
-        // but it catches WinDivertException and returns true anyway!
-        assertTrue(result.isCompleted());
+        result.close();
+        result.close(); // Should not throw
+    }
+
+    @Test
+    public void testMultipleGetCalls() throws WinDivertException {
+        try (WinDivertAsyncResult<Integer> result = new WinDivertAsyncResult<>(
+                null,
+                null,
+                new WinDivertAddress(),
+                (len, buffer, address) -> 10,
+                new WinDivertAsyncResult.AsyncImplementation() {
+                    @Override
+                    public boolean isCompleted() {
+                        return true;
+                    }
+
+                    @Override
+                    public int waitAndGetResult() {
+                        return 10;
+                    }
+                }
+        )) {
+            assertEquals(10, result.get());
+            assertEquals(10, result.get());
+        }
     }
 }

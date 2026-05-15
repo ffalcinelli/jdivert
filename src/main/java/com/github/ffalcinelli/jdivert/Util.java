@@ -18,6 +18,7 @@
 package com.github.ffalcinelli.jdivert;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -76,7 +77,7 @@ public class Util {
      * @return The "hexlified" representation of data.
      */
     public static String printHexBinary(ByteBuffer data) {
-        return printHexBinary(getBytesAtOffset(data, 0, data.capacity()));
+        return printHexBinary(getBytesAtOffset(data, 0, data.limit()));
     }
 
     /**
@@ -102,14 +103,7 @@ public class Util {
      * @return The array of size elements eventually zero-padded.
      */
     public static byte[] zeroPadArray(byte[] source, int size) {
-        byte[] data = new byte[size];
-        for (int i = 0; i < data.length; i++) {
-            if (i < source.length)
-                data[i] = source[i];
-            else
-                data[i] = 0;
-        }
-        return data;
+        return Arrays.copyOf(source, size);
     }
 
     /**

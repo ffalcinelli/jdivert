@@ -21,7 +21,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.ICMP;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 02/11/2016.
@@ -84,7 +86,7 @@ public class ICMPIPv4TestCase extends IPv4TestCase {
     @Test
     public void equalsAndHashCodeBis() {
         Icmpv4 icmp2 = new Icmpv4(ipHdr.getByteBuffer(), ipHeaderLength);
-        assertTrue(icmpHdr.equals(icmp2));
+        assertEquals(icmpHdr, icmp2);
         assertEquals(icmpHdr.hashCode(), icmp2.hashCode());
     }
 }

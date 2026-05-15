@@ -22,7 +22,9 @@ import org.junit.jupiter.api.Test;
 
 import static com.github.ffalcinelli.jdivert.Enums.Protocol.UDP;
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by fabio on 02/11/2016.
@@ -86,9 +88,9 @@ public class UDPIPv6TestCase extends IPv6TestCase {
     }
 
     @Test
-    public void equalsAndHashCodeBis(){
+    public void equalsAndHashCodeBis() {
         Udp udpHdr2 = new Udp(ipHdr.getByteBuffer(), ipHeaderLength);
-        assertTrue(udp.equals(udpHdr2));
+        assertEquals(udp, udpHdr2);
         assertEquals(udp.hashCode(), udpHdr2.hashCode());
     }
 }

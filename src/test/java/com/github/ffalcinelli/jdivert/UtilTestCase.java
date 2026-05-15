@@ -24,7 +24,10 @@ import java.nio.ByteBuffer;
 
 import static com.github.ffalcinelli.jdivert.Util.parseHexBinary;
 import static com.github.ffalcinelli.jdivert.Util.printHexBinary;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Created by fabio on 26/10/2016.
@@ -47,6 +50,10 @@ public class UtilTestCase {
         assertEquals("0123456789ABCDEF", printHexBinary(bytes));
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
         assertEquals("0123456789ABCDEF", printHexBinary(buffer));
+
+        // Test lowercase
+        byte[] bytesLower = parseHexBinary("0123456789abcdef");
+        assertArrayEquals(bytes, bytesLower);
     }
 
     @Test
@@ -72,7 +79,7 @@ public class UtilTestCase {
         ByteBuffer buffer = ByteBuffer.allocate(10);
         byte[] data = new byte[]{0x1, 0x2, 0x3};
         Util.setBytesAtOffset(buffer, 2, 3, data);
-        
+
         assertArrayEquals(data, Util.getBytesAtOffset(buffer, 2, 3));
         assertEquals(0, buffer.position());
     }
