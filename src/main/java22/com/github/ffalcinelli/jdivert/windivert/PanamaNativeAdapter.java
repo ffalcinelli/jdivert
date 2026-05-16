@@ -549,8 +549,6 @@ public class PanamaNativeAdapter implements NativeAdapter {
             } catch (Throwable t) {
                 if (t instanceof WinDivertException) throw (WinDivertException) t;
                 throw new RuntimeException(t);
-            } finally {
-                arena.close();
             }
         }
     }
