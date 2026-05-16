@@ -133,8 +133,8 @@ public class PanamaNativeAdapter implements NativeAdapter {
         WinDivertOpen = link("WinDivertOpen", FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_SHORT, JAVA_LONG));
         WinDivertClose = link("WinDivertClose", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG));
         WinDivertRecv = link("WinDivertRecv", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
-        // WinDivertRecvEx(HANDLE handle, PVOID packet, UINT packetLen, PUINT recvLen, UINT64 flags, PWINDIVERT_ADDRESS addr, PUINT addrLen, LPOVERLAPPED overlapped, HANDLE event)
-        WinDivertRecvEx = link("WinDivertRecvEx", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, ADDRESS));
+        // WinDivertRecvEx(HANDLE handle, PVOID packet, UINT packetLen, PUINT recvLen, UINT64 flags, PWINDIVERT_ADDRESS addr, PUINT addrLen, LPOVERLAPPED overlapped)
+        WinDivertRecvEx = link("WinDivertRecvEx", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS));
         WinDivertSend = link("WinDivertSend", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
         // WinDivertSendEx(HANDLE handle, const PVOID packet, UINT packetLen, PUINT sendLen, UINT64 flags, const PWINDIVERT_ADDRESS addr, UINT addrLen, LPOVERLAPPED overlapped)
         WinDivertSendEx = link("WinDivertSendEx", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS));
@@ -208,7 +208,7 @@ public class PanamaNativeAdapter implements NativeAdapter {
             MemorySegment pOverlapped = arena.allocate(OVERLAPPED_LAYOUT);
             pOverlapped.set(ADDRESS, OVERLAPPED_LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("hEvent")), hEvent);
 
-            boolean result = (boolean) WinDivertRecvEx.invokeExact(pHandle.handle, pBuf.segment, bufsize, MemorySegment.NULL, 0L, pAddr, 0, pOverlapped, MemorySegment.NULL);
+            boolean result = (boolean) WinDivertRecvEx.invokeExact(pHandle.handle, pBuf.segment, bufsize, MemorySegment.NULL, 0L, pAddr, MemorySegment.NULL, pOverlapped);
             if (!result) {
                 int err = (int) GetLastError.invokeExact();
                 if (err != ERROR_IO_PENDING) {
@@ -543,7 +543,7 @@ public class PanamaNativeAdapter implements NativeAdapter {
                 // Close hEvent
                 MemorySegment hEvent = pOverlapped.get(ADDRESS, OVERLAPPED_LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("hEvent")));
                 if (hEvent != MemorySegment.NULL) {
-                    CloseHandle.invokeExact(hEvent);
+                    boolean closed = (boolean) CloseHandle.invokeExact(hEvent);
                 }
                 return pTransferLen.get(JAVA_INT, 0);
             } catch (Throwable t) {
