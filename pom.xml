@@ -165,9 +165,37 @@
             <build>
                 <plugins>
                     <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-source-java22</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>${project.basedir}/src/main/java22</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-compiler-plugin</artifactId>
                         <executions>
+                            <execution>
+                                <id>default-compile</id>
+                                <configuration>
+                                    <excludes>
+                                        <exclude>com/github/ffalcinelli/jdivert/windivert/PanamaNativeAdapter.java</exclude>
+                                        <exclude>com/github/ffalcinelli/jdivert/windivert/NativeAdapterFactory.java</exclude>
+                                    </excludes>
+                                </configuration>
+                            </execution>
                             <execution>
                                 <id>compile-java-22</id>
                                 <phase>compile</phase>
