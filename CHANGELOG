@@ -11,7 +11,8 @@ Version 3.0.0
     - Improved test robustness and timeouts.
     - Fixed memory issues in Vagrant VM by increasing WinRM limits.
     - Fixed build failure on Java 25 by updating JaCoCo to 0.8.14.
-    - Improved code coverage reporting for Multi-Release JAR by refining JaCoCo exclusions.
+    - Improved code coverage reporting for Multi-Release JAR by refining JaCoCo exclusions and ensuring tests use the Panama implementation on Java 22+.
+    - Fixed Panama coverage on Java 25 by correctly configuring the test classpath and adding required JVM flags.
     - Centralized all Maven plugin versions in pom.xml properties.
 
 Version 1.1

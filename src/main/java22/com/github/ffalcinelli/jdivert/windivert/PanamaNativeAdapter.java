@@ -49,27 +49,31 @@ public class PanamaNativeAdapter implements NativeAdapter {
     public static final int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
     public static final int DEFAULT_BUFFER_SIZE = 1024;
     public static final long OVERLAPPED_ADDRESS = 0x103L;
-    private static final SymbolLookup LOOKUP;
+
     private static final Linker LINKER = Linker.nativeLinker();
+    private static final SymbolLookup LOOKUP;
+    private static final SymbolLookup KERNEL32_LOOKUP;
+
     // Native Function Handles
-    private static final MethodHandle WinDivertOpen = link("WinDivertOpen", FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_SHORT, JAVA_LONG));
-    private static final MethodHandle WinDivertClose = link("WinDivertClose", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG));
-    private static final MethodHandle WinDivertRecv = link("WinDivertRecv", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
-    private static final MethodHandle WinDivertRecvEx = link("WinDivertRecvEx", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS));
-    private static final MethodHandle WinDivertSend = link("WinDivertSend", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
-    private static final MethodHandle WinDivertSendEx = link("WinDivertSendEx", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS));
-    private static final MethodHandle WinDivertShutdown = link("WinDivertShutdown", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_INT));
-    private static final MethodHandle WinDivertSetParam = link("WinDivertSetParam", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_INT, JAVA_LONG));
-    private static final MethodHandle WinDivertGetParam = link("WinDivertGetParam", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_INT, ADDRESS));
-    private static final MethodHandle WinDivertHelperCalcChecksums = link("WinDivertHelperCalcChecksums", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG));
-    private static final MethodHandle WinDivertHelperHashPacket = link("WinDivertHelperHashPacket", FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_LONG));
+    private static final MethodHandle WinDivertOpen;
+    private static final MethodHandle WinDivertClose;
+    private static final MethodHandle WinDivertRecv;
+    private static final MethodHandle WinDivertRecvEx;
+    private static final MethodHandle WinDivertSend;
+    private static final MethodHandle WinDivertSendEx;
+    private static final MethodHandle WinDivertShutdown;
+    private static final MethodHandle WinDivertSetParam;
+    private static final MethodHandle WinDivertGetParam;
+    private static final MethodHandle WinDivertHelperCalcChecksums;
+    private static final MethodHandle WinDivertHelperHashPacket;
+
     // Kernel32 Function Handles
-    private static final SymbolLookup KERNEL32_LOOKUP = SymbolLookup.libraryLookup("kernel32", Arena.global());
-    private static final MethodHandle GetLastError = link(KERNEL32_LOOKUP, "GetLastError", FunctionDescriptor.of(JAVA_INT));
-    private static final MethodHandle FormatMessageW = link(KERNEL32_LOOKUP, "FormatMessageW", FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
-    private static final MethodHandle CreateEventW = link(KERNEL32_LOOKUP, "CreateEventW", FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_BOOLEAN, JAVA_BOOLEAN, ADDRESS));
-    private static final MethodHandle CloseHandle = link(KERNEL32_LOOKUP, "CloseHandle", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS));
-    private static final MethodHandle GetOverlappedResult = link(KERNEL32_LOOKUP, "GetOverlappedResult", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS, ADDRESS, ADDRESS, JAVA_BOOLEAN));
+    private static final MethodHandle GetLastError;
+    private static final MethodHandle FormatMessageW;
+    private static final MethodHandle CreateEventW;
+    private static final MethodHandle CloseHandle;
+    private static final MethodHandle GetOverlappedResult;
+
     // Memory Layouts
     private static final StructLayout OVERLAPPED_LAYOUT = MemoryLayout.structLayout(
             ADDRESS.withName("Internal"),
@@ -123,6 +127,29 @@ public class PanamaNativeAdapter implements NativeAdapter {
         Path dllPath = DeployHandler.deployToPath();
         System.load(dllPath.toAbsolutePath().toString());
         LOOKUP = SymbolLookup.loaderLookup();
+        KERNEL32_LOOKUP = SymbolLookup.libraryLookup("kernel32", Arena.global());
+
+        // Native Function Handles
+        WinDivertOpen = link("WinDivertOpen", FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_SHORT, JAVA_LONG));
+        WinDivertClose = link("WinDivertClose", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG));
+        WinDivertRecv = link("WinDivertRecv", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
+        // WinDivertRecvEx(HANDLE handle, PVOID packet, UINT packetLen, PUINT recvLen, UINT64 flags, PWINDIVERT_ADDRESS addr, PUINT addrLen, LPOVERLAPPED overlapped)
+        WinDivertRecvEx = link("WinDivertRecvEx", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, ADDRESS));
+        WinDivertSend = link("WinDivertSend", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
+        // WinDivertSendEx(HANDLE handle, const PVOID packet, UINT packetLen, PUINT sendLen, UINT64 flags, const PWINDIVERT_ADDRESS addr, UINT addrLen, LPOVERLAPPED overlapped)
+        WinDivertSendEx = link("WinDivertSendEx", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG, ADDRESS, JAVA_INT, ADDRESS));
+        WinDivertShutdown = link("WinDivertShutdown", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_INT));
+        WinDivertSetParam = link("WinDivertSetParam", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_INT, JAVA_LONG));
+        WinDivertGetParam = link("WinDivertGetParam", FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_INT, ADDRESS));
+        WinDivertHelperCalcChecksums = link("WinDivertHelperCalcChecksums", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG));
+        WinDivertHelperHashPacket = link("WinDivertHelperHashPacket", FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_LONG));
+
+        // Kernel32 Function Handles
+        GetLastError = link(KERNEL32_LOOKUP, "GetLastError", FunctionDescriptor.of(JAVA_INT));
+        FormatMessageW = link(KERNEL32_LOOKUP, "FormatMessageW", FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
+        CreateEventW = link(KERNEL32_LOOKUP, "CreateEventW", FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_BOOLEAN, JAVA_BOOLEAN, ADDRESS));
+        CloseHandle = link(KERNEL32_LOOKUP, "CloseHandle", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS));
+        GetOverlappedResult = link(KERNEL32_LOOKUP, "GetOverlappedResult", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS, ADDRESS, ADDRESS, JAVA_BOOLEAN));
     }
 
     private static MethodHandle link(String name, FunctionDescriptor desc) {
@@ -181,7 +208,7 @@ public class PanamaNativeAdapter implements NativeAdapter {
             MemorySegment pOverlapped = arena.allocate(OVERLAPPED_LAYOUT);
             pOverlapped.set(ADDRESS, OVERLAPPED_LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("hEvent")), hEvent);
 
-            boolean result = (boolean) WinDivertRecvEx.invokeExact(pHandle.handle, pBuf.segment, bufsize, MemorySegment.NULL, 0L, pAddr, MemorySegment.NULL, pOverlapped, MemorySegment.NULL);
+            boolean result = (boolean) WinDivertRecvEx.invokeExact(pHandle.handle, pBuf.segment, bufsize, MemorySegment.NULL, 0L, pAddr, MemorySegment.NULL, pOverlapped);
             if (!result) {
                 int err = (int) GetLastError.invokeExact();
                 if (err != ERROR_IO_PENDING) {
@@ -203,7 +230,15 @@ public class PanamaNativeAdapter implements NativeAdapter {
             MemorySegment pSendLen = arena.allocate(JAVA_INT);
             MemorySegment pAddr = arena.allocate(ADDRESS_LAYOUT);
             mapFromPojo(address, pAddr);
-            MemorySegment pPacket = MemorySegment.ofBuffer(packet);
+            
+            MemorySegment pPacket;
+            if (packet.isDirect()) {
+                pPacket = MemorySegment.ofBuffer(packet);
+            } else {
+                pPacket = arena.allocate(packet.remaining());
+                pPacket.copyFrom(MemorySegment.ofBuffer(packet));
+            }
+            
             PanamaHandle pHandle = (PanamaHandle) handle;
 
             boolean result = (boolean) WinDivertSend.invokeExact(pHandle.handle, pPacket, (int) pPacket.byteSize(), pSendLen, pAddr);
@@ -508,14 +543,12 @@ public class PanamaNativeAdapter implements NativeAdapter {
                 // Close hEvent
                 MemorySegment hEvent = pOverlapped.get(ADDRESS, OVERLAPPED_LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("hEvent")));
                 if (hEvent != MemorySegment.NULL) {
-                    CloseHandle.invokeExact(hEvent);
+                    boolean closed = (boolean) CloseHandle.invokeExact(hEvent);
                 }
                 return pTransferLen.get(JAVA_INT, 0);
             } catch (Throwable t) {
                 if (t instanceof WinDivertException) throw (WinDivertException) t;
                 throw new RuntimeException(t);
-            } finally {
-                arena.close();
             }
         }
     }

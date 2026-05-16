@@ -39,18 +39,18 @@
     </scm>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>8</maven.compiler.release>
+        <central.publishing.maven.plugin.version>0.10.0</central.publishing.maven.plugin.version>
+        <jacoco.version>0.8.14</jacoco.version>
         <jna.version>5.18.0</jna.version>
         <junit.version>5.14.3</junit.version>
-        <jacoco.version>0.8.14</jacoco.version>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.compiler.release>8</maven.compiler.release>
+        <maven.gpg.plugin.version>3.2.7</maven.gpg.plugin.version>
         <maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
-        <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
         <maven.javadoc.plugin.version>3.11.2</maven.javadoc.plugin.version>
         <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
-        <maven.gpg.plugin.version>3.2.7</maven.gpg.plugin.version>
-        <nexus.staging.maven.plugin.version>1.7.0</nexus.staging.maven.plugin.version>
+        <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencies>
@@ -165,9 +165,37 @@
             <build>
                 <plugins>
                     <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-source-java22</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>${project.basedir}/src/main/java22</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-compiler-plugin</artifactId>
                         <executions>
+                            <execution>
+                                <id>default-compile</id>
+                                <configuration>
+                                    <excludes>
+                                        <exclude>com/github/ffalcinelli/jdivert/windivert/PanamaNativeAdapter.java</exclude>
+                                        <exclude>com/github/ffalcinelli/jdivert/windivert/NativeAdapterFactory.java</exclude>
+                                    </excludes>
+                                </configuration>
+                            </execution>
                             <execution>
                                 <id>compile-java-22</id>
                                 <phase>compile</phase>
@@ -180,6 +208,42 @@
                                         <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
                                     </compileSourceRoots>
                                     <multiReleaseOutput>true</multiReleaseOutput>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>compile-java-22-for-test</id>
+                                <phase>process-test-sources</phase>
+                                <goals>
+                                    <goal>compile</goal>
+                                </goals>
+                                <configuration>
+                                    <release>22</release>
+                                    <compileSourceRoots>
+                                        <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
+                                    </compileSourceRoots>
+                                    <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>report</id>
+                                <configuration>
+                                    <sourceDirectories>
+                                        <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+                                        <sourceDirectory>${project.basedir}/src/main/java22</sourceDirectory>
+                                    </sourceDirectories>
                                 </configuration>
                             </execution>
                         </executions>
@@ -232,29 +296,18 @@
                         </executions>
                     </plugin>
                     <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>${nexus.staging.maven.plugin.version}</version>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central.publishing.maven.plugin.version}</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>ossrh</serverId>
-                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
         </profile>
     </profiles>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
 </project>
