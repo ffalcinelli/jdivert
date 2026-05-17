@@ -118,6 +118,8 @@ jobs:
 
       - name: Add Javadoc to Site
         run: |
+          # The Jekyll action runs in Docker and may leave the destination owned by root
+          sudo chown -R $USER:$USER _site
           # Copy the generated Javadoc into the Jekyll output directory
           # This bypasses Jekyll processing for the large number of Javadoc files
           cp -r docs/api _site/
