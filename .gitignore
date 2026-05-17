@@ -62,3 +62,5 @@ desktop.ini
 docs/api/
 docs/apidocs/
 _site/
+_pages_src/
+_site_local/

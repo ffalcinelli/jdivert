@@ -88,19 +88,39 @@ jobs:
       - name: Generate Javadoc
         run: mvn javadoc:javadoc
 
-      - name: Prepare Pages Artifact
+      - name: Prepare Pages Source
         run: |
-          # The Javadoc plugin outputs to docs/api/apidocs based on current pom.xml
-          # We want the root of the site to include the handwritten docs too.
-          mkdir -p _site
-          cp -r docs/*.md _site/
-          cp -r docs/api _site/
-          # Create a basic index.html if it doesn't exist, or just rely on README.md being handled by Jekyll
-          # Actually, GitHub Pages can serve the docs/ folder directly if configured.
-          # But here we want a specific layout.
+          mkdir -p _pages_src/docs
+          # Add Jekyll Front Matter to README so it renders with the theme
+          echo -e "---\nlayout: default\n---\n" > _pages_src/index.md
+          cat README.md >> _pages_src/index.md
+          
+          # Add Front Matter to all other docs
+          for f in docs/*.md; do
+            filename=$(basename "$f")
+            echo -e "---\nlayout: default\n---\n" > "_pages_src/docs/$filename"
+            cat "$f" >> "_pages_src/docs/$filename"
+          done
+
+          # Create a basic _config.yml to use a nice theme
+          echo "theme: jekyll-theme-minimal" > _pages_src/_config.yml
+          echo "title: JDivert" >> _pages_src/_config.yml
+          echo "description: Java bindings for WinDivert" >> _pages_src/_config.yml
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
+        with:
+          source: ./_pages_src
+          destination: ./_site
+
+      - name: Add Javadoc to Site
+        run: |
+          # Copy the generated Javadoc into the Jekyll output directory
+          # This bypasses Jekyll processing for the large number of Javadoc files
+          cp -r docs/api _site/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0 
