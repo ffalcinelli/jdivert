@@ -148,6 +148,7 @@
                 <version>${maven.javadoc.plugin.version}</version>
                 <configuration>
                     <outputDirectory>${project.basedir}/docs/api</outputDirectory>
+                    <sourcepath>${project.build.sourceDirectory}</sourcepath>
                     <release>${maven.compiler.release}</release>
                     <detectJavaApiLink>false</detectJavaApiLink>
                     <doclint>none</doclint>
