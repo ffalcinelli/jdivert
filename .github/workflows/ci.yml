@@ -217,10 +217,10 @@ jobs:
 
           # 4. Create _config.yml
           cat <<EOF > _pages_src/_config.yml
-theme: jekyll-theme-minimal
-title: JDivert
-description: Java bindings for WinDivert
-EOF
+          theme: jekyll-theme-minimal
+          title: JDivert
+          description: Java bindings for WinDivert
+          EOF
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
