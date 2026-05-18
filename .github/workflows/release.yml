@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      SONATYPE_USERNAME: ${{ secrets.SONATYPE_PORTAL_TOKEN_USERNAME }}
+      SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PORTAL_TOKEN_PASSWORD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
@@ -22,9 +25,6 @@ jobs:
           server-id: central
           server-username: SONATYPE_USERNAME
           server-password: SONATYPE_PASSWORD
-        env:
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_PORTAL_TOKEN_USERNAME }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PORTAL_TOKEN_PASSWORD }}
 
       - name: Import GPG key
         shell: bash
@@ -39,7 +39,9 @@ jobs:
 
       - name: Publish to Maven Central
         shell: bash
-        run: mvn --batch-mode deploy -P release -DskipTests -Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }}
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mvn --batch-mode deploy -P release -DskipTests -Dgpg.passphrase="$GPG_PASSPHRASE"
 
       - name: Create GitHub Release
         shell: bash
