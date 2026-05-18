@@ -26,6 +26,8 @@ jobs:
     - name: Checkout repository
       # Using v4 - de0fac2e4500dabe0009e67214ff5f5447ce83dd
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 0
 
     - name: Set up JDK 25 (for building)
       uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
@@ -77,6 +79,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 25
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
@@ -85,27 +89,138 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Generate Javadoc
-        run: mvn javadoc:javadoc
-
-      - name: Prepare Pages Source
+      - name: Build Tags and Prepare Sources
         run: |
           mkdir -p _pages_src/docs
-          # Add Jekyll Front Matter to README so it renders with the theme
-          echo -e "---\nlayout: default\n---\n" > _pages_src/index.md
+          mkdir -p _pages_src/_layouts
+          mkdir -p _site_javadocs/latest
+          
+          # 1. Prepare main (latest)
+          # Add Jekyll Front Matter so it renders with the theme
+          echo -e "---\nlayout: default\ntitle: Home\n---\n" > _pages_src/index.md
           cat README.md >> _pages_src/index.md
           
-          # Add Front Matter to all other docs
           for f in docs/*.md; do
             filename=$(basename "$f")
-            echo -e "---\nlayout: default\n---\n" > "_pages_src/docs/$filename"
+            title=$(echo "$filename" | sed 's/\.[^.]*$//' | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
+            echo -e "---\nlayout: default\ntitle: $title\n---\n" > "_pages_src/docs/$filename"
             cat "$f" >> "_pages_src/docs/$filename"
           done
+          
+          mvn javadoc:javadoc
+          cp -r docs/api _site_javadocs/latest/
+          
+          # 2. Prepare Tags
+          TAGS=$(git tag -l "v*" | sort -rV)
+          OPTIONS="<option value=\"/jdivert/\">latest</option>"
+          
+          for tag in $TAGS; do
+            echo "Processing tag: $tag"
+            git worktree add "../$tag" "$tag"
+            pushd "../$tag"
+            # Try to build javadoc, gracefully fail for older incompatible tags
+            mvn javadoc:javadoc || echo "Javadoc failed for $tag"
+            popd
+            
+            # Setup Jekyll sources for the tag
+            mkdir -p "_pages_src/$tag/docs"
+            echo -e "---\nlayout: default\ntitle: Home ($tag)\n---\n" > "_pages_src/$tag/index.md"
+            [ -f "../$tag/README.md" ] && cat "../$tag/README.md" >> "_pages_src/$tag/index.md"
+            
+            if [ -d "../$tag/docs" ]; then
+              for f in ../$tag/docs/*.md; do
+                if [ -f "$f" ]; then
+                  filename=$(basename "$f")
+                  title=$(echo "$filename" | sed 's/\.[^.]*$//' | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
+                  echo -e "---\nlayout: default\ntitle: $title ($tag)\n---\n" > "_pages_src/$tag/docs/$filename"
+                  cat "$f" >> "_pages_src/$tag/docs/$filename"
+                fi
+              done
+            fi
+            
+            if [ -d "../$tag/docs/api" ]; then
+              mkdir -p "_site_javadocs/$tag"
+              cp -r "../$tag/docs/api" "_site_javadocs/$tag/"
+            fi
+            
+            OPTIONS="$OPTIONS<option value=\"/jdivert/$tag/\">$tag</option>"
+          done
 
-          # Create a basic _config.yml to use a nice theme
-          echo "theme: jekyll-theme-minimal" > _pages_src/_config.yml
-          echo "title: JDivert" >> _pages_src/_config.yml
-          echo "description: Java bindings for WinDivert" >> _pages_src/_config.yml
+          # 3. Create Custom Layout with Version Switcher and Dynamic Nav
+          cat << 'EOF' > _pages_src/_layouts/default.html
+          <!DOCTYPE html>
+          <html lang="{{ site.lang | default: "en-US" }}">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              {% seo %}
+              <link rel="stylesheet" href="{{ "/assets/css/style.css" | relative_url }}">
+              <style>
+                .version-switcher { margin: 20px 0; padding: 10px; background: #f8f8f8; border-radius: 5px; }
+                .version-switcher select { width: 100%; padding: 5px; margin-top: 5px; }
+                .nav-menu { list-style: none; padding: 0; margin-top: 20px; }
+                .nav-menu li { margin-bottom: 10px; }
+                .nav-menu a { text-decoration: none; color: #1e6bb8; }
+                .nav-menu a:hover { text-decoration: underline; }
+              </style>
+            </head>
+            <body>
+              <div class="wrapper">
+                <header>
+                  <h1><a href="{{ "/" | absolute_url }}">{{ site.title | default: site.github.repository_name }}</a></h1>
+                  <p>{{ site.description | default: site.github.project_tagline }}</p>
+                  
+                  <div class="version-switcher">
+                    <label for="version-select"><strong>Version:</strong></label>
+                    <select id="version-select" onchange="location = this.value;">
+                      __OPTIONS__
+                    </select>
+                  </div>
+
+                  {% assign v_prefix = "" %}
+                  {% assign url_parts = page.url | split: "/" %}
+                  {% if url_parts[1] != nil and url_parts[1] contains "v" %}
+                    {% assign v_prefix = "/" | append: url_parts[1] %}
+                  {% endif %}
+
+                  <ul class="nav-menu">
+                    <li><a href="{{ v_prefix | append: '/api/apidocs/index.html' | relative_url }}">Full API Reference (Javadoc)</a></li>
+                    <li><a href="{{ v_prefix | append: '/docs/architecture.html' | relative_url }}">Architecture Overview</a></li>
+                    <li><a href="{{ v_prefix | append: '/docs/filters.html' | relative_url }}">Filter Language Guide</a></li>
+                    <li><a href="{{ v_prefix | append: '/docs/examples.html' | relative_url }}">Examples Guide</a></li>
+                    <li><a href="{{ v_prefix | append: '/docs/performance.html' | relative_url }}">Performance Considerations</a></li>
+                    <li><a href="{{ v_prefix | append: '/docs/troubleshooting.html' | relative_url }}">Troubleshooting Guide</a></li>
+                    <li><a href="https://github.com/ffalcinelli/jdivert/blob/master/SECURITY.md">Security Policy</a></li>
+                  </ul>
+                </header>
+                <section>
+                  {{ content }}
+                </section>
+              </div>
+              <script>
+                var path = window.location.pathname;
+                var select = document.getElementById("version-select");
+                for (var i = 0; i < select.options.length; i++) {
+                  var val = select.options[i].value;
+                  if (val !== "/jdivert/" && path.indexOf(val) !== -1) {
+                    select.selectedIndex = i;
+                    break;
+                  }
+                }
+              </script>
+            </body>
+          </html>
+          EOF
+          
+          # Inject OPTIONS
+          sed -i "s|__OPTIONS__|$OPTIONS|g" _pages_src/_layouts/default.html
+
+          # 4. Create _config.yml
+          cat <<EOF > _pages_src/_config.yml
+theme: jekyll-theme-minimal
+title: JDivert
+description: Java bindings for WinDivert
+EOF
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
@@ -120,9 +235,19 @@ jobs:
         run: |
           # The Jekyll action runs in Docker and may leave the destination owned by root
           sudo chown -R $USER:$USER _site
-          # Copy the generated Javadoc into the Jekyll output directory
-          # This bypasses Jekyll processing for the large number of Javadoc files
-          cp -r docs/api _site/
+          
+          # Copy main (latest) javadoc
+          cp -r _site_javadocs/latest/api _site/
+          
+          # Copy tag javadocs into their respective subdirectories
+          # We check for directories matching v* in _site_javadocs
+          for tagdir in _site_javadocs/v*; do
+            if [ -d "$tagdir" ]; then
+              tag=$(basename "$tagdir")
+              mkdir -p "_site/$tag"
+              cp -r "$tagdir/api" "_site/$tag/"
+            fi
+          done
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0 
