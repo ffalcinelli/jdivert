@@ -29,7 +29,11 @@ jobs:
       - name: Import GPG key
         shell: bash
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          # Extract the PGP block specifically to avoid leading/trailing whitespace or garbage
+          # that causes GPG to exit with code 2 even on successful import.
+          cat <<EOF | sed -n '/-----BEGIN PGP/,/-----END PGP/p' | gpg --batch --import
+          ${{ secrets.GPG_PRIVATE_KEY }}
+          EOF
 
       - name: Publish to Maven Central
         shell: bash
