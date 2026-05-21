@@ -41,6 +41,7 @@
     <properties>
         <central.publishing.maven.plugin.version>0.10.0</central.publishing.maven.plugin.version>
         <jacoco.version>0.8.14</jacoco.version>
+        <jacoco.exclude.pattern>**/META-INF/versions/**/NativeAdapterFactory.class</jacoco.exclude.pattern>
         <jna.version>5.18.0</jna.version>
         <junit.version>5.14.3</junit.version>
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
@@ -124,7 +125,7 @@
                 <version>${jacoco.version}</version>
                 <configuration>
                     <excludes>
-                        <exclude>**/META-INF/versions/**/NativeAdapterFactory.class</exclude>
+                        <exclude>${jacoco.exclude.pattern}</exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -163,6 +164,7 @@
             <activation>
                 <jdk>[22,)</jdk>
             </activation>
+
             <build>
                 <plugins>
                     <plugin>
@@ -193,7 +195,6 @@
                                 <configuration>
                                     <excludes>
                                         <exclude>com/github/ffalcinelli/jdivert/windivert/PanamaNativeAdapter.java</exclude>
-                                        <exclude>com/github/ffalcinelli/jdivert/windivert/NativeAdapterFactory.java</exclude>
                                     </excludes>
                                 </configuration>
                             </execution>

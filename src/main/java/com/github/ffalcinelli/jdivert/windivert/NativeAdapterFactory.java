@@ -19,12 +19,43 @@ package com.github.ffalcinelli.jdivert.windivert;
 
 /**
  * Factory for creating NativeAdapter instances.
- * This version is for Java 8-21 and uses JNA.
+ * This version dynamically loads the correct adapter at runtime.
  */
 public class NativeAdapterFactory {
-    private static final NativeAdapter INSTANCE = new JnaNativeAdapter();
+    private static final NativeAdapter INSTANCE;
+
+    static {
+        NativeAdapter adapter = null;
+        try {
+            String javaVersion = System.getProperty("java.version");
+            int majorVersion = getJavaMajorVersion(javaVersion);
+            if (majorVersion >= 22) {
+                try {
+                    Class<?> clazz = Class.forName("com.github.ffalcinelli.jdivert.windivert.PanamaNativeAdapter");
+                    adapter = (NativeAdapter) clazz.getDeclaredConstructor().newInstance();
+                } catch (Throwable t) {
+                    // Panama adapter not available or failed to load, fallback to JNA
+                }
+            }
+        } catch (Throwable t) {
+            // Fallback to JNA
+        }
+        if (adapter == null) {
+            adapter = new JnaNativeAdapter();
+        }
+        INSTANCE = adapter;
+    }
 
     public static NativeAdapter getAdapter() {
         return INSTANCE;
+    }
+
+    private static int getJavaMajorVersion(String version) {
+        String[] parts = version.split("\\.");
+        if (parts[0].equals("1")) {
+            return Integer.parseInt(parts[1]);
+        } else {
+            return Integer.parseInt(parts[0]);
+        }
     }
 }
