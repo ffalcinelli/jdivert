@@ -28,21 +28,23 @@ public class NativeAdapterFactory {
 
     static {
         NativeAdapter adapter = null;
+        StringBuilder errorReport = new StringBuilder();
         if (Util.isWindows()) {
             adapter = loadAdapter("com.github.ffalcinelli.jdivert.windivert.WinDivertPanamaNativeAdapter",
-                    "com.github.ffalcinelli.jdivert.windivert.WinDivertJnaNativeAdapter");
+                    "com.github.ffalcinelli.jdivert.windivert.WinDivertJnaNativeAdapter", errorReport);
         } else if (Util.isLinux()) {
             adapter = loadAdapter("com.github.ffalcinelli.jdivert.ebpfdivert.EBPFDivertPanamaNativeAdapter",
-                    "com.github.ffalcinelli.jdivert.ebpfdivert.EBPFDivertJnaNativeAdapter");
+                    "com.github.ffalcinelli.jdivert.ebpfdivert.EBPFDivertJnaNativeAdapter", errorReport);
         }
 
         if (adapter == null) {
-            throw new RuntimeException("Unsupported platform or unable to load native adapter. OS: " + System.getProperty("os.name"));
+            throw new RuntimeException("Unsupported platform or unable to load native adapter. OS: " + 
+                    System.getProperty("os.name") + ". Errors: " + errorReport.toString());
         }
         INSTANCE = adapter;
     }
 
-    private static NativeAdapter loadAdapter(String panamaClassName, String jnaClassName) {
+    private static NativeAdapter loadAdapter(String panamaClassName, String jnaClassName, StringBuilder errorReport) {
         NativeAdapter adapter = null;
         ClassLoader cl = NativeAdapterFactory.class.getClassLoader();
         try {
@@ -52,18 +54,24 @@ public class NativeAdapterFactory {
                     Class<?> clazz = Class.forName(panamaClassName, true, cl);
                     adapter = (NativeAdapter) clazz.getDeclaredConstructor().newInstance();
                 } catch (Throwable t) {
-                    // Panama adapter not available or failed to load, fallback to JNA
+                    errorReport.append("[").append(panamaClassName).append(" failed: ").append(t.toString()).append("] ");
+                    if (t.getCause() != null) {
+                        errorReport.append("(Cause: ").append(t.getCause().toString()).append(") ");
+                    }
                 }
             }
         } catch (Throwable t) {
-            // Fallback to JNA
+            errorReport.append("[Java version check failed: ").append(t.toString()).append("] ");
         }
         if (adapter == null) {
             try {
                 Class<?> clazz = Class.forName(jnaClassName, true, cl);
                 adapter = (NativeAdapter) clazz.getDeclaredConstructor().newInstance();
             } catch (Throwable t) {
-                // Unable to load JNA adapter
+                errorReport.append("[").append(jnaClassName).append(" failed: ").append(t.toString()).append("] ");
+                if (t.getCause() != null) {
+                    errorReport.append("(Cause: ").append(t.getCause().toString()).append(") ");
+                }
             }
         }
         return adapter;

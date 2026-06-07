@@ -136,15 +136,15 @@
                         </goals>
                         <configuration>
                             <target>
-                                <copy todir="${project.build.outputDirectory}">
-                                    <fileset dir="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64">
-                                        <include name="WinDivert64.dll"/>
-                                        <include name="WinDivert64.sys"/>
-                                    </fileset>
-                                    <fileset dir="${project.build.directory}/ebpfdivert">
-                                        <include name="ebpfdivert.bpf.o"/>
-                                    </fileset>
-                                </copy>
+                                <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert.dll"
+                                      tofile="${project.build.outputDirectory}/WinDivert64.dll"
+                                      failonerror="false"/>
+                                <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert64.sys"
+                                      tofile="${project.build.outputDirectory}/WinDivert64.sys"
+                                      failonerror="false"/>
+                                <copy file="${project.build.directory}/ebpfdivert/ebpfdivert.bpf.o"
+                                      todir="${project.build.outputDirectory}"
+                                      failonerror="false"/>
                             </target>
                         </configuration>
                     </execution>
@@ -267,23 +267,8 @@
                                 <configuration>
                                     <release>22</release>
                                     <compileSourceRoots>
-                                        <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
+                                        <sourcePath>${project.basedir}/src/main/java22</sourcePath>
                                     </compileSourceRoots>
-                                    <multiReleaseOutput>true</multiReleaseOutput>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>compile-java-22-for-test</id>
-                                <phase>process-test-sources</phase>
-                                <goals>
-                                    <goal>compile</goal>
-                                </goals>
-                                <configuration>
-                                    <release>22</release>
-                                    <compileSourceRoots>
-                                        <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
-                                    </compileSourceRoots>
-                                    <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
                                 </configuration>
                             </execution>
                         </executions>
