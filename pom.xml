@@ -91,12 +91,15 @@
                     <exclude>**/*.properties</exclude>
                 </excludes>
             </resource>
+            <resource>
+                <directory>${project.build.directory}/native-resources</directory>
+            </resource>
         </resources>
         <plugins>
             <plugin>
                 <groupId>com.googlecode.maven-download-plugin</groupId>
                 <artifactId>download-maven-plugin</artifactId>
-                <version>1.11.0</version>
+                <version>1.9.0</version>
                 <executions>
                     <execution>
                         <id>download-windivert</id>
@@ -130,20 +133,21 @@
                 <executions>
                     <execution>
                         <id>copy-native-binaries</id>
-                        <phase>process-resources</phase>
+                        <phase>generate-resources</phase>
                         <goals>
                             <goal>run</goal>
                         </goals>
                         <configuration>
                             <target>
+                                <mkdir dir="${project.build.directory}/native-resources"/>
                                 <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert.dll"
-                                      tofile="${project.build.outputDirectory}/WinDivert64.dll"
+                                      tofile="${project.build.directory}/native-resources/WinDivert64.dll"
                                       failonerror="false"/>
                                 <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert64.sys"
-                                      tofile="${project.build.outputDirectory}/WinDivert64.sys"
+                                      tofile="${project.build.directory}/native-resources/WinDivert64.sys"
                                       failonerror="false"/>
                                 <copy file="${project.build.directory}/ebpfdivert/ebpfdivert.bpf.o"
-                                      todir="${project.build.outputDirectory}"
+                                      todir="${project.build.directory}/native-resources"
                                       failonerror="false"/>
                             </target>
                         </configuration>
