@@ -14,12 +14,14 @@ concurrency:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    name: Build and Test (JDK ${{ matrix.java }})
+    name: Build and Test (${{ matrix.os }}, JDK ${{ matrix.java }})
     strategy:
+      fail-fast: false
       matrix:
+        os: [ windows-latest, ubuntu-latest ]
         java: [ '8', '11', '17', '21', '25' ]
 
     steps:
@@ -28,6 +30,12 @@ jobs:
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         fetch-depth: 0
+
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libbpf-dev
 
     - name: Set up JDK 25 (for building)
       uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
@@ -61,7 +69,7 @@ jobs:
       uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
       with:
         files: target/site/jacoco/jacoco.xml
-        flags: jdk${{ matrix.java }}
+        flags: ${{ matrix.os }}-jdk${{ matrix.java }}
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
 
