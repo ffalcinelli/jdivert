@@ -17,6 +17,8 @@
 
 package com.github.ffalcinelli.jdivert.windivert;
 
+import com.github.ffalcinelli.jdivert.Util;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -30,8 +32,7 @@ import java.util.Objects;
 import java.util.Properties;
 
 /**
- * Handles WinDivert DLL and SYS files deployment to a temporary directory.
- * Without this step, WinDivert would not be able to locate SYS file for its Windows Service.
+ * Handles WinDivert and ebpfdivert binaries deployment to a temporary directory.
  * <p>
  * This project supports 64-bit architecture only.
  */
@@ -92,9 +93,9 @@ public class DeployHandler {
     }
 
     /**
-     * Deploys the 64-bit WinDivert binaries in a temporary directory.
+     * Deploys the necessary binaries in a temporary directory based on the current OS.
      *
-     * @param deployDir The directory where to deploy the windivert binaries.
+     * @param deployDir The directory where to deploy the binaries.
      * @return The temporary directory absolute path.
      * @throws IOException Whenever the deploy process encounters an error.
      */
@@ -102,7 +103,17 @@ public class DeployHandler {
         if (!deployDir.exists() && !deployDir.mkdirs()) {
             throw new IOException("Could not create deploy directory " + deployDir.getAbsolutePath());
         }
-        for (String file : new String[]{"WinDivert64.dll", "WinDivert64.sys"}) {
+
+        String[] files;
+        if (Util.isWindows()) {
+            files = new String[]{"WinDivert64.dll", "WinDivert64.sys"};
+        } else if (Util.isLinux()) {
+            files = new String[]{"ebpfdivert.bpf.o"};
+        } else {
+            throw new IOException("Unsupported operating system: " + System.getProperty("os.name"));
+        }
+
+        for (String file : files) {
             File copyFile = new File(deployDir, file);
 
             java.net.URL resource = DeployHandler.class.getClassLoader().getResource(file);
@@ -133,9 +144,9 @@ public class DeployHandler {
     }
 
     /**
-     * Deploys WinDivert 64-bit binaries and returns the path to the DLL.
+     * Deploys binaries and returns the path to the primary library (DLL on Windows, .o on Linux).
      *
-     * @return The path to WinDivert64.dll.
+     * @return The path to the deployed binary.
      */
     public static Path deployToPath() {
         if (!is64Bit()) {
@@ -146,18 +157,22 @@ public class DeployHandler {
             File deployDir = new File(tmpDir, "jdivert-" + VERSION);
 
             String deployedPath = deployInTempDir(deployDir);
-            return Paths.get(deployedPath, "WinDivert64.dll");
+            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "ebpfdivert.bpf.o";
+            return Paths.get(deployedPath, mainFile);
         } catch (Exception e) {
-            throw new ExceptionInInitializerError(new Exception("Unable to deploy WinDivert", e));
+            throw new ExceptionInInitializerError(new Exception("Unable to deploy binaries", e));
         }
     }
 
     /**
-     * Compatibility method for JNA.
+     * Compatibility method for JNA (WinDivert only).
      *
      * @return The WinDivertDLL instance.
      */
     public static WinDivertDLL deploy() {
+        if (!Util.isWindows()) {
+            throw new UnsupportedOperationException("WinDivertDLL is only available on Windows.");
+        }
         Path dllPath = deployToPath();
         String deployedPath = dllPath.getParent().toString();
         String jnaLibraryPath = System.getProperty("jna.library.path");

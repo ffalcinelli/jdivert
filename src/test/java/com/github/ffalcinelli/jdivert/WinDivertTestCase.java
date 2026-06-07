@@ -20,6 +20,8 @@ package com.github.ffalcinelli.jdivert;
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.util.Random;
 
@@ -37,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Created by fabio on 26/10/2016.
  */
+@EnabledOnOs(OS.WINDOWS)
 public class WinDivertTestCase {
 
     //this can be safely static

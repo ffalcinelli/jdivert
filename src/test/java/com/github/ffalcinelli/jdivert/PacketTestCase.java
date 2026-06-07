@@ -21,6 +21,8 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.net.UnknownHostException;
 
@@ -170,6 +172,7 @@ public class PacketTestCase {
     }
 
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void excludeChecksums() throws WinDivertException {
         int cksum = packet.getTcp().get().getChecksum();
         packet.setSrcPort(8080);

@@ -17,6 +17,7 @@
 
 package com.github.ffalcinelli.jdivert.windivert;
 
+import com.github.ffalcinelli.jdivert.Util;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -41,9 +42,13 @@ public class DeployHandlerTestCase {
     }
 
     @Test
-    public void testDeployInInvalidDir() {
-        File invalidDir = new File("Z:\\invalid\\path\\that\\should\\not\\exist");
-        assertThrows(java.io.IOException.class, () -> DeployHandler.deployInTempDir(invalidDir));
+    public void testDeployInInvalidDir() throws java.io.IOException {
+        File fileAsDir = File.createTempFile("jdivert-test", "tmp");
+        try {
+            assertThrows(java.io.IOException.class, () -> DeployHandler.deployInTempDir(fileAsDir));
+        } finally {
+            fileAsDir.delete();
+        }
     }
 
     @Test
@@ -59,19 +64,22 @@ public class DeployHandlerTestCase {
     @Test
     public void testDeployToPath() {
         try {
-            Path dllPath = DeployHandler.deployToPath();
-            assertNotNull(dllPath);
-            assertTrue(dllPath.toString().endsWith("WinDivert64.dll"));
+            Path binPath = DeployHandler.deployToPath();
+            assertNotNull(binPath);
+            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "ebpfdivert.bpf.o";
+            assertTrue(binPath.toString().endsWith(mainFile));
 
-            File dllFile = dllPath.toFile();
-            assertTrue(dllFile.exists(), "DLL should exist after deployment");
+            File binFile = binPath.toFile();
+            assertTrue(binFile.exists(), "Binary should exist after deployment: " + binFile);
 
-            File sysFile = new File(dllFile.getParentFile(), "WinDivert64.sys");
-            assertTrue(sysFile.exists(), "SYS should exist after deployment");
+            if (Util.isWindows()) {
+                File sysFile = new File(binFile.getParentFile(), "WinDivert64.sys");
+                assertTrue(sysFile.exists(), "SYS should exist after deployment");
+            }
 
             // Verify it's in a stable directory
             String tmpDir = System.getProperty("java.io.tmpdir");
-            assertTrue(dllPath.toString().contains("jdivert-3.0.0"), "Should use versioned stable directory: " + dllPath);
+            assertTrue(binPath.toString().contains("jdivert-3.0.0"), "Should use versioned stable directory: " + binPath);
         } catch (Throwable t) {
             if (t.getMessage() != null && t.getMessage().contains("64-bit")) {
                 return;
@@ -90,13 +98,14 @@ public class DeployHandlerTestCase {
         if (!tempDir.mkdirs()) return;
         try {
             DeployHandler.deployInTempDir(tempDir);
-            File dllFile = new File(tempDir, "WinDivert64.dll");
-            assertTrue(dllFile.exists());
-            long length = dllFile.length();
+            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "ebpfdivert.bpf.o";
+            File binFile = new File(tempDir, mainFile);
+            assertTrue(binFile.exists());
+            long length = binFile.length();
             
             // Re-deploy should skip
             DeployHandler.deployInTempDir(tempDir);
-            assertEquals(length, dllFile.length());
+            assertEquals(length, binFile.length());
         } finally {
             File[] files = tempDir.listFiles();
             if (files != null) {

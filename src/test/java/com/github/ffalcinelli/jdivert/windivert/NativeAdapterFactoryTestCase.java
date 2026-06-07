@@ -18,11 +18,15 @@
 package com.github.ffalcinelli.jdivert.windivert;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NativeAdapterFactoryTestCase {
 
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void testCorrectAdapterUsed() {
         NativeAdapter adapter = NativeAdapterFactory.getAdapter();
         assertNotNull(adapter);
@@ -31,11 +35,11 @@ public class NativeAdapterFactoryTestCase {
         int majorVersion = getJavaMajorVersion(javaVersion);
         
         if (majorVersion >= 22) {
-            assertEquals("com.github.ffalcinelli.jdivert.windivert.PanamaNativeAdapter", adapter.getClass().getName(),
-                "On Java 22+, PanamaNativeAdapter should be used. Detected Java version: " + javaVersion);
+            assertEquals("com.github.ffalcinelli.jdivert.windivert.WinDivertPanamaNativeAdapter", adapter.getClass().getName(),
+                "On Java 22+, WinDivertPanamaNativeAdapter should be used. Detected Java version: " + javaVersion);
         } else {
-            assertEquals("com.github.ffalcinelli.jdivert.windivert.JnaNativeAdapter", adapter.getClass().getName(),
-                "On Java < 22, JnaNativeAdapter should be used. Detected Java version: " + javaVersion);
+            assertEquals("com.github.ffalcinelli.jdivert.windivert.WinDivertJnaNativeAdapter", adapter.getClass().getName(),
+                "On Java < 22, WinDivertJnaNativeAdapter should be used. Detected Java version: " + javaVersion);
         }
     }
 

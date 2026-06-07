@@ -1,43 +1,33 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-# Vagrantfile for JDivert local testing on Windows 11 using VirtualBox.
-# Requirements:
-# - Vagrant (https://www.vagrantup.com/)
-# - VirtualBox (https://www.virtualbox.org/)
-
 Vagrant.configure("2") do |config|
- # Box for Windows 11 22H2 Enterprise
- config.vm.box = "gusztavvargadr/windows-11-22h2-enterprise"
+  
+  config.vm.define "linux" do |linux|
+    linux.vm.box = "bento/ubuntu-24.04"
+    linux.vm.hostname = "jdivert-linux"
+    linux.vm.synced_folder ".", "/jdivert"
+    linux.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+      vb.cpus = 2
+    end
+    linux.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y openjdk-21-jdk maven libbpf-dev clang llvm libelf-dev
+    SHELL
+  end
 
- config.vm.provider "virtualbox" do |vb|
- vb.name = "jdivert-win11"
- vb.memory = "4096"
- vb.cpus = 2
- vb.gui = false # Set to true to see the GUI
- vb.customize ["modifyvm", :id, "--vram", "128"]
- vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
- end
-
- # WinRM is used for Windows communication
- config.vm.communicator = "winrm"
-
- # Synchronize the current directory to C:/jdivert in the guest VM
- config.vm.synced_folder ".", "C:/jdivert"
-
- # Run the provisioning script to install dependencies
- config.vm.provision "shell", path: "scripts/vagrant-provision.ps1"
-
-  config.vm.post_up_message = <<-MESSAGE
- -----------------------------------------------------------------------
-  Windows 11 VM for JDivert is up and running!
-
-  To run tests within the VM (using a local folder to avoid synced folder issues):
-  vagrant winrm --command "robocopy C:\\jdivert C:\\local_jdivert /MIR /XD .git .vagrant target"
-  vagrant winrm --command "cd C:\\local_jdivert; mvn clean test"
-
-  To get an interactive PowerShell session:
-  vagrant powershell
- -----------------------------------------------------------------------
-  MESSAGE
+  config.vm.define "windows" do |windows|
+    windows.vm.box = "gusztavvargadr/windows-11-22h2-enterprise"
+    windows.vm.communicator = "winrm"
+    windows.vm.synced_folder ".", "C:/jdivert"
+    windows.vm.provider "virtualbox" do |vb|
+      vb.memory = "4096"
+      vb.cpus = 2
+      vb.gui = false
+      vb.customize ["modifyvm", :id, "--vram", "128"]
+      vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
+    end
+    windows.vm.provision "shell", path: "scripts/vagrant-provision.ps1"
+  end
 end

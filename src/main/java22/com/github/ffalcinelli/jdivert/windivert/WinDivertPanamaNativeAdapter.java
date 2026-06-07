@@ -43,7 +43,7 @@ import static java.lang.foreign.ValueLayout.JAVA_SHORT;
  * Project Panama (FFM API) implementation of NativeAdapter.
  * Targets Java 22+.
  */
-public class PanamaNativeAdapter implements NativeAdapter {
+public class WinDivertPanamaNativeAdapter implements NativeAdapter {
 
     public static final int ERROR_IO_PENDING = 997;
     public static final int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;

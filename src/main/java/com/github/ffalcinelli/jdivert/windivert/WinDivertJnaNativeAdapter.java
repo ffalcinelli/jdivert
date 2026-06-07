@@ -38,7 +38,7 @@ import java.util.List;
 /**
  * JNA implementation of NativeAdapter.
  */
-public class JnaNativeAdapter implements NativeAdapter {
+public class WinDivertJnaNativeAdapter implements NativeAdapter {
 
     private final WinDivertDLL dll = WinDivertDLL.INSTANCE;
 
