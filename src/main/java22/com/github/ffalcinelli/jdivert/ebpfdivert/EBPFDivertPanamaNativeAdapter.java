@@ -90,6 +90,9 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
     @Override
     public Handle open(String filter, int layer, short priority, long flags) throws WinDivertException {
+        if (LibBpfPanama.bpf_object__open_file == null) {
+            throw new WinDivertException(-1, "libbpf symbols not found");
+        }
         try {
             Path bpfObjPath = DeployHandler.deployToPath();
             MemorySegment pathStr = arena.allocateFrom(bpfObjPath.toString());

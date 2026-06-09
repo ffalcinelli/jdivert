@@ -11,8 +11,14 @@ public class LibBpfPanama {
     private static final SymbolLookup LIBBPF;
 
     static {
-        SymbolLookup loaderLookup = SymbolLookup.loaderLookup();
-        LIBBPF = loaderLookup.or(LINKER.defaultLookup());
+        SymbolLookup lib;
+        try {
+            lib = SymbolLookup.libraryLookup("libbpf.so.1", Arena.global())
+                    .or(SymbolLookup.libraryLookup("libbpf.so", Arena.global()));
+        } catch (Exception e) {
+            lib = SymbolLookup.loaderLookup();
+        }
+        LIBBPF = lib.or(LINKER.defaultLookup());
     }
 
     public static final MethodHandle bpf_object__open_file = lookup("bpf_object__open_file", 
