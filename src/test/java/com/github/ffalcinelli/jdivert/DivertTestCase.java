@@ -19,9 +19,9 @@ public class DivertTestCase {
 
     @Test
     @EnabledOnOs(OS.LINUX)
-    public void testDivertOpenLinux() {
-        Divert d = new Divert("false");
-        // eBPF open is not yet implemented, should throw UnsupportedOperationException
-        assertThrows(UnsupportedOperationException.class, d::open);
+    public void testDivertOpenLinux() throws WinDivertException {
+        try (Divert d = new Divert("false").open()) {
+            assertTrue(d.isOpen());
+        }
     }
 }

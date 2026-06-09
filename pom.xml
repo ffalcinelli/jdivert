@@ -263,6 +263,7 @@
                                     <excludes>
                                         <exclude>com/github/ffalcinelli/jdivert/windivert/WinDivertPanamaNativeAdapter.java</exclude>
                                         <exclude>com/github/ffalcinelli/jdivert/ebpfdivert/EBPFDivertPanamaNativeAdapter.java</exclude>
+                                        <exclude>com/github/ffalcinelli/jdivert/ebpfdivert/panama/**</exclude>
                                     </excludes>
                                 </configuration>
                             </execution>

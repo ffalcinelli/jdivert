@@ -64,6 +64,14 @@ public class PacketTestCase {
     }
 
     @Test
+    public void constructWithByteBuffer() {
+        java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(raw);
+        Packet p = new Packet(buffer, addr);
+        assertArrayEquals(raw, p.getRaw());
+        assertEquals(java.nio.ByteOrder.BIG_ENDIAN, buffer.order());
+    }
+
+    @Test
     public void constructWithIllegalIface() {
         assertThrows(IllegalArgumentException.class, () -> new Packet(raw, new int[]{0, 0, 0}, OUTBOUND));
     }
