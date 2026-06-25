@@ -46,13 +46,13 @@ public class EBPFDivertJnaNativeAdapterTestCase {
     }
 
     @Test
-    public void testSetParam() throws WinDivertException {
-        adapter.setParam(null, 0, 0); // No-op
+    public void testSetParam() {
+        assertThrows(WinDivertException.class, () -> adapter.setParam(null, 0, 0));
     }
 
     @Test
-    public void testGetParam() throws WinDivertException {
-        assertEquals(0, adapter.getParam(null, 0)); // No-op returns 0
+    public void testGetParam() {
+        assertThrows(WinDivertException.class, () -> adapter.getParam(null, 0));
     }
 
     @Test

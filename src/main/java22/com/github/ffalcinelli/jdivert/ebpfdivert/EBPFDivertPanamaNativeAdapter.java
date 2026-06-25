@@ -28,6 +28,7 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
         MemorySegment bpfObj;
         MemorySegment ringBuffer;
         int filterMapFd;
+        int maxQueueSize = 4096;
         BlockingQueue<PacketEvent> packetQueue = new LinkedBlockingQueue<>();
         Arena arena;
 
@@ -110,11 +111,11 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
             handle.arena = Arena.ofShared();
 
             // Attach programs
-            MemorySegment ingressName = arena.allocateFrom("tc_ingress");
+            MemorySegment ingressName = arena.allocateFrom("tc_divert_ingress");
             MemorySegment progIngress = (MemorySegment) LibBpfPanama.bpf_object__find_program_by_name.invoke(obj, ingressName);
             if (!progIngress.equals(MemorySegment.NULL)) LibBpfPanama.bpf_program__attach.invoke(progIngress);
             
-            MemorySegment egressName = arena.allocateFrom("tc_egress");
+            MemorySegment egressName = arena.allocateFrom("tc_divert_egress");
             MemorySegment progEgress = (MemorySegment) LibBpfPanama.bpf_object__find_program_by_name.invoke(obj, egressName);
             if (!progEgress.equals(MemorySegment.NULL)) LibBpfPanama.bpf_program__attach.invoke(progEgress);
 
@@ -164,8 +165,11 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
         int packet_len = data.get(ValueLayout.JAVA_INT, 8);
         int header_size = 16;
         
-        byte[] pktData = data.asSlice(header_size, packet_len).toArray(ValueLayout.JAVA_BYTE);
-        ((EBPFHandle)currentHandle).packetQueue.offer(new PacketEvent(pktData, ifindex, direction));
+        EBPFHandle h = (EBPFHandle) currentHandle;
+        if (h != null && h.packetQueue.size() < h.maxQueueSize) {
+            byte[] pktData = data.asSlice(header_size, packet_len).toArray(ValueLayout.JAVA_BYTE);
+            h.packetQueue.offer(new PacketEvent(pktData, ifindex, direction));
+        }
         return 0;
     }
 
@@ -222,11 +226,24 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
     @Override
     public void setParam(Handle handle, int param, long value) throws WinDivertException {
+        if (handle == null) throw new WinDivertException(-1, "Handle cannot be null");
+        EBPFHandle h = (EBPFHandle) handle;
+        if (param == 0) { // Param.QUEUE_LEN
+            h.maxQueueSize = (int) value;
+        } else {
+            throw new WinDivertException(-1, "Parameter not supported on eBPF backend");
+        }
     }
 
     @Override
     public long getParam(Handle handle, int param) throws WinDivertException {
-        return 0;
+        if (handle == null) throw new WinDivertException(-1, "Handle cannot be null");
+        EBPFHandle h = (EBPFHandle) handle;
+        if (param == 0) { // Param.QUEUE_LEN
+            return h.maxQueueSize;
+        } else {
+            throw new WinDivertException(-1, "Parameter not supported on eBPF backend");
+        }
     }
 
     @Override

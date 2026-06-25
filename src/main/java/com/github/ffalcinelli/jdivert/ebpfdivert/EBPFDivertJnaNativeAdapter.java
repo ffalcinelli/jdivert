@@ -27,6 +27,7 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
         Pointer bpfObj;
         Pointer ringBuffer;
         int filterMapFd;
+        int maxQueueSize = 4096;
         BlockingQueue<PacketEvent> packetQueue = new LinkedBlockingQueue<>();
         LibBpf.ring_buffer_sample_fn callback;
 
@@ -96,9 +97,9 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
 
         // Attach programs (simplified: attach all programs found in the object)
         // In a real implementation, we would attach specific TC programs to interfaces.
-        Pointer progIngress = lib.bpf_object__find_program_by_name(obj, "tc_ingress");
+        Pointer progIngress = lib.bpf_object__find_program_by_name(obj, "tc_divert_ingress");
         if (progIngress != null) lib.bpf_program__attach(progIngress);
-        Pointer progEgress = lib.bpf_object__find_program_by_name(obj, "tc_egress");
+        Pointer progEgress = lib.bpf_object__find_program_by_name(obj, "tc_divert_egress");
         if (progEgress != null) lib.bpf_program__attach(progEgress);
 
         // Setup filter rules
@@ -123,7 +124,9 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
             handle.callback = (ctx, data, size) -> {
                 LibBpf.divert_pkt_header header = new LibBpf.divert_pkt_header(data);
                 byte[] pktData = data.getByteArray(header.size(), header.packet_len);
-                handle.packetQueue.offer(new PacketEvent(pktData, header));
+                if (handle.packetQueue.size() < handle.maxQueueSize) {
+                    handle.packetQueue.offer(new PacketEvent(pktData, header));
+                }
                 return 0;
             };
             handle.ringBuffer = lib.ring_buffer__new(rbFd, handle.callback, null, null);
@@ -181,11 +184,24 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
 
     @Override
     public void setParam(Handle handle, int param, long value) throws WinDivertException {
+        if (handle == null) throw new WinDivertException(-1, "Handle cannot be null");
+        EBPFHandle h = (EBPFHandle) handle;
+        if (param == 0) { // Param.QUEUE_LEN
+            h.maxQueueSize = (int) value;
+        } else {
+            throw new WinDivertException(-1, "Parameter not supported on eBPF backend");
+        }
     }
 
     @Override
     public long getParam(Handle handle, int param) throws WinDivertException {
-        return 0;
+        if (handle == null) throw new WinDivertException(-1, "Handle cannot be null");
+        EBPFHandle h = (EBPFHandle) handle;
+        if (param == 0) { // Param.QUEUE_LEN
+            return h.maxQueueSize;
+        } else {
+            throw new WinDivertException(-1, "Parameter not supported on eBPF backend");
+        }
     }
 
     @Override
