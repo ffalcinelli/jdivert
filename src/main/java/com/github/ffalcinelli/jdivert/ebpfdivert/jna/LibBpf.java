@@ -22,6 +22,7 @@ public interface LibBpf extends Library {
     void bpf_object__close(Pointer obj);
 
     Pointer bpf_object__find_program_by_name(Pointer obj, String name);
+    int bpf_program__fd(Pointer prog);
     Pointer bpf_program__attach(Pointer prog);
     int bpf_link__destroy(Pointer link);
 
@@ -29,6 +30,43 @@ public interface LibBpf extends Library {
     int bpf_map__fd(Pointer map);
 
     int bpf_map_update_elem(int fd, Pointer key, Pointer value, long flags);
+    int bpf_map_lookup_elem(int fd, Pointer key, Pointer value);
+
+    // TC functions
+    int bpf_tc_hook_create(BpfTcHook hook);
+    int bpf_tc_hook_destroy(BpfTcHook hook);
+    int bpf_tc_attach(BpfTcHook hook, BpfTcOpts opts);
+    int bpf_tc_detach(BpfTcHook hook, BpfTcOpts opts);
+    int libbpf_num_possible_cpus();
+
+    // Structures
+    class BpfTcHook extends Structure {
+        public long sz = 152; // sizeof(struct bpf_tc_hook)
+        public int ifindex;
+        public int attach_point;
+        public int parent;
+        public long[] reserved = new long[16];
+
+        @Override
+        protected List<String> getFieldOrder() {
+            return Arrays.asList("sz", "ifindex", "attach_point", "parent", "reserved");
+        }
+    }
+
+    class BpfTcOpts extends Structure {
+        public long sz = 160; // sizeof(struct bpf_tc_opts)
+        public int prog_fd;
+        public int flags;
+        public int prog_id;
+        public int handle;
+        public int priority;
+        public long[] reserved = new long[16];
+
+        @Override
+        protected List<String> getFieldOrder() {
+            return Arrays.asList("sz", "prog_fd", "flags", "prog_id", "handle", "priority", "reserved");
+        }
+    }
 
     // Ring Buffer functions
     interface ring_buffer_sample_fn extends Callback {
