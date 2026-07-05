@@ -115,20 +115,6 @@
                             <connectTimeOut>60000</connectTimeOut>
                         </configuration>
                     </execution>
-                    <execution>
-                        <id>download-ebpfdivert</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>wget</goal>
-                        </goals>
-                        <configuration>
-                            <url>https://github.com/ffalcinelli/ebpfdivert/releases/download/v${ebpfdivert.version}/ebpfdivert-v${ebpfdivert.version}-linux-amd64.tar.gz</url>
-                            <unpack>true</unpack>
-                            <outputDirectory>${project.build.directory}/ebpfdivert</outputDirectory>
-                            <readTimeOut>60000</readTimeOut>
-                            <connectTimeOut>60000</connectTimeOut>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -151,9 +137,10 @@
                                 <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert64.sys"
                                       tofile="${project.build.directory}/native-resources/WinDivert64.sys"
                                       failonerror="false"/>
-                                <copy file="${project.build.directory}/ebpfdivert/lib/ebpfdivert/ebpfdivert.bpf.o"
+                                <copy file="${project.basedir}/ebpfdivert/ebpfdivert.bpf.o"
                                       todir="${project.build.directory}/native-resources"
                                       failonerror="false"/>
+
                             </target>
                         </configuration>
                     </execution>

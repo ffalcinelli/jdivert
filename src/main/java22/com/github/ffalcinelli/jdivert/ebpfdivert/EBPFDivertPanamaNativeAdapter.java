@@ -6,6 +6,7 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.DeployHandler;
 import com.github.ffalcinelli.jdivert.windivert.NativeAdapter;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
+import java.util.Objects;
 
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
@@ -13,7 +14,13 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -23,6 +30,62 @@ import java.util.concurrent.TimeUnit;
 public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
     private final Arena arena = Arena.ofShared();
+
+    private static final ExecutorService executor = Executors.newCachedThreadPool(new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "EBPFDivertPanamaNativeAdapter-AsyncThread");
+            t.setDaemon(true);
+            return t;
+        }
+    });
+
+    private static class EBPFAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
+        private final CompletableFuture<Integer> future = new CompletableFuture<>();
+        private final Future<?> task;
+
+        public EBPFAsyncImplementation(EBPFHandle handle, PanamaBuffer buffer, WinDivertAddress address) {
+            this.task = executor.submit(() -> {
+                try {
+                    PacketEvent event = handle.packetQueue.poll();
+                    while (event == null && !Thread.currentThread().isInterrupted()) {
+                        LibBpfPanama.ring_buffer__poll.invoke(handle.ringBuffer, 10L);
+                        event = handle.packetQueue.poll(10, TimeUnit.MILLISECONDS);
+                    }
+                    if (event != null) {
+                        buffer.getByteBuffer().put(event.data);
+                        address.Union.Network.IfIdx = event.ifindex;
+                        address.setOutbound(event.direction == 1);
+                        future.complete(event.data.length);
+                    } else {
+                        future.complete(0);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    future.completeExceptionally(e);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            });
+        }
+
+        @Override
+        public boolean isCompleted() {
+            return future.isDone();
+        }
+
+        @Override
+        public int waitAndGetResult() throws WinDivertException {
+            try {
+                return future.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new WinDivertException(-1, "Async receive interrupted", e);
+            } catch (ExecutionException e) {
+                throw new WinDivertException(-1, "Async receive failed", e.getCause());
+            }
+        }
+    }
 
     private static class EBPFHandle implements Handle {
         MemorySegment bpfObj;
@@ -201,7 +264,11 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
     @Override
     public <T> WinDivertAsyncResult<T> recvAsync(Handle handle, int bufsize, WinDivertAsyncResult.ResultConverter<T> converter) throws WinDivertException {
-        throw new UnsupportedOperationException();
+        Objects.requireNonNull(handle, "handle cannot be null");
+        PanamaBuffer buffer = new PanamaBuffer(bufsize);
+        WinDivertAddress address = new WinDivertAddress();
+        EBPFAsyncImplementation impl = new EBPFAsyncImplementation((EBPFHandle) handle, buffer, address);
+        return new WinDivertAsyncResult<>(handle, buffer, address, converter, impl);
     }
 
     @Override
@@ -211,7 +278,43 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
     @Override
     public <T> WinDivertAsyncResult<T> sendAsync(Handle handle, ByteBuffer packet, WinDivertAddress address, WinDivertAsyncResult.ResultConverter<T> converter) throws WinDivertException {
-        throw new UnsupportedOperationException();
+        Objects.requireNonNull(handle, "handle cannot be null");
+        Objects.requireNonNull(packet, "packet cannot be null");
+        Objects.requireNonNull(address, "address cannot be null");
+        PanamaBuffer panamaBuffer = new PanamaBuffer(packet.remaining());
+        panamaBuffer.getByteBuffer().put(packet.duplicate());
+        panamaBuffer.getByteBuffer().flip();
+
+        CompletableFuture<Integer> sendFuture = new CompletableFuture<>();
+        executor.submit(() -> {
+            try {
+                int len = send(handle, panamaBuffer.getByteBuffer(), address);
+                sendFuture.complete(len);
+            } catch (Throwable t) {
+                sendFuture.completeExceptionally(t);
+            }
+        });
+
+        WinDivertAsyncResult.AsyncImplementation impl = new WinDivertAsyncResult.AsyncImplementation() {
+            @Override
+            public boolean isCompleted() {
+                return sendFuture.isDone();
+            }
+
+            @Override
+            public int waitAndGetResult() throws WinDivertException {
+                try {
+                    return sendFuture.get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new WinDivertException(-1, "Async send interrupted", e);
+                } catch (ExecutionException e) {
+                    throw new WinDivertException(-1, "Async send failed", e.getCause());
+                }
+            }
+        };
+
+        return new WinDivertAsyncResult<>(handle, panamaBuffer, address, converter, impl);
     }
 
     @Override

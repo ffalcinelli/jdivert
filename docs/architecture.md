@@ -1,45 +1,90 @@
-# Architecture Overview
+# eBPFDivert Architecture
 
-JDivert is designed as a high-level, idiomatic Java wrapper around the [WinDivert](https://reqrypt.org/windivert.html) project. It bridges the gap between the C-based native driver and the Java Virtual Machine using [JNA (Java Native Access)](https://github.com/java-native-access/jna).
+**eBPFDivert** provides a high-performance packet capture, modification, and injection engine for Linux using the **eBPF (Extended Berkeley Packet Filter)** Traffic Control (TC) subsystem. This document details the inner workings of the driver, kernel-side packet routing, loop prevention, and user-space libraries.
 
-## Component Breakdown
+---
 
-### 1. The WinDivert Driver
-At its core, JDivert relies on the WinDivert driver (`WinDivert64.sys`) and its companion DLL (`WinDivert.dll`). The driver operates at the Windows Network Stack level, allowing user-mode applications to:
-- **Capture** packets using a kernel-mode filtering engine (WFP).
-- **Inject** packets back into the stack.
-- **Modify** or **Drop** packets in transit.
+## 1. Kernel-Side Hooks & Routing
 
-### 2. Native Library Management (`DeployHandler`)
-One of JDivert's key features is its "zero-install" philosophy. 
-- The native `.dll` and `.sys` files are bundled within the JDivert JAR.
-- At runtime, `DeployHandler` extracts these binaries to a stable, version-specific temporary directory (e.g., `%TEMP%/jdivert-3.0.0/`).
-- It skips extraction if the files already exist, improving startup time and preventing temporary folder bloat.
-- It dynamically configures `jna.library.path` to point to this directory, ensuring JNA can locate and load the WinDivert library without requiring manual installation.
+`ebpfdivert` intercepts packets by registering eBPF programs as class-less queuing discipline (qdisc) classifiers at the **Traffic Control (TC)** layer.
 
-### 3. Native Mapping (`WinDivertDLL`)
-The `WinDivertDLL` interface defines the JNA mapping to the native functions exported by `WinDivert.dll`. JDivert uses a **Zero-Copy Architecture** where possible:
-- Native adapters (JNA and Panama) expose direct `java.nio.ByteBuffer` objects that map directly to the memory allocated by the driver.
-- This eliminates the need to copy packet data between native memory and the Java heap.
+```mermaid
+flowchart TD
+    Ingress[Ingress Packet] --> tc_ingress["tc_divert_ingress() hook"]
+    Egress[Egress Packet] --> tc_egress["tc_divert_egress() hook"]
+    
+    tc_ingress --> IsRedirect{Redirect Mark?}
+    IsRedirect -- Yes --> TargetDev[Redirect to Target Dev via bpf_redirect]
+    IsRedirect -- No --> process_ingress[process_packet]
+    
+    tc_egress --> process_egress[process_packet]
+    
+    process_ingress --> parse[Parse Headers L2/L3/L4]
+    process_egress --> parse
+    
+    parse --> match[Loop & Match filter_rules]
+    match -- No Match --> Pass[TC_ACT_UNSPEC: Pass Packet]
+    match -- Match DROP --> Drop[TC_ACT_SHOT: Drop Packet]
+    match -- Match SNIFF --> RingbufSniff[Submit copy to Ringbuf] --> Pass
+    match -- Match DIVERT --> RingbufDivert[Submit copy to Ringbuf] --> Stolen[TC_ACT_STOLEN: Steal Packet]
+```
 
-### 4. High-Level API (`WinDivert` Class)
-The `com.github.ffalcinelli.jdivert.WinDivert` class is the primary entry point for developers. It provides a clean, `AutoCloseable` interface for:
-- Opening a capture handle with a specific filter.
-- Receiving packets into high-level `Packet` objects that wrap native memory.
-- Sending modified packets back to the stack using the same direct buffers.
+### Ingress Hook: `tc_divert_ingress`
+Hooks into network interfaces (e.g., `eth0`) at ingress. 
+- If the packet carries the `REDIRECT_MARK_MASK` in its socket mark (`skb->mark`), it is extracted and routed directly to the destination interface via `bpf_redirect`.
+- Otherwise, the packet undergoes rule evaluation.
 
-### 5. Packet Representation (`Packet` & `headers`)
-Packets are represented by the `Packet` class, which provides access to:
-- **Headers**: Structured access to IPv4, IPv6, TCP, UDP, and ICMP headers. These classes parse data **in-place** from the underlying direct buffer.
-- **Payload**: Raw access to the packet's payload data without heap allocation overhead.
+### Egress Hook: `tc_divert_egress`
+Hooks into interfaces at egress. Packs are parsed and run through rule evaluation immediately.
 
-JDivert handles the complexities of native memory management using `try-finally` blocks and `AutoCloseable` patterns, ensuring that when you modify a payload or a header, the underlying native buffers are correctly resized and synchronized without memory leaks.
+---
 
-## Data Flow
+## 2. BPF Maps & Data Structures
 
-1. **Initialization**: `WinDivertDLL` is loaded, triggering `DeployHandler` to extract and register native binaries into a versioned path.
-2. **Opening**: `new WinDivert(filter).open()` calls the native `WinDivertOpen`.
-3. **Capture**: `w.recv()` calls `WinDivertRecvEx`. The raw bytes are wrapped in a **Direct `ByteBuffer`**, which is then passed to a Java `Packet` object. No memory copy occurs here.
-4. **Modification**: Methods like `packet.getTcp().setDstPort(80)` or `packet.setPayload(data)` update the direct buffer in-place. If the payload grows beyond the buffer's capacity, a new heap buffer is transparently managed.
-5. **Re-injection**: `w.send(packet)` calls `WinDivertSendEx` to push the direct buffer back into the Windows network stack.
-6. **Cleanup**: Calling `w.close()` ensures the native handle is closed, and the `WinDivertAsyncResult` (if used) correctly releases its associated native memory.
+`ebpfdivert` uses seven BPF maps pinned in `/sys/fs/bpf/ebpfdivert/` to communicate between kernel space and user space:
+
+### 1. `pcap_ringbuf` (`BPF_MAP_TYPE_RINGBUF`)
+A lockless ring buffer used for high-speed packet transfers from the kernel to user-space. Intercepted packets are submitted as a `divert_packet_buffer` structure containing packet metadata and payload.
+
+### 2. `filter_rules` & `filter_rules_ipv6` (`BPF_MAP_TYPE_ARRAY`)
+Fixed-size arrays containing active IPv4/generic rules and IPv6 rules respectively (maximum 64 rules per map). Rule matching is performed sequentially from index `0` to `63`. If a rule has the `MATCH_LPM_TRIE` flag set in its matching mask, the IP address check is delegated to the LPM Trie maps instead of evaluating the rule's local IP and mask fields.
+
+### 3. `ipv4_lpm_trie` & `ipv6_lpm_trie` (`BPF_MAP_TYPE_LPM_TRIE`)
+Longest Prefix Match (LPM) Tries mapping IP prefix keys (subnets CIDR) to action masks. Used to achieve $O(\log N)$ matching time complexity when evaluating large sets of IP subnets.
+
+### 4. `stats_map` (`BPF_MAP_TYPE_PERCPU_ARRAY`)
+A per-CPU stats array storing real-time metrics to prevent locking overhead. Key metrics include:
+- `STAT_DIVERTED`: Count of stolen packets.
+- `STAT_DROPPED`: Count of discarded packets.
+- `STAT_SNIFFED`: Count of sniffed (copied) packets.
+- `STAT_PARSING_ERR`: Count of protocol parser/skb errors.
+- `STAT_RINGBUF_FULL`: Ring buffer overflows.
+- `STAT_QUEUE_FULL`: User-space packet queue overflows.
+
+### 5. `config_map` (`BPF_MAP_TYPE_ARRAY`)
+Stores configuration parameters for the driver (such as current handle priority, loop prevention mark, and snaplen).
+
+---
+
+## 3. Loop Prevention and Chaining
+
+To support multiple applications concurrently capturing packets on the same system, `ebpfdivert` implements **TC Chaining** and a **Priority-Aware Loop Prevention** mechanism:
+
+1. **Re-injection Priority Mark**:
+   When user-space re-injects a packet via `ebpfdivert_send()`, it marks the packet with a priority-aware socket mark:
+   $$\text{Socket Mark} = \text{PREVENT\_MARK} \mid (\text{priority} \ \& \ \text{0xFFFF})$$
+2. **BPF Evaluation**:
+   When the BPF program sees a packet containing `PREVENT_MARK` in `skb->mark`, it extracts the `inject_priority`.
+   - If the current classifier's priority is **higher or equal** (expressed as a lower integer value) than the `inject_priority`, the packet is skipped (`TC_ACT_UNSPEC`), avoiding recursive captures.
+   - If the current classifier's priority is **lower** (larger integer value), it is allowed to capture it, creating a priority-based handle chain.
+
+---
+
+## 4. User-Space Queueing and Backpressure
+
+Because ring buffer allocations are finite, user-space must process packets quickly. `libebpfdivert` implements a built-in FIFO packet queue to handle bursts of packets:
+
+- **Ring Buffer Poll**: The C library polls `pcap_ringbuf` via `ring_buffer__poll()`.
+- **FIFO Queueing**: When a packet is read from the ring buffer, if the application is not actively calling `recv`, the library pushes the packet onto an internal memory queue.
+- **Backpressure & Drop**: If the queue exceeds `max_queue_size` (default `1024`), incoming packets are dropped, and `STAT_QUEUE_FULL` is incremented.
+- **Tuning**: The backpressure threshold can be adjusted at runtime using `ebpfdivert_set_max_queue_size()`.

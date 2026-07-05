@@ -37,12 +37,12 @@ public class EBPFDivertJnaNativeAdapterTestCase {
 
     @Test
     public void testRecvAsync() {
-        assertThrows(UnsupportedOperationException.class, () -> adapter.recvAsync(null, 0, null));
+        assertThrows(NullPointerException.class, () -> adapter.recvAsync(null, 1024, null));
     }
 
     @Test
     public void testSendAsync() {
-        assertThrows(UnsupportedOperationException.class, () -> adapter.sendAsync(null, null, null, null));
+        assertThrows(NullPointerException.class, () -> adapter.sendAsync(null, ByteBuffer.allocate(10), new WinDivertAddress(), null));
     }
 
     @Test
