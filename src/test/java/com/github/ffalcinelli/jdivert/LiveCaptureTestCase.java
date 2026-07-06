@@ -220,7 +220,7 @@ public class LiveCaptureTestCase {
 
                         String data = in.readLine();
                         if (data != null)
-                            out.print(alterMessage(data));
+                            out.println(alterMessage(data));
                         out.flush();
                     }
                 }
