@@ -39,6 +39,11 @@ public interface LibBpf extends Library {
     int bpf_tc_detach(BpfTcHook hook, BpfTcOpts opts);
     int libbpf_num_possible_cpus();
 
+    interface libbpf_print_fn_t extends Callback {
+        int callback(int level, String format, Pointer args);
+    }
+    void libbpf_set_print(libbpf_print_fn_t print_fn);
+
     // Structures
     class BpfTcHook extends Structure {
         public long sz = 152; // sizeof(struct bpf_tc_hook)

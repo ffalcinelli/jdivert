@@ -53,7 +53,7 @@
         <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <windivert.version>2.2.2</windivert.version>
-        <ebpfdivert.version>0.0.3</ebpfdivert.version>
+        <ebpfdivert.version>0.0.4</ebpfdivert.version>
     </properties>
 
     <dependencies>
@@ -115,6 +115,20 @@
                             <connectTimeOut>60000</connectTimeOut>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>download-ebpfdivert</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <configuration>
+                            <url>https://github.com/ffalcinelli/ebpfdivert/releases/download/v${ebpfdivert.version}/ebpfdivert-v${ebpfdivert.version}-linux-amd64.tar.gz</url>
+                            <unpack>true</unpack>
+                            <outputDirectory>${project.build.directory}/ebpfdivert</outputDirectory>
+                            <readTimeOut>60000</readTimeOut>
+                            <connectTimeOut>60000</connectTimeOut>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -137,7 +151,7 @@
                                 <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert64.sys"
                                       tofile="${project.build.directory}/native-resources/WinDivert64.sys"
                                       failonerror="false"/>
-                                <copy file="${project.basedir}/ebpfdivert/ebpfdivert.bpf.o"
+                                <copy file="${project.build.directory}/ebpfdivert/lib/ebpfdivert/ebpfdivert.bpf.o"
                                       todir="${project.build.directory}/native-resources"
                                       failonerror="false"/>
 

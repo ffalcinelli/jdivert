@@ -9,6 +9,7 @@ import com.github.ffalcinelli.jdivert.windivert.NativeAdapter;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
+import com.sun.jna.ptr.PointerByReference;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -31,6 +32,32 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
 
     private static final LibBpf lib = LibBpf.INSTANCE;
     private static final LibC libc = LibC.INSTANCE;
+    private static LibBpf.libbpf_print_fn_t printCallbackRef;
+
+    static {
+        try {
+            printCallbackRef = (level, format, args) -> {
+                PointerByReference ptrRef = new PointerByReference();
+                if (libc.vasprintf(ptrRef, format, args) >= 0) {
+                    Pointer ptr = ptrRef.getValue();
+                    String msg = ptr.getString(0);
+                    libc.free(ptr);
+
+                    if (msg.contains("Invalid handle") || 
+                        msg.contains("Exclusivity flag on") || 
+                        msg.contains("Cannot find specified qdisc") || 
+                        msg.contains("Kernel error message")) {
+                        return 0;
+                    }
+                    System.err.print("libbpf JNA: " + msg);
+                }
+                return 0;
+            };
+            lib.libbpf_set_print(printCallbackRef);
+        } catch (Throwable t) {
+            // Ignore if we can't load/set print callback
+        }
+    }
 
     private static final ExecutorService executor = Executors.newCachedThreadPool(new ThreadFactory() {
         @Override

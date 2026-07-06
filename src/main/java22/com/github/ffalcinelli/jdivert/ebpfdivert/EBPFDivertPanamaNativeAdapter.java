@@ -90,6 +90,8 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
     private static class EBPFHandle implements Handle {
         MemorySegment bpfObj;
         MemorySegment ringBuffer;
+        MemorySegment ingressLink = MemorySegment.NULL;
+        MemorySegment egressLink = MemorySegment.NULL;
         int filterMapFd;
         int maxQueueSize = 4096;
         BlockingQueue<PacketEvent> packetQueue = new LinkedBlockingQueue<>();
@@ -98,6 +100,12 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
         @Override
         public void close() throws WinDivertException {
             try {
+                if (ingressLink != null && !ingressLink.equals(MemorySegment.NULL)) {
+                    LibBpfPanama.bpf_link__destroy.invoke(ingressLink);
+                }
+                if (egressLink != null && !egressLink.equals(MemorySegment.NULL)) {
+                    LibBpfPanama.bpf_link__destroy.invoke(egressLink);
+                }
                 if (ringBuffer != null && !ringBuffer.equals(MemorySegment.NULL)) {
                     LibBpfPanama.ring_buffer__free.invoke(ringBuffer);
                 }
@@ -176,11 +184,15 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
             // Attach programs
             MemorySegment ingressName = arena.allocateFrom("tc_divert_ingress");
             MemorySegment progIngress = (MemorySegment) LibBpfPanama.bpf_object__find_program_by_name.invoke(obj, ingressName);
-            if (!progIngress.equals(MemorySegment.NULL)) LibBpfPanama.bpf_program__attach.invoke(progIngress);
+            if (!progIngress.equals(MemorySegment.NULL)) {
+                handle.ingressLink = (MemorySegment) LibBpfPanama.bpf_program__attach.invoke(progIngress);
+            }
             
             MemorySegment egressName = arena.allocateFrom("tc_divert_egress");
             MemorySegment progEgress = (MemorySegment) LibBpfPanama.bpf_object__find_program_by_name.invoke(obj, egressName);
-            if (!progEgress.equals(MemorySegment.NULL)) LibBpfPanama.bpf_program__attach.invoke(progEgress);
+            if (!progEgress.equals(MemorySegment.NULL)) {
+                handle.egressLink = (MemorySegment) LibBpfPanama.bpf_program__attach.invoke(progEgress);
+            }
 
             // Setup filter rules
             MemorySegment mapName = arena.allocateFrom("filter_rules");
