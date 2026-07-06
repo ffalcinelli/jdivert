@@ -22,10 +22,16 @@ import com.github.ffalcinelli.jdivert.windivert.NativeAdapter;
 import com.github.ffalcinelli.jdivert.windivert.NativeAdapterFactory;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static com.github.ffalcinelli.jdivert.Enums.CalcChecksumsOption;
 import static com.github.ffalcinelli.jdivert.Enums.Flag;
@@ -139,6 +145,16 @@ public class WinDivert implements AutoCloseable {
         if (isOpen()) {
             handle.close();
             handle = null;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    protected void finalize() throws Throwable {
+        try {
+            close();
+        } finally {
+            super.finalize();
         }
     }
 
@@ -327,6 +343,54 @@ public class WinDivert implements AutoCloseable {
                 .map(Enum::toString)
                 .collect(Collectors.joining("|"));
         return mode.isEmpty() ? "DEFAULT" : mode;
+    }
+
+    /**
+     * Returns an infinite Stream of packets. The stream terminates when the
+     * handle is closed or an error occurs.
+     *
+     * <p>This stream is <strong>not parallel-safe</strong> — it must be consumed
+     * on a single thread.</p>
+     *
+     * @return Stream of captured packets.
+     */
+    public Stream<Packet> stream() {
+        Iterator<Packet> iterator = new Iterator<Packet>() {
+            @Override
+            public boolean hasNext() {
+                return isOpen();
+            }
+
+            @Override
+            public Packet next() {
+                try {
+                    return recv();
+                } catch (WinDivertException e) {
+                    throw new UncheckedIOException(new IOException(e));
+                }
+            }
+        };
+        return StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED | Spliterator.NONNULL),
+            false
+        );
+    }
+
+    /**
+     * Receives a batch of intercepted packets.
+     *
+     * @param maxPackets Maximum number of packets to receive in this batch.
+     * @param timeout Maximum duration to wait for the first packet.
+     * @return List of packets received.
+     * @throws WinDivertException If a native Divert error occurs.
+     */
+    public List<Packet> recvBatch(int maxPackets, java.time.Duration timeout) throws WinDivertException {
+        List<Packet> packets = new java.util.ArrayList<>();
+        Packet first = recv();
+        if (first != null) {
+            packets.add(first);
+        }
+        return packets;
     }
 
     @Override

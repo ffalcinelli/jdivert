@@ -31,14 +31,7 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
     private final Arena arena = Arena.ofShared();
 
-    private static final ExecutorService executor = Executors.newCachedThreadPool(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r, "EBPFDivertPanamaNativeAdapter-AsyncThread");
-            t.setDaemon(true);
-            return t;
-        }
-    });
+    private static final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     private static class EBPFAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
         private final CompletableFuture<Integer> future = new CompletableFuture<>();
@@ -47,11 +40,7 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
         public EBPFAsyncImplementation(EBPFHandle handle, PanamaBuffer buffer, WinDivertAddress address) {
             this.task = executor.submit(() -> {
                 try {
-                    PacketEvent event = handle.packetQueue.poll();
-                    while (event == null && !Thread.currentThread().isInterrupted()) {
-                        LibBpfPanama.ring_buffer__poll.invoke(handle.ringBuffer, 10L);
-                        event = handle.packetQueue.poll(10, TimeUnit.MILLISECONDS);
-                    }
+                    PacketEvent event = handle.packetQueue.take();
                     if (event != null) {
                         buffer.getByteBuffer().put(event.data);
                         address.Union.Network.IfIdx = event.ifindex;
@@ -97,9 +86,18 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
         int maxQueueSize = 4096;
         BlockingQueue<PacketEvent> packetQueue = new LinkedBlockingQueue<>();
         Arena arena;
+        Thread pollerThread;
+        volatile boolean running = true;
 
         @Override
         public void close() throws WinDivertException {
+            running = false;
+            if (pollerThread != null) {
+                pollerThread.interrupt();
+                try {
+                    pollerThread.join(500);
+                } catch (InterruptedException ignored) {}
+            }
             try {
                 if (ingressLink != null && !ingressLink.equals(MemorySegment.NULL)) {
                     LibBpfPanama.bpf_link__destroy.invoke(ingressLink);
@@ -117,6 +115,21 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
             } catch (Throwable t) {
                 throw new WinDivertException(-1, "Failed to close BPF handle", t);
             }
+        }
+
+        @SuppressWarnings("unused")
+        private int onSample(MemorySegment ctx, MemorySegment data, long size) {
+            // divert_pkt_header: ifindex(4), direction(4), packet_len(4), l2_len(4)
+            int ifindex = data.get(ValueLayout.JAVA_INT, 0);
+            int direction = data.get(ValueLayout.JAVA_INT, 4);
+            int packet_len = data.get(ValueLayout.JAVA_INT, 8);
+            int header_size = 16;
+            
+            if (packetQueue.size() < maxQueueSize) {
+                byte[] pktData = data.asSlice(header_size, packet_len).toArray(ValueLayout.JAVA_BYTE);
+                packetQueue.offer(new PacketEvent(pktData, ifindex, direction));
+            }
+            return 0;
         }
 
         @Override
@@ -245,44 +258,30 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
                 );
 
                 handle.ringBuffer = (MemorySegment) LibBpfPanama.ring_buffer__new.invoke(rbFd, callback, MemorySegment.NULL, MemorySegment.NULL);
+                if (handle.ringBuffer != null && !handle.ringBuffer.equals(MemorySegment.NULL)) {
+                    handle.pollerThread = new Thread(() -> {
+                        try {
+                            while (handle.running) {
+                                LibBpfPanama.ring_buffer__poll.invoke(handle.ringBuffer, 10L);
+                            }
+                        } catch (Throwable ignored) {}
+                    }, "EBPFDivert-PanamaRingBufferPoller");
+                    handle.pollerThread.setDaemon(true);
+                    handle.pollerThread.start();
+                }
             }
 
             return handle;
         } catch (Throwable t) {
-            throw new WinDivertException(-1, 
-"Failed to open eBPF handle", t);
+            throw new WinDivertException(-1, "Failed to open eBPF handle", t);
         }
     }
-
-    // Callback for Ring Buffer
-    @SuppressWarnings("unused")
-    private int onSample(MemorySegment ctx, MemorySegment data, long size) {
-        // divert_pkt_header: ifindex(4), direction(4), packet_len(4), l2_len(4)
-        int ifindex = data.get(ValueLayout.JAVA_INT, 0);
-        int direction = data.get(ValueLayout.JAVA_INT, 4);
-        int packet_len = data.get(ValueLayout.JAVA_INT, 8);
-        int header_size = 16;
-        
-        EBPFHandle h = (EBPFHandle) currentHandle;
-        if (h != null && h.packetQueue.size() < h.maxQueueSize) {
-            byte[] pktData = data.asSlice(header_size, packet_len).toArray(ValueLayout.JAVA_BYTE);
-            h.packetQueue.offer(new PacketEvent(pktData, ifindex, direction));
-        }
-        return 0;
-    }
-
-    private Handle currentHandle; // Simplified for single handle usage
 
     @Override
     public int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
         EBPFHandle h = (EBPFHandle) handle;
-        currentHandle = h;
         try {
-            PacketEvent event = h.packetQueue.poll();
-            if (event == null) {
-                LibBpfPanama.ring_buffer__poll.invoke(h.ringBuffer, 100);
-                event = h.packetQueue.poll(100, TimeUnit.MILLISECONDS);
-            }
+            PacketEvent event = h.packetQueue.take();
             if (event != null) {
                 buffer.getByteBuffer().put(event.data);
                 address.Union.Network.IfIdx = event.ifindex;
@@ -291,8 +290,7 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
             }
         } catch (Throwable t) {
             if (t instanceof InterruptedException) Thread.currentThread().interrupt();
-            throw new WinDivertException(-1, 
-"Recv failed", t);
+            throw new WinDivertException(-1, "Recv failed", t);
         }
         return 0;
     }

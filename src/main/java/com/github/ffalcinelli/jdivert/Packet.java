@@ -375,4 +375,130 @@ public class Packet {
         result = 31 * result + getWinDivertAddress().hashCode();
         return result;
     }
+
+    public static PacketBuilder builder() {
+        return new PacketBuilder();
+    }
+
+    public static class PacketBuilder {
+        private int ipVersion = 4;
+        private String proto = "tcp";
+        private String srcAddr = "127.0.0.1";
+        private String dstAddr = "127.0.0.1";
+        private int srcPort = 0;
+        private int dstPort = 0;
+        private byte[] payload = new byte[0];
+        private int ttl = 64;
+
+        public PacketBuilder ipv4() {
+            this.ipVersion = 4;
+            this.srcAddr = "127.0.0.1";
+            this.dstAddr = "127.0.0.1";
+            return this;
+        }
+
+        public PacketBuilder ipv4(String src, String dst) {
+            this.ipVersion = 4;
+            this.srcAddr = src;
+            this.dstAddr = dst;
+            return this;
+        }
+
+        public PacketBuilder ipv6() {
+            this.ipVersion = 6;
+            this.srcAddr = "::1";
+            this.dstAddr = "::1";
+            return this;
+        }
+
+        public PacketBuilder ipv6(String src, String dst) {
+            this.ipVersion = 6;
+            this.srcAddr = src;
+            this.dstAddr = dst;
+            return this;
+        }
+
+        public PacketBuilder ttl(int ttl) {
+            this.ttl = ttl;
+            return this;
+        }
+
+        public PacketBuilder tcp(int srcPort, int dstPort) {
+            this.proto = "tcp";
+            this.srcPort = srcPort;
+            this.dstPort = dstPort;
+            return this;
+        }
+
+        public PacketBuilder udp(int srcPort, int dstPort) {
+            this.proto = "udp";
+            this.srcPort = srcPort;
+            this.dstPort = dstPort;
+            return this;
+        }
+
+        public PacketBuilder payload(byte[] payload) {
+            this.payload = payload != null ? payload : new byte[0];
+            return this;
+        }
+
+        public Packet build() {
+            int ipLen = ipVersion == 4 ? 20 : 40;
+            int protoLen = "tcp".equals(proto) ? 20 : ("udp".equals(proto) ? 8 : 0);
+            int totalLen = ipLen + protoLen + payload.length;
+
+            byte[] raw = new byte[totalLen];
+            ByteBuffer buf = ByteBuffer.wrap(raw);
+            buf.order(ByteOrder.BIG_ENDIAN);
+
+            if (ipVersion == 4) {
+                // Version + IHL (5)
+                buf.put(0, (byte) 0x45);
+                // Total Length
+                buf.putShort(2, (short) totalLen);
+                // TTL
+                buf.put(8, (byte) ttl);
+                // Protocol
+                buf.put(9, (byte) ("tcp".equals(proto) ? 6 : ("udp".equals(proto) ? 17 : 0)));
+            } else {
+                // Version + Traffic Class + Flow Label
+                buf.putInt(0, 0x60000000);
+                // Payload Length
+                buf.putShort(4, (short) (protoLen + payload.length));
+                // Next Header
+                buf.put(6, (byte) ("tcp".equals(proto) ? 6 : ("udp".equals(proto) ? 17 : 0)));
+                // Hop Limit
+                buf.put(7, (byte) ttl);
+            }
+
+            if ("tcp".equals(proto)) {
+                int offset = ipLen;
+                // Data Offset (5 << 4 = 0x50)
+                buf.put(offset + 12, (byte) 0x50);
+            } else if ("udp".equals(proto)) {
+                int offset = ipLen;
+                // Length
+                buf.putShort(offset + 4, (short) (protoLen + payload.length));
+            }
+
+            Packet packet = new Packet(raw, new WinDivertAddress());
+            try {
+                packet.setSrcAddr(srcAddr);
+                packet.setDstAddr(dstAddr);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid address", e);
+            }
+
+            if ("tcp".equals(proto) || "udp".equals(proto)) {
+                packet.setSrcPort(srcPort);
+                packet.setDstPort(dstPort);
+            }
+
+            if (payload.length > 0) {
+                packet.setPayload(payload);
+            }
+
+            return packet;
+        }
+    }
 }

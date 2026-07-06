@@ -59,14 +59,23 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
         }
     }
 
-    private static final ExecutorService executor = Executors.newCachedThreadPool(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r, "EBPFDivertJnaNativeAdapter-AsyncThread");
-            t.setDaemon(true);
-            return t;
+    private static ExecutorService createExecutor() {
+        try {
+            java.lang.reflect.Method m = Executors.class.getMethod("newVirtualThreadPerTaskExecutor");
+            return (ExecutorService) m.invoke(null);
+        } catch (Throwable t) {
+            return Executors.newCachedThreadPool(new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "EBPFDivertJnaNativeAdapter-AsyncThread");
+                    t.setDaemon(true);
+                    return t;
+                }
+            });
         }
-    });
+    }
+
+    private static final ExecutorService executor = createExecutor();
 
     private static class EBPFAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
         private final CompletableFuture<Integer> future = new CompletableFuture<>();
@@ -75,25 +84,26 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
         public EBPFAsyncImplementation(EBPFHandle handle, JNABuffer buffer, WinDivertAddress address, Map<ByteBuffer, byte[]> l2Headers) {
             this.task = executor.submit(() -> {
                 try {
-                    PacketEvent event = handle.packetQueue.poll();
-                    while (event == null && !Thread.currentThread().isInterrupted()) {
-                        lib.ring_buffer__poll(handle.ringBuffer, 10);
-                        event = handle.packetQueue.poll(10, TimeUnit.MILLISECONDS);
-                    }
+                    PacketEvent event = handle.packetQueue.take();
                     if (event != null) {
                         int l2Len = event.l2Len;
-                        int payloadLen = event.data.length - l2Len;
+                        ByteBuffer eventData = event.data.duplicate();
+                        int totalLen = eventData.limit();
+                        int payloadLen = totalLen - l2Len;
                         if (payloadLen > buffer.capacity()) {
                             payloadLen = buffer.capacity();
                         }
 
                         ByteBuffer bb = buffer.getByteBuffer();
                         bb.clear();
-                        bb.put(event.data, l2Len, payloadLen);
+                        eventData.position(l2Len);
+                        eventData.limit(l2Len + payloadLen);
+                        bb.put(eventData);
                         bb.flip();
 
                         byte[] l2Header = new byte[l2Len];
-                        System.arraycopy(event.data, 0, l2Header, 0, l2Len);
+                        eventData.position(0);
+                        eventData.get(l2Header, 0, l2Len);
                         l2Headers.put(bb, l2Header);
 
                         address.Union.Network.IfIdx = event.ifindex;
@@ -153,9 +163,39 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
         int maxQueueSize = 4096;
         BlockingQueue<PacketEvent> packetQueue = new LinkedBlockingQueue<>();
         LibBpf.ring_buffer_sample_fn callback;
+        ByteBuffer[] slabBuffers;
+        int slabIndex = 0;
+        Thread pollerThread;
+        volatile boolean running = true;
+
+        void initSlab(int count, int size) {
+            slabBuffers = new ByteBuffer[count];
+            for (int i = 0; i < count; i++) {
+                slabBuffers[i] = ByteBuffer.allocateDirect(size);
+            }
+        }
+
+        synchronized ByteBuffer nextSlabBuffer() {
+            if (slabBuffers == null) {
+                initSlab(maxQueueSize, 2048);
+            }
+            ByteBuffer buf = slabBuffers[slabIndex];
+            slabIndex = (slabIndex + 1) % slabBuffers.length;
+            return buf;
+        }
 
         @Override
         public void close() throws WinDivertException {
+            if (bpfObj == null) {
+                return;
+            }
+            running = false;
+            if (pollerThread != null) {
+                pollerThread.interrupt();
+                try {
+                    pollerThread.join(500);
+                } catch (InterruptedException ignored) {}
+            }
             try {
                 // Detach all TC hooks
                 for (AttachedHook ah : hooks) {
@@ -180,8 +220,14 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
                     rawSockV6 = -1;
                 }
 
-                if (ringBuffer != null) lib.ring_buffer__free(ringBuffer);
-                if (bpfObj != null) lib.bpf_object__close(bpfObj);
+                if (ringBuffer != null) {
+                    lib.ring_buffer__free(ringBuffer);
+                    ringBuffer = null;
+                }
+                if (bpfObj != null) {
+                    lib.bpf_object__close(bpfObj);
+                    bpfObj = null;
+                }
             } catch (Exception e) {
                 throw new WinDivertException(-1, "Failed to close BPF handle", e);
             }
@@ -216,12 +262,12 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
     }
 
     private static class PacketEvent {
-        byte[] data;
+        ByteBuffer data;
         int ifindex;
         short direction;
         short l2Len;
 
-        PacketEvent(byte[] data, int ifindex, short direction, short l2Len) {
+        PacketEvent(ByteBuffer data, int ifindex, short direction, short l2Len) {
             this.data = data;
             this.ifindex = ifindex;
             this.direction = direction;
@@ -242,6 +288,7 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
 
         EBPFHandle handle = new EBPFHandle();
         handle.bpfObj = obj;
+        handle.initSlab(handle.maxQueueSize, 2048);
 
         if (priority == 0) {
             handle.tcPriority = 30000;
@@ -364,13 +411,29 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
                 short direction = data.getShort(8);
                 short l2Len = data.getShort(10);
 
-                byte[] pktData = data.getByteArray(16, pktLen);
+                ByteBuffer nativeView = data.getByteBuffer(16, pktLen);
+                ByteBuffer slabBuf = handle.nextSlabBuffer();
+                synchronized (slabBuf) {
+                    slabBuf.clear();
+                    slabBuf.put(nativeView);
+                    slabBuf.flip();
+                }
+
                 if (handle.packetQueue.size() < handle.maxQueueSize) {
-                    handle.packetQueue.offer(new PacketEvent(pktData, ifindex, direction, l2Len));
+                    handle.packetQueue.offer(new PacketEvent(slabBuf, ifindex, direction, l2Len));
                 }
                 return 0;
             };
             handle.ringBuffer = lib.ring_buffer__new(rbFd, handle.callback, null, null);
+            if (handle.ringBuffer != null) {
+                handle.pollerThread = new Thread(() -> {
+                    while (handle.running) {
+                        lib.ring_buffer__poll(handle.ringBuffer, 10);
+                    }
+                }, "EBPFDivert-RingBufferPoller");
+                handle.pollerThread.setDaemon(true);
+                handle.pollerThread.start();
+            }
         }
 
         return handle;
@@ -380,26 +443,27 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
     public int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
         EBPFHandle h = (EBPFHandle) handle;
         try {
-            PacketEvent event = h.packetQueue.poll();
-            if (event == null) {
-                lib.ring_buffer__poll(h.ringBuffer, 10);
-                event = h.packetQueue.poll(10, TimeUnit.MILLISECONDS);
-            }
+            PacketEvent event = h.packetQueue.take();
             if (event != null) {
                 int l2Len = event.l2Len;
-                int payloadLen = event.data.length - l2Len;
+                ByteBuffer eventData = event.data.duplicate();
+                int totalLen = eventData.limit();
+                int payloadLen = totalLen - l2Len;
                 if (payloadLen > buffer.capacity()) {
                     payloadLen = buffer.capacity();
                 }
 
                 ByteBuffer bb = buffer.getByteBuffer();
                 bb.clear();
-                bb.put(event.data, l2Len, payloadLen);
+                eventData.position(l2Len);
+                eventData.limit(l2Len + payloadLen);
+                bb.put(eventData);
                 bb.flip();
 
                 // Cache L2 header associated with this buffer
                 byte[] l2Header = new byte[l2Len];
-                System.arraycopy(event.data, 0, l2Header, 0, l2Len);
+                eventData.position(0);
+                eventData.get(l2Header, 0, l2Len);
                 l2Headers.put(bb, l2Header);
 
                 address.Union.Network.IfIdx = event.ifindex;

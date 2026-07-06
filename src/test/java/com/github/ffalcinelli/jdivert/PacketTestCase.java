@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import static com.github.ffalcinelli.jdivert.Enums.CalcChecksumsOption.NO_TCP_CHECKSUM;
@@ -213,5 +214,45 @@ public class PacketTestCase {
         assertEquals(40 + 8 + 4, p.getRaw().length);
         assertEquals(40 + 8 + 4, p.getIpv6().get().getPayloadLength() + 40);
         assertEquals(8 + 4, p.getUdp().get().getLength());
+    }
+
+    @Test
+    public void testPacketBuilderIPv4Tcp() throws UnknownHostException {
+        byte[] payload = "test-payload".getBytes();
+        Packet p = Packet.builder()
+            .ipv4("10.0.0.1", "10.0.0.2")
+            .tcp(12345, 80)
+            .payload(payload)
+            .ttl(128)
+            .build();
+
+        assertTrue(p.isIpv4());
+        assertTrue(p.isTcp());
+        assertEquals(InetAddress.getByName("10.0.0.1"), InetAddress.getByName(p.getSrcAddr().get()));
+        assertEquals(InetAddress.getByName("10.0.0.2"), InetAddress.getByName(p.getDstAddr().get()));
+        assertEquals(12345, p.getSrcPort().get());
+        assertEquals(80, p.getDstPort().get());
+        assertEquals(128, p.getIpv4().get().getTTL());
+        assertArrayEquals(payload, p.getPayload());
+    }
+
+    @Test
+    public void testPacketBuilderIPv6Udp() throws UnknownHostException {
+        byte[] payload = "hello-udp".getBytes();
+        Packet p = Packet.builder()
+            .ipv6("2001:db8::1", "2001:db8::2")
+            .udp(5555, 6666)
+            .payload(payload)
+            .ttl(32)
+            .build();
+
+        assertTrue(p.isIpv6());
+        assertTrue(p.isUdp());
+        assertEquals(InetAddress.getByName("2001:db8::1"), InetAddress.getByName(p.getSrcAddr().get()));
+        assertEquals(InetAddress.getByName("2001:db8::2"), InetAddress.getByName(p.getDstAddr().get()));
+        assertEquals(5555, p.getSrcPort().get());
+        assertEquals(6666, p.getDstPort().get());
+        assertEquals(32, p.getIpv6().get().getHopLimit());
+        assertArrayEquals(payload, p.getPayload());
     }
 }

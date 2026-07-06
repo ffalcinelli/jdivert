@@ -29,4 +29,12 @@ public class DivertTestCase {
                        e.getMessage().contains("symbols not found"));
         }
     }
+
+    @Test
+    public void testDivertStreamNotOpen() {
+        Divert d = new Divert("false");
+        assertFalse(d.isOpen());
+        assertNotNull(d.stream());
+        assertEquals(0, d.stream().count());
+    }
 }
