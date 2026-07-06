@@ -68,4 +68,5 @@ _site_javadocs/
 
 # Antigravity CLI
 .antigravitycli/
-ebpfdivert
+*.o
+*.so

@@ -93,6 +93,7 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
         MemorySegment ingressLink = MemorySegment.NULL;
         MemorySegment egressLink = MemorySegment.NULL;
         int filterMapFd;
+        int filterMapFdIpv6;
         int maxQueueSize = 4096;
         BlockingQueue<PacketEvent> packetQueue = new LinkedBlockingQueue<>();
         Arena arena;
@@ -196,15 +197,37 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
             // Setup filter rules
             MemorySegment mapName = arena.allocateFrom("filter_rules");
+            MemorySegment mapV6Name = arena.allocateFrom("filter_rules_ipv6");
             MemorySegment map = (MemorySegment) LibBpfPanama.bpf_object__find_map_by_name.invoke(obj, mapName);
-            if (!map.equals(MemorySegment.NULL)) {
+            MemorySegment mapV6 = (MemorySegment) LibBpfPanama.bpf_object__find_map_by_name.invoke(obj, mapV6Name);
+            if (!map.equals(MemorySegment.NULL) && !mapV6.equals(MemorySegment.NULL)) {
                 handle.filterMapFd = (int) LibBpfPanama.bpf_map__fd.invoke(map);
-                List<FilterTranspiler.BpfFilterRule> rules = FilterTranspiler.transpile(filter);
-                for (int i = 0; i < rules.size(); i++) {
-                    byte[] ruleBytes = rules.get(i).toBytes();
+                handle.filterMapFdIpv6 = (int) LibBpfPanama.bpf_map__fd.invoke(mapV6);
+
+                // Clear maps
+                byte[] emptyRuleBytes = new byte[34];
+                byte[] emptyRuleV6Bytes = new byte[82];
+                for (int i = 0; i < 64; i++) {
                     MemorySegment key = handle.arena.allocate(ValueLayout.JAVA_INT, i);
-                    MemorySegment val = handle.arena.allocateFrom(ValueLayout.JAVA_BYTE, ruleBytes);
+                    MemorySegment val = handle.arena.allocateFrom(ValueLayout.JAVA_BYTE, emptyRuleBytes);
+                    MemorySegment valV6 = handle.arena.allocateFrom(ValueLayout.JAVA_BYTE, emptyRuleV6Bytes);
                     LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFd, key, val, 0L);
+                    LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFdIpv6, key, valV6, 0L);
+                }
+
+                // Write transpiled rules
+                boolean sniff = (flags & 1) != 0; // Flag.SNIFF = 1
+                boolean drop = (flags & 2) != 0;  // Flag.DROP = 2
+                List<FilterTranspiler.TranspiledRule> rules = FilterTranspiler.transpile(filter, sniff, drop);
+                for (int i = 0; i < Math.min(rules.size(), 64); i++) {
+                    FilterTranspiler.TranspiledRule r = rules.get(i);
+                    MemorySegment key = handle.arena.allocate(ValueLayout.JAVA_INT, i);
+                    MemorySegment val = handle.arena.allocateFrom(ValueLayout.JAVA_BYTE, r.ruleBytes);
+                    if (r.isIpv6) {
+                        LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFdIpv6, key, val, 0L);
+                    } else {
+                        LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFd, key, val, 0L);
+                    }
                 }
             }
 
