@@ -66,7 +66,7 @@ public class DeployHandlerTestCase {
         try {
             Path binPath = DeployHandler.deployToPath();
             assertNotNull(binPath);
-            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "ebpfdivert.bpf.o";
+            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "libebpfdivert.so";
             assertTrue(binPath.toString().endsWith(mainFile));
 
             File binFile = binPath.toFile();
@@ -98,7 +98,7 @@ public class DeployHandlerTestCase {
         if (!tempDir.mkdirs()) return;
         try {
             DeployHandler.deployInTempDir(tempDir);
-            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "ebpfdivert.bpf.o";
+            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "libebpfdivert.so";
             File binFile = new File(tempDir, mainFile);
             assertTrue(binFile.exists());
             long length = binFile.length();

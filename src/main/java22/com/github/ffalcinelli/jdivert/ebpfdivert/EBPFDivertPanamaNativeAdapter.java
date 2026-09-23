@@ -1,409 +1,344 @@
+/*
+ * Copyright (c) Fabio Falcinelli 2026.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package com.github.ffalcinelli.jdivert.ebpfdivert;
 
 import com.github.ffalcinelli.jdivert.WinDivertAsyncResult;
-import com.github.ffalcinelli.jdivert.ebpfdivert.panama.LibBpfPanama;
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
+import com.github.ffalcinelli.jdivert.windivert.AddressCodec;
 import com.github.ffalcinelli.jdivert.windivert.DeployHandler;
 import com.github.ffalcinelli.jdivert.windivert.NativeAdapter;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
-import java.util.Objects;
 
-import java.lang.foreign.*;
+import java.lang.foreign.Arena;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SymbolLookup;
 import java.lang.invoke.MethodHandle;
 import java.nio.ByteBuffer;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.Objects;
+
+import static java.lang.foreign.ValueLayout.ADDRESS;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
+import static java.lang.foreign.ValueLayout.JAVA_INT;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
+import static java.lang.foreign.ValueLayout.JAVA_SHORT;
 
 /**
- * eBPF implementation of NativeAdapter for Linux using Project Panama.
- * Targets Java 22+.
+ * Linux {@link NativeAdapter} over libebpfdivert, through the Foreign Function &amp; Memory API (Java 22+).
  */
 public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
 
-    private final Arena arena = Arena.ofShared();
+    private static final Linker LINKER = Linker.nativeLinker();
+    private static final SymbolLookup LOOKUP =
+            SymbolLookup.libraryLookup(DeployHandler.deployToPath(), Arena.global());
 
-    private static final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private static final MethodHandle OPEN_EX = handle("ebpfdivert_open_ex",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, JAVA_SHORT, JAVA_LONG, ADDRESS, ADDRESS));
+    private static final MethodHandle RECV = handle("ebpfdivert_recv",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT));
+    private static final MethodHandle SEND = handle("ebpfdivert_send",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
+    private static final MethodHandle SHUTDOWN = handle("ebpfdivert_shutdown",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT));
+    private static final MethodHandle CLOSE = handle("ebpfdivert_close",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS));
+    private static final MethodHandle SET_PARAM = handle("ebpfdivert_set_param",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, JAVA_LONG));
+    private static final MethodHandle GET_PARAM = handle("ebpfdivert_get_param",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
+    private static final MethodHandle UNREGISTER = handle("ebpfdivert_unregister",
+            FunctionDescriptor.of(JAVA_INT));
+    private static final MethodHandle STRERROR = handle("ebpfdivert_strerror",
+            FunctionDescriptor.of(ADDRESS, JAVA_INT));
+    private static final MethodHandle COMPILE = handle("ebpfdivert_helper_compile_filter",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
+    private static final MethodHandle CALC_CHECKSUMS = handle("ebpfdivert_helper_calc_checksums",
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_LONG));
+    private static final MethodHandle HASH = handle("ebpfdivert_helper_hash_packet",
+            FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_INT, JAVA_LONG));
 
-    private static class EBPFAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
-        private final CompletableFuture<Integer> future = new CompletableFuture<>();
-        private final Future<?> task;
-
-        public EBPFAsyncImplementation(EBPFHandle handle, PanamaBuffer buffer, WinDivertAddress address) {
-            this.task = executor.submit(() -> {
-                try {
-                    PacketEvent event = handle.packetQueue.take();
-                    if (event != null) {
-                        buffer.getByteBuffer().put(event.data);
-                        address.Union.Network.IfIdx = event.ifindex;
-                        address.setOutbound(event.direction == 1);
-                        future.complete(event.data.length);
-                    } else {
-                        future.complete(0);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    future.completeExceptionally(e);
-                } catch (Throwable t) {
-                    future.completeExceptionally(t);
-                }
-            });
-        }
-
-        @Override
-        public boolean isCompleted() {
-            return future.isDone();
-        }
-
-        @Override
-        public int waitAndGetResult() throws WinDivertException {
-            try {
-                return future.get();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new WinDivertException(-1, "Async receive interrupted", e);
-            } catch (ExecutionException e) {
-                throw new WinDivertException(-1, "Async receive failed", e.getCause());
-            }
-        }
+    private static MethodHandle handle(String name, FunctionDescriptor descriptor) {
+        return LINKER.downcallHandle(LOOKUP.find(name).orElseThrow(
+                () -> new UnsatisfiedLinkError("libebpfdivert: missing " + name)), descriptor);
     }
 
-    private static class EBPFHandle implements Handle {
-        MemorySegment bpfObj;
-        MemorySegment ringBuffer;
-        MemorySegment ingressLink = MemorySegment.NULL;
-        MemorySegment egressLink = MemorySegment.NULL;
-        int filterMapFd;
-        int filterMapFdIpv6;
-        int maxQueueSize = 4096;
-        BlockingQueue<PacketEvent> packetQueue = new LinkedBlockingQueue<>();
-        Arena arena;
-        Thread pollerThread;
-        volatile boolean running = true;
-
-        @Override
-        public void close() throws WinDivertException {
-            running = false;
-            if (pollerThread != null) {
-                pollerThread.interrupt();
-                try {
-                    pollerThread.join(500);
-                } catch (InterruptedException ignored) {}
-            }
-            try {
-                if (ingressLink != null && !ingressLink.equals(MemorySegment.NULL)) {
-                    LibBpfPanama.bpf_link__destroy.invoke(ingressLink);
-                }
-                if (egressLink != null && !egressLink.equals(MemorySegment.NULL)) {
-                    LibBpfPanama.bpf_link__destroy.invoke(egressLink);
-                }
-                if (ringBuffer != null && !ringBuffer.equals(MemorySegment.NULL)) {
-                    LibBpfPanama.ring_buffer__free.invoke(ringBuffer);
-                }
-                if (bpfObj != null && !bpfObj.equals(MemorySegment.NULL)) {
-                    LibBpfPanama.bpf_object__close.invoke(bpfObj);
-                }
-                if (arena != null) arena.close();
-            } catch (Throwable t) {
-                throw new WinDivertException(-1, "Failed to close BPF handle", t);
-            }
-        }
-
-        @SuppressWarnings("unused")
-        private int onSample(MemorySegment ctx, MemorySegment data, long size) {
-            // divert_pkt_header: ifindex(4), direction(4), packet_len(4), l2_len(4)
-            int ifindex = data.get(ValueLayout.JAVA_INT, 0);
-            int direction = data.get(ValueLayout.JAVA_INT, 4);
-            int packet_len = data.get(ValueLayout.JAVA_INT, 8);
-            int header_size = 16;
-            
-            if (packetQueue.size() < maxQueueSize) {
-                byte[] pktData = data.asSlice(header_size, packet_len).toArray(ValueLayout.JAVA_BYTE);
-                packetQueue.offer(new PacketEvent(pktData, ifindex, direction));
-            }
-            return 0;
-        }
-
-        @Override
-        public boolean isValid() {
-            return bpfObj != null && !bpfObj.equals(MemorySegment.NULL);
-        }
+    private static String cString(MemorySegment p) {
+        return p.equals(MemorySegment.NULL) ? null : p.reinterpret(Long.MAX_VALUE).getString(0);
     }
 
-    private static class PanamaBuffer implements Buffer {
-        private final MemorySegment segment;
-        private final ByteBuffer byteBuffer;
-
-        PanamaBuffer(int size) {
-            this.segment = Arena.ofShared().allocate(size);
-            this.byteBuffer = segment.asByteBuffer();
+    private static WinDivertException error(int rc, String op) {
+        String msg;
+        try {
+            msg = cString((MemorySegment) STRERROR.invokeExact(rc));
+        } catch (Throwable t) {
+            msg = null;
         }
-
-        @Override
-        public ByteBuffer getByteBuffer() {
-            return byteBuffer;
-        }
-
-        @Override
-        public int capacity() {
-            return (int) segment.byteSize();
-        }
-
-        @Override
-        public void close() {
-        }
+        return EBPFDivertSupport.error(rc, op, msg);
     }
 
-    private static class PacketEvent {
-        byte[] data;
-        int ifindex;
-        int direction;
-
-        PacketEvent(byte[] data, int ifindex, int direction) {
-            this.data = data;
-            this.ifindex = ifindex;
-            this.direction = direction;
+    private static WinDivertException wrap(Throwable t) {
+        if (t instanceof WinDivertException) {
+            return (WinDivertException) t;
         }
+        return new WinDivertException(-1, "libebpfdivert call failed", t);
     }
 
     @Override
     public Handle open(String filter, int layer, short priority, long flags) throws WinDivertException {
-        if (LibBpfPanama.bpf_object__open_file == null) {
-            throw new WinDivertException(-1, "libbpf symbols not found");
-        }
-        try {
-            Path bpfObjPath = DeployHandler.deployToPath();
-            MemorySegment pathStr = arena.allocateFrom(bpfObjPath.toString());
-            MemorySegment obj = (MemorySegment) LibBpfPanama.bpf_object__open_file.invoke(pathStr, MemorySegment.NULL);
-            if (obj.equals(MemorySegment.NULL)) throw new WinDivertException(-1, "Failed to open BPF object");
-
-            if ((int) LibBpfPanama.bpf_object__load.invoke(obj) != 0) {
-                LibBpfPanama.bpf_object__close.invoke(obj);
-                throw new WinDivertException(-1, 
-"Failed to load BPF object");
-            }
-
-            EBPFHandle handle = new EBPFHandle();
-            handle.bpfObj = obj;
-            handle.arena = Arena.ofShared();
-
-            // Attach programs
-            MemorySegment ingressName = arena.allocateFrom("tc_divert_ingress");
-            MemorySegment progIngress = (MemorySegment) LibBpfPanama.bpf_object__find_program_by_name.invoke(obj, ingressName);
-            if (!progIngress.equals(MemorySegment.NULL)) {
-                handle.ingressLink = (MemorySegment) LibBpfPanama.bpf_program__attach.invoke(progIngress);
-            }
-            
-            MemorySegment egressName = arena.allocateFrom("tc_divert_egress");
-            MemorySegment progEgress = (MemorySegment) LibBpfPanama.bpf_object__find_program_by_name.invoke(obj, egressName);
-            if (!progEgress.equals(MemorySegment.NULL)) {
-                handle.egressLink = (MemorySegment) LibBpfPanama.bpf_program__attach.invoke(progEgress);
-            }
-
-            // Setup filter rules
-            MemorySegment mapName = arena.allocateFrom("filter_rules");
-            MemorySegment mapV6Name = arena.allocateFrom("filter_rules_ipv6");
-            MemorySegment map = (MemorySegment) LibBpfPanama.bpf_object__find_map_by_name.invoke(obj, mapName);
-            MemorySegment mapV6 = (MemorySegment) LibBpfPanama.bpf_object__find_map_by_name.invoke(obj, mapV6Name);
-            if (!map.equals(MemorySegment.NULL) && !mapV6.equals(MemorySegment.NULL)) {
-                handle.filterMapFd = (int) LibBpfPanama.bpf_map__fd.invoke(map);
-                handle.filterMapFdIpv6 = (int) LibBpfPanama.bpf_map__fd.invoke(mapV6);
-
-                // Clear maps
-                byte[] emptyRuleBytes = new byte[34];
-                byte[] emptyRuleV6Bytes = new byte[82];
-                for (int i = 0; i < 64; i++) {
-                    MemorySegment key = handle.arena.allocate(ValueLayout.JAVA_INT, i);
-                    MemorySegment val = handle.arena.allocateFrom(ValueLayout.JAVA_BYTE, emptyRuleBytes);
-                    MemorySegment valV6 = handle.arena.allocateFrom(ValueLayout.JAVA_BYTE, emptyRuleV6Bytes);
-                    LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFd, key, val, 0L);
-                    LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFdIpv6, key, valV6, 0L);
+        try (Arena arena = Arena.ofConfined()) {
+            String[] ifnames = EBPFDivertSupport.interfaces();
+            MemorySegment names = MemorySegment.NULL;
+            if (ifnames != null) {
+                names = arena.allocate(ADDRESS, ifnames.length + 1);
+                for (int i = 0; i < ifnames.length; i++) {
+                    names.setAtIndex(ADDRESS, i, arena.allocateFrom(ifnames[i]));
                 }
-
-                // Write transpiled rules
-                boolean sniff = (flags & 1) != 0; // Flag.SNIFF = 1
-                boolean drop = (flags & 2) != 0;  // Flag.DROP = 2
-                List<FilterTranspiler.TranspiledRule> rules = FilterTranspiler.transpile(filter, sniff, drop);
-                for (int i = 0; i < Math.min(rules.size(), 64); i++) {
-                    FilterTranspiler.TranspiledRule r = rules.get(i);
-                    MemorySegment key = handle.arena.allocate(ValueLayout.JAVA_INT, i);
-                    MemorySegment val = handle.arena.allocateFrom(ValueLayout.JAVA_BYTE, r.ruleBytes);
-                    if (r.isIpv6) {
-                        LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFdIpv6, key, val, 0L);
-                    } else {
-                        LibBpfPanama.bpf_map_update_elem.invoke(handle.filterMapFd, key, val, 0L);
+                names.setAtIndex(ADDRESS, ifnames.length, MemorySegment.NULL);
+            }
+            // struct ebpfdivert_open_opts { size_t sz; const char *const *ifnames; uint32_t ring_bytes; }
+            MemorySegment opts = arena.allocate(24, 8);
+            opts.set(JAVA_LONG, 0, 24);
+            opts.set(ADDRESS, 8, names);
+            opts.set(JAVA_INT, 16, EBPFDivertSupport.ringBytes());
+            MemorySegment out = arena.allocate(ADDRESS);
+            MemorySegment cFilter = arena.allocateFrom(filter);
+            int rc = (int) OPEN_EX.invokeExact(cFilter, layer, priority, flags, opts, out);
+            if (rc < 0) {
+                if (-rc == EBPFDivertSupport.EINVAL) {
+                    MemorySegment msg = arena.allocate(ADDRESS);
+                    MemorySegment pos = arena.allocate(JAVA_INT);
+                    int crc = (int) COMPILE.invokeExact(cFilter, layer, msg, pos);
+                    String text = cString(msg.get(ADDRESS, 0));
+                    if (crc < 0 && text != null) {
+                        throw new WinDivertException(-rc, "Invalid filter at position " + pos.get(JAVA_INT, 0) + ": " + text);
                     }
                 }
+                throw error(rc, "ebpfdivert_open");
             }
-
-            // Setup Ring Buffer
-            MemorySegment rbMapName = arena.allocateFrom("pcap_ringbuf");
-            MemorySegment rbMap = (MemorySegment) LibBpfPanama.bpf_object__find_map_by_name.invoke(obj, rbMapName);
-            if (!rbMap.equals(MemorySegment.NULL)) {
-                int rbFd = (int) LibBpfPanama.bpf_map__fd.invoke(rbMap);
-                
-                FunctionDescriptor cbDesc = FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_LONG);
-                MemorySegment callback = Linker.nativeLinker().upcallStub(
-                    java.lang.invoke.MethodHandles.lookup().findVirtual(EBPFHandle.class, "onSample", cbDesc.toMethodType())
-                        .bindTo(handle),
-                    cbDesc, handle.arena
-                );
-
-                handle.ringBuffer = (MemorySegment) LibBpfPanama.ring_buffer__new.invoke(rbFd, callback, MemorySegment.NULL, MemorySegment.NULL);
-                if (handle.ringBuffer != null && !handle.ringBuffer.equals(MemorySegment.NULL)) {
-                    handle.pollerThread = new Thread(() -> {
-                        try {
-                            while (handle.running) {
-                                LibBpfPanama.ring_buffer__poll.invoke(handle.ringBuffer, 10L);
-                            }
-                        } catch (Throwable ignored) {}
-                    }, "EBPFDivert-PanamaRingBufferPoller");
-                    handle.pollerThread.setDaemon(true);
-                    handle.pollerThread.start();
-                }
-            }
-
-            return handle;
+            return new PanamaHandle(out.get(ADDRESS, 0));
         } catch (Throwable t) {
-            throw new WinDivertException(-1, "Failed to open eBPF handle", t);
+            throw wrap(t);
         }
     }
 
     @Override
     public int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
-        EBPFHandle h = (EBPFHandle) handle;
-        try {
-            PacketEvent event = h.packetQueue.take();
-            if (event != null) {
-                buffer.getByteBuffer().put(event.data);
-                address.Union.Network.IfIdx = event.ifindex;
-                address.setOutbound(event.direction == 1);
-                return event.data.length;
+        MemorySegment h = ((PanamaHandle) handle).segment();
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment data = MemorySegment.ofBuffer(buffer.getByteBuffer());
+            MemorySegment len = arena.allocate(JAVA_INT);
+            MemorySegment addr = arena.allocate(AddressCodec.SIZE, 8);
+            int rc = (int) RECV.invokeExact(h, data, buffer.capacity(), len, addr, -1);
+            if (rc < 0) {
+                throw error(rc, "ebpfdivert_recv");
             }
+            if (address != null) {
+                AddressCodec.decode(addr.asByteBuffer(), address);
+            }
+            return len.get(JAVA_INT, 0);
         } catch (Throwable t) {
-            if (t instanceof InterruptedException) Thread.currentThread().interrupt();
-            throw new WinDivertException(-1, "Recv failed", t);
+            throw wrap(t);
         }
-        return 0;
     }
 
     @Override
     public <T> WinDivertAsyncResult<T> recvAsync(Handle handle, int bufsize, WinDivertAsyncResult.ResultConverter<T> converter) throws WinDivertException {
-        Objects.requireNonNull(handle, "handle cannot be null");
-        PanamaBuffer buffer = new PanamaBuffer(bufsize);
+        Buffer buffer = allocateBuffer(bufsize);
         WinDivertAddress address = new WinDivertAddress();
-        EBPFAsyncImplementation impl = new EBPFAsyncImplementation((EBPFHandle) handle, buffer, address);
-        return new WinDivertAsyncResult<>(handle, buffer, address, converter, impl);
+        return new WinDivertAsyncResult<>(handle, buffer, address, converter,
+                EBPFDivertSupport.async(() -> recv(handle, buffer, address)));
     }
 
     @Override
     public int send(Handle handle, ByteBuffer packet, WinDivertAddress address) throws WinDivertException {
-        return packet.remaining();
+        Objects.requireNonNull(packet, "packet cannot be null");
+        Objects.requireNonNull(address, "address cannot be null");
+        MemorySegment h = ((PanamaHandle) handle).segment();
+        try (Arena arena = Arena.ofConfined()) {
+            int length = packet.remaining();
+            MemorySegment data = arena.allocate(Math.max(1, length));
+            data.copyFrom(MemorySegment.ofBuffer(packet.duplicate()));
+            MemorySegment addr = arena.allocate(AddressCodec.SIZE, 8);
+            addr.copyFrom(MemorySegment.ofArray(AddressCodec.encode(address)));
+            MemorySegment sent = arena.allocate(JAVA_INT);
+            int rc = (int) SEND.invokeExact(h, data, length, sent, addr);
+            if (rc < 0) {
+                throw error(rc, "ebpfdivert_send");
+            }
+            return sent.get(JAVA_INT, 0);
+        } catch (Throwable t) {
+            throw wrap(t);
+        }
     }
 
     @Override
     public <T> WinDivertAsyncResult<T> sendAsync(Handle handle, ByteBuffer packet, WinDivertAddress address, WinDivertAsyncResult.ResultConverter<T> converter) throws WinDivertException {
-        Objects.requireNonNull(handle, "handle cannot be null");
-        Objects.requireNonNull(packet, "packet cannot be null");
-        Objects.requireNonNull(address, "address cannot be null");
-        PanamaBuffer panamaBuffer = new PanamaBuffer(packet.remaining());
-        panamaBuffer.getByteBuffer().put(packet.duplicate());
-        panamaBuffer.getByteBuffer().flip();
-
-        CompletableFuture<Integer> sendFuture = new CompletableFuture<>();
-        executor.submit(() -> {
-            try {
-                int len = send(handle, panamaBuffer.getByteBuffer(), address);
-                sendFuture.complete(len);
-            } catch (Throwable t) {
-                sendFuture.completeExceptionally(t);
-            }
-        });
-
-        WinDivertAsyncResult.AsyncImplementation impl = new WinDivertAsyncResult.AsyncImplementation() {
-            @Override
-            public boolean isCompleted() {
-                return sendFuture.isDone();
-            }
-
-            @Override
-            public int waitAndGetResult() throws WinDivertException {
-                try {
-                    return sendFuture.get();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new WinDivertException(-1, "Async send interrupted", e);
-                } catch (ExecutionException e) {
-                    throw new WinDivertException(-1, "Async send failed", e.getCause());
-                }
-            }
-        };
-
-        return new WinDivertAsyncResult<>(handle, panamaBuffer, address, converter, impl);
+        Buffer buffer = allocateBuffer(packet.remaining());
+        ByteBuffer copy = buffer.getByteBuffer();
+        copy.put(packet.duplicate());
+        copy.flip();
+        return new WinDivertAsyncResult<>(handle, buffer, address, converter,
+                EBPFDivertSupport.async(() -> send(handle, copy, address)));
     }
 
     @Override
     public void shutdown(Handle handle, int how) throws WinDivertException {
         try {
-            handle.close();
-        } catch (Exception e) {
-            throw new WinDivertException(-1, 
-"Shutdown failed", e);
+            int rc = (int) SHUTDOWN.invokeExact(((PanamaHandle) handle).segment(), how);
+            if (rc < 0) {
+                throw error(rc, "ebpfdivert_shutdown");
+            }
+        } catch (Throwable t) {
+            throw wrap(t);
         }
     }
 
     @Override
     public void setParam(Handle handle, int param, long value) throws WinDivertException {
-        if (handle == null) throw new WinDivertException(-1, "Handle cannot be null");
-        EBPFHandle h = (EBPFHandle) handle;
-        if (param == 0) { // Param.QUEUE_LEN
-            h.maxQueueSize = (int) value;
-        } else {
-            throw new WinDivertException(-1, "Parameter not supported on eBPF backend");
+        try {
+            int rc = (int) SET_PARAM.invokeExact(((PanamaHandle) handle).segment(), param, value);
+            if (rc < 0) {
+                throw error(rc, "ebpfdivert_set_param");
+            }
+        } catch (Throwable t) {
+            throw wrap(t);
         }
     }
 
     @Override
     public long getParam(Handle handle, int param) throws WinDivertException {
-        if (handle == null) throw new WinDivertException(-1, "Handle cannot be null");
-        EBPFHandle h = (EBPFHandle) handle;
-        if (param == 0) { // Param.QUEUE_LEN
-            return h.maxQueueSize;
-        } else {
-            throw new WinDivertException(-1, "Parameter not supported on eBPF backend");
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment value = arena.allocate(JAVA_LONG);
+            int rc = (int) GET_PARAM.invokeExact(((PanamaHandle) handle).segment(), param, value);
+            if (rc < 0) {
+                throw error(rc, "ebpfdivert_get_param");
+            }
+            return value.get(JAVA_LONG, 0);
+        } catch (Throwable t) {
+            throw wrap(t);
         }
     }
 
     @Override
     public int calcChecksums(byte[] packet, WinDivertAddress address, long flags) {
-        return 0;
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment data = arena.allocate(Math.max(1, packet.length));
+            MemorySegment.copy(packet, 0, data, JAVA_BYTE, 0, packet.length);
+            int rc = (int) CALC_CHECKSUMS.invokeExact(data, packet.length, MemorySegment.NULL, flags);
+            MemorySegment.copy(data, JAVA_BYTE, 0, packet, 0, packet.length);
+            if (rc == 0 && address != null) {
+                address.setIPChecksum(true);
+                address.setTCPChecksum(true);
+                address.setUDPChecksum(true);
+            }
+            return rc == 0 ? 1 : 0;
+        } catch (Throwable t) {
+            return 0;
+        }
     }
 
     @Override
     public long hashPacket(byte[] packet, long seed) {
-        return 0;
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment data = arena.allocate(Math.max(1, packet.length));
+            MemorySegment.copy(packet, 0, data, JAVA_BYTE, 0, packet.length);
+            return (long) HASH.invokeExact(data, packet.length, seed);
+        } catch (Throwable t) {
+            return 0;
+        }
     }
 
     @Override
     public Buffer allocateBuffer(int size) {
-        return new PanamaBuffer(size);
+        final ByteBuffer bb = ByteBuffer.allocateDirect(Math.max(1, size));
+        return new Buffer() {
+            @Override
+            public ByteBuffer getByteBuffer() {
+                return bb;
+            }
+
+            @Override
+            public int capacity() {
+                return bb.capacity();
+            }
+
+            @Override
+            public void close() {
+            }
+        };
     }
 
     @Override
     public String formatMessage(int errorCode) {
-        return "Error " + errorCode;
+        try {
+            return cString((MemorySegment) STRERROR.invokeExact(errorCode));
+        } catch (Throwable t) {
+            return "Error " + errorCode;
+        }
     }
 
     @Override
     public int getLastError() {
         return 0;
+    }
+
+    /**
+     * Detaches programs left behind by processes that died without closing their handles.
+     */
+    public void unregister() {
+        try {
+            int ignored = (int) UNREGISTER.invokeExact();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static final class PanamaHandle implements Handle {
+        private volatile MemorySegment segment;
+
+        PanamaHandle(MemorySegment segment) {
+            this.segment = segment;
+        }
+
+        MemorySegment segment() throws WinDivertException {
+            MemorySegment s = segment;
+            if (s == null) {
+                throw new WinDivertException(9, "Handle is closed");
+            }
+            return s;
+        }
+
+        @Override
+        public synchronized void close() throws WinDivertException {
+            MemorySegment s = segment;
+            if (s != null) {
+                segment = null;
+                try {
+                    int ignored = (int) CLOSE.invokeExact(s);
+                } catch (Throwable t) {
+                    throw wrap(t);
+                }
+            }
+        }
+
+        @Override
+        public boolean isValid() {
+            return segment != null;
+        }
     }
 }

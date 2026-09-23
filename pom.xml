@@ -53,7 +53,11 @@
         <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <windivert.version>2.2.2</windivert.version>
-        <ebpfdivert.version>0.0.4</ebpfdivert.version>
+        <ebpfdivert.version>0.1.0</ebpfdivert.version>
+        <!-- Development: -Debpfdivert.local=/path/to/libebpfdivert.so -Debpfdivert.skipDownload=true -->
+        <ebpfdivert.local></ebpfdivert.local>
+        <ebpfdivert.local.platform>linux-x86-64</ebpfdivert.local.platform>
+        <ebpfdivert.skipDownload>false</ebpfdivert.skipDownload>
     </properties>
 
     <dependencies>
@@ -116,15 +120,31 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>download-ebpfdivert</id>
+                        <id>download-ebpfdivert-amd64</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>wget</goal>
                         </goals>
                         <configuration>
+                            <skip>${ebpfdivert.skipDownload}</skip>
                             <url>https://github.com/ffalcinelli/ebpfdivert/releases/download/v${ebpfdivert.version}/ebpfdivert-v${ebpfdivert.version}-linux-amd64.tar.gz</url>
                             <unpack>true</unpack>
-                            <outputDirectory>${project.build.directory}/ebpfdivert</outputDirectory>
+                            <outputDirectory>${project.build.directory}/ebpfdivert-amd64</outputDirectory>
+                            <readTimeOut>60000</readTimeOut>
+                            <connectTimeOut>60000</connectTimeOut>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>download-ebpfdivert-arm64</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${ebpfdivert.skipDownload}</skip>
+                            <url>https://github.com/ffalcinelli/ebpfdivert/releases/download/v${ebpfdivert.version}/ebpfdivert-v${ebpfdivert.version}-linux-arm64.tar.gz</url>
+                            <unpack>true</unpack>
+                            <outputDirectory>${project.build.directory}/ebpfdivert-arm64</outputDirectory>
                             <readTimeOut>60000</readTimeOut>
                             <connectTimeOut>60000</connectTimeOut>
                         </configuration>
@@ -143,7 +163,7 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
-                            <target>
+                            <target xmlns:if="ant:if">
                                 <mkdir dir="${project.build.directory}/native-resources"/>
                                 <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert.dll"
                                       tofile="${project.build.directory}/native-resources/WinDivert64.dll"
@@ -151,9 +171,19 @@
                                 <copy file="${project.build.directory}/windivert/WinDivert-${windivert.version}-A/x64/WinDivert64.sys"
                                       tofile="${project.build.directory}/native-resources/WinDivert64.sys"
                                       failonerror="false"/>
-                                <copy file="${project.build.directory}/ebpfdivert/lib/ebpfdivert/ebpfdivert.bpf.o"
-                                      todir="${project.build.directory}/native-resources"
+                                <!-- Self-contained libebpfdivert.so per architecture (JNA platform prefixes). -->
+                                <copy file="${project.build.directory}/ebpfdivert-amd64/lib/libebpfdivert.so"
+                                      tofile="${project.build.directory}/native-resources/linux-x86-64/libebpfdivert.so"
                                       failonerror="false"/>
+                                <copy file="${project.build.directory}/ebpfdivert-arm64/lib/libebpfdivert.so"
+                                      tofile="${project.build.directory}/native-resources/linux-aarch64/libebpfdivert.so"
+                                      failonerror="false"/>
+                                <condition property="ebpfdivert.local.set">
+                                    <length string="${ebpfdivert.local}" when="greater" length="0"/>
+                                </condition>
+                                <copy if:set="ebpfdivert.local.set" file="${ebpfdivert.local}"
+                                      tofile="${project.build.directory}/native-resources/${ebpfdivert.local.platform}/libebpfdivert.so"
+                                      overwrite="true" failonerror="false" quiet="true"/>
 
                             </target>
                         </configuration>
@@ -265,7 +295,6 @@
                                     <excludes>
                                         <exclude>com/github/ffalcinelli/jdivert/windivert/WinDivertPanamaNativeAdapter.java</exclude>
                                         <exclude>com/github/ffalcinelli/jdivert/ebpfdivert/EBPFDivertPanamaNativeAdapter.java</exclude>
-                                        <exclude>com/github/ffalcinelli/jdivert/ebpfdivert/panama/**</exclude>
                                     </excludes>
                                 </configuration>
                             </execution>

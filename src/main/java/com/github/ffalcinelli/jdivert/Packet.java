@@ -116,6 +116,10 @@ public class Packet {
         ipHdr = null;
         transHdr = null;
         icmpHdr = null;
+        // FLOW/SOCKET events carry no data and REFLECT data is a filter object.
+        if ((addr != null && addr.getLayer() > 1) || raw.limit() - raw.position() < 20) {
+            return;
+        }
         Header[] headers = Header.buildHeaders(raw);
         if (headers.length > 0 && headers[0] instanceof Ip) {
             ipHdr = (Ip) headers[0];

@@ -20,8 +20,7 @@ package com.github.ffalcinelli.jdivert;
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.util.Random;
 
@@ -39,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Created by fabio on 26/10/2016.
  */
-@EnabledOnOs(OS.WINDOWS)
+@EnabledIf("com.github.ffalcinelli.jdivert.CaptureCondition#canCapture")
 public class WinDivertTestCase {
 
     //this can be safely static
@@ -173,8 +172,10 @@ public class WinDivertTestCase {
     @Test
     public void wrongFilterSyntax() {
         WinDivertException e = assertThrows(WinDivertException.class, () -> w = new WinDivert("something").open());
-        assertEquals(87, e.getCode());
-        assertTrue(e.toString().contains("code=87"));
+        // ERROR_INVALID_PARAMETER on Windows, EINVAL on Linux.
+        int expected = Util.isWindows() ? 87 : 22;
+        assertEquals(expected, e.getCode());
+        assertTrue(e.toString().contains("code=" + expected));
     }
 
     @Test

@@ -39,12 +39,6 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Install dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libbpf-dev
-
     - name: Set up JDK 25 (for building)
       uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
       with:
@@ -62,13 +56,16 @@ jobs:
     - name: Build and Test with Maven
       shell: bash
       run: |
+        # On Linux, run as root so that the live capture tests (eBPF) run too.
+        MVN=mvn
+        if [ "$RUNNER_OS" == "Linux" ]; then MVN="sudo -E env PATH=$PATH JAVA_HOME=$JAVA_HOME mvn"; fi
         if [ "${{ matrix.java }}" == "25" ]; then
-          mvn -B clean verify
+          $MVN -B clean verify
         else
           # Use the matrix JDK for testing via surefire's jvm parameter
           # We need to find the path to the matrix JDK. setup-java sets JAVA_HOME.
           # When we setup 25 then matrix.java, JAVA_HOME points to matrix.java.
-          mvn -B clean verify -Dsurefire.jvm="$JAVA_HOME/bin/java"
+          $MVN -B clean verify -Dsurefire.jvm="$JAVA_HOME/bin/java"
         fi
 
     - name: Upload coverage to Codecov

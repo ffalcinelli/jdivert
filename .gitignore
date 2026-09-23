@@ -70,3 +70,4 @@ _site_javadocs/
 .antigravitycli/
 *.o
 *.so
+.local/

@@ -23,7 +23,7 @@ This guide covers common issues encountered when using JDivert on both Windows a
 ### 3. `WinDivertException: The parameter is incorrect` (Error 87)
 - **Cause**: This indicates a syntax error in your **WinDivert filter string**.
 - **Solution**:
-  - Validate your filter syntax against the [Filter Language Guide](file:///home/fabio/Workspace/divert/jdivert/docs/filters.md).
+  - Validate your filter syntax against the [Filter Language Guide](filters.md).
   - Check that all field names are typed correctly (e.g. use `ip.SrcAddr` instead of `ip.src`).
   - Test the driver with a simple filter like `"true"` to isolate the issue.
 
@@ -37,35 +37,32 @@ This guide covers common issues encountered when using JDivert on both Windows a
 
 ## Linux-Specific Issues (eBPF Backend)
 
-### 1. `WinDivertException` or `IOException: Permission denied` / `Operation not permitted`
-- **Cause**: Interacting with Traffic Control (TC) and loading eBPF bytecode requires elevated root privileges or specific capabilities.
+### 1. `WinDivertException` with code 1 (`Operation not permitted`)
+- **Cause**: Loading eBPF programs and attaching them to TC and cgroups requires root or capabilities.
 - **Solution**:
   - Run your Java application as root (e.g., `sudo java -jar app.jar`).
-  - Alternatively, grant the JVM binary the required network capabilities:
+  - Alternatively, grant the JVM binary the required capabilities:
     ```bash
-    sudo setcap cap_net_admin,cap_bpf+ep /path/to/your/java/bin/java
+    sudo setcap cap_bpf,cap_net_admin,cap_net_raw+ep /path/to/your/java/bin/java
     ```
 
-### 2. `RuntimeException: Failed to open eBPF handle (pcap_ringbuf map not found)`
-- **Cause**: The kernel-side eBPF program failed to load or map pinning in `/sys/fs/bpf/ebpfdivert/` failed.
-- **Solution**:
-  - Ensure your kernel version is 5.8+ and BTF is enabled (`CONFIG_DEBUG_INFO_BTF=y`).
-  - Check the output logs or system kernel log (`dmesg`) for eBPF verifier errors.
-  - Ensure the `/sys/fs/bpf` filesystem is mounted:
-    ```bash
-    mount -t bpf bpffs /sys/fs/bpf
-    ```
+### 2. `WinDivertException` with code 22 (`Invalid argument`)
+- **Cause**: The filter does not compile, or the layer/flag combination is invalid (for example FLOW without
+  `SNIFF | RECV_ONLY`). The message includes the filter error position.
 
-### 3. JNA/Panama Linkage Errors: `libbpf.so not found`
-- **Cause**: The system is missing the dynamic BPF library needed for loading BPF objects.
+### 3. `WinDivertException` with code 95 (`Operation not supported`)
+- **Cause**: The kernel lacks something the layer needs, or a SOCKET filter cannot be enforced.
 - **Solution**:
-  - Install the developer packages for `libbpf`:
-    ```bash
-    # Ubuntu/Debian
-    sudo apt-get install libbpf-dev
-    # Fedora/CentOS
-    sudo dnf install libbpf-devel
-    ```
+  - Use kernel 5.10+ with BTF (`ls /sys/kernel/btf/vmlinux`).
+  - FLOW and SOCKET need cgroup v2 (`mount | grep cgroup2`).
+  - A SOCKET handle without `SNIFF` can only block BIND and CONNECT; add `SNIFF` to observe other events.
+
+### 4. `UnsatisfiedLinkError` / adapter load failure
+- **Cause**: Unsupported architecture (only x86_64 and aarch64 are bundled) or a glibc older than 2.28.
+- **Solution**: check `java -XshowSettings:properties -version | grep os.arch` and `ldd --version`.
+
+### 5. Traffic stops after the JVM is killed
+- It resumes on its own within 3 seconds; leftover kernel programs are removed when the next handle opens.
 
 ---
 

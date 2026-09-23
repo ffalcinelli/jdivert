@@ -23,10 +23,8 @@ public class DivertTestCase {
         try (Divert d = new Divert("false").open()) {
             assertTrue(d.isOpen());
         } catch (WinDivertException e) {
-            // Permission errors or missing libbpf symbols are expected in non-root CI environments
-            assertTrue(e.getMessage().contains("BPF") || 
-                       e.getMessage().contains("permission") || 
-                       e.getMessage().contains("symbols not found"));
+            // Without root, opening fails with EPERM/EACCES.
+            assertTrue(e.getCode() == 1 || e.getCode() == 13, e.getMessage());
         }
     }
 

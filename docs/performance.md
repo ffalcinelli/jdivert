@@ -42,14 +42,16 @@ The WinDivert driver has an internal packet queue. If the application processes 
 - You can tune parameters like `Param.QUEUE_LEN`, `Param.QUEUE_TIME`, `Param.QUEUE_SIZE` using `w.setParam(Param, value)`.
 
 ### Linux (eBPF Queue)
-On Linux, intercepted packets are placed in a kernel BPF Ring Buffer (`pcap_ringbuf`) and retrieved via a poll loop.
-- To handle packet bursts, JDivert implements a user-space FIFO cache queue.
-- If the user-space queue exceeds its capacity, incoming packets are dropped to prevent memory exhaustion, incrementing `STAT_QUEUE_FULL`.
-- The maximum queue size can be adjusted at runtime:
+On Linux, captured packets go from the kernel ring buffer (8 MiB per handle, `-Djdivert.ebpf.ringBytes`) into
+libebpfdivert's user-space queue, which honours the same parameters as WinDivert:
+- `Param.QUEUE_LEN`, `Param.QUEUE_TIME` and `Param.QUEUE_SIZE` bound the queue by packets, age and bytes.
+- Packets that overflow the queue are dropped and counted in `STAT_QUEUE_FULL`; ring overflows (the kernel then
+  lets packets pass) are counted in `STAT_RINGBUF_FULL`.
   ```java
-  // Set max queue size to 2048 packets on Linux
-  diverter.setParam(Param.QUEUE_LEN, 2048);
+  diverter.setParam(Param.QUEUE_LEN, 8192);
   ```
+- Filters that lower exactly to kernel rules are cheapest; filters on payload or other rich fields are
+  pre-filtered in the kernel and completed in user space, costing a round trip for non-matching packets.
 
 ---
 
