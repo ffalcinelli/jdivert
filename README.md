@@ -2,7 +2,7 @@
 
 [![Build and Test](https://github.com/ffalcinelli/jdivert/actions/workflows/ci.yml/badge.svg)](https://github.com/ffalcinelli/jdivert/actions/workflows/ci.yml)
 [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/main.svg)](https://codecov.io/github/ffalcinelli/jdivert)
-[![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)](https://search.maven.org/artifact/com.github.ffalcinelli/jdivert/3.0.0/jar)
+[![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)](https://search.maven.org/artifact/com.github.ffalcinelli/jdivert/4.0.0/jar)
 [![license](https://img.shields.io/badge/license-LGPLv3%20%7C%20GPLv2-blue.svg)](https://github.com/ffalcinelli/jdivert/blob/master/LICENSE)
 
 **JDivert** is a powerful Java binding for capturing, modifying, and dropping network packets. It supports **Windows** via [WinDivert](https://reqrypt.org/windivert.html) and **Linux** via [eBPFDivert](https://github.com/ffalcinelli/ebpfdivert), an eBPF implementation of the WinDivert API. The same code, filters, layers and flags work on both.
@@ -88,13 +88,13 @@ Read the full [Architecture Overview](docs/architecture.md) for more details.
 <dependency>
   <groupId>com.github.ffalcinelli</groupId>
   <artifactId>jdivert</artifactId>
-  <version>3.0.0</version>
+  <version>4.0.0</version>
 </dependency>
 ```
 
 ### Gradle
 ```groovy
-implementation 'com.github.ffalcinelli:jdivert:3.0.0'
+implementation 'com.github.ffalcinelli:jdivert:4.0.0'
 ```
 
 ---

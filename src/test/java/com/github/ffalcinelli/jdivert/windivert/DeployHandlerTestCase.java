@@ -62,7 +62,7 @@ public class DeployHandlerTestCase {
     }
 
     @Test
-    public void testDeployToPath() {
+    public void testDeployToPath() throws java.io.IOException {
         try {
             Path binPath = DeployHandler.deployToPath();
             assertNotNull(binPath);
@@ -78,8 +78,12 @@ public class DeployHandlerTestCase {
             }
 
             // Verify it's in a stable directory
-            String tmpDir = System.getProperty("java.io.tmpdir");
-            assertTrue(binPath.toString().contains("jdivert-3.0.0"), "Should use versioned stable directory: " + binPath);
+            java.util.Properties props = new java.util.Properties();
+            try (java.io.InputStream is = DeployHandler.class.getResourceAsStream("/jdivert.properties")) {
+                props.load(is);
+            }
+            String versionedDir = "jdivert-" + props.getProperty("version");
+            assertTrue(binPath.toString().contains(versionedDir), "Should use versioned stable directory: " + binPath);
         } catch (Throwable t) {
             if (t.getMessage() != null && t.getMessage().contains("64-bit")) {
                 return;
