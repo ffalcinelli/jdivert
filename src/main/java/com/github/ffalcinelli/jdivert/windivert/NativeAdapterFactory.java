@@ -26,6 +26,9 @@ import com.github.ffalcinelli.jdivert.Util;
 public class NativeAdapterFactory {
     private static final NativeAdapter INSTANCE;
 
+    private NativeAdapterFactory() {
+    }
+
     static {
         NativeAdapter adapter = null;
         StringBuilder errorReport = new StringBuilder();

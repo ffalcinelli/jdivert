@@ -46,6 +46,10 @@ public abstract class Ip<T extends InetAddress> extends Header {
 
     public void setInetAddressAtOffset(int offset, T address) {
         byte[] addressBytes = address.getAddress();
+        if (addressBytes.length != addrLen) {
+            // e.g. an IPv6 address on an IPv4 header would overwrite the fields after it
+            throw new IllegalArgumentException("Expected a " + addrLen + "-byte address, got " + address);
+        }
         setBytesAtOffset(offset, addressBytes.length, addressBytes);
     }
 

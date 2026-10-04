@@ -30,6 +30,8 @@ import com.sun.jna.ptr.PointerByReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -56,6 +58,8 @@ public class EBPFDivertJnaNativeAdapterTestCase {
         final List<Byte> sentOpaque = new ArrayList<>();
         long queueLen = 4096;
         int shutdownHow = -1;
+        int recvRc, sendRc, shutdownRc, checksumRc, lastTimeout, unregistered;
+        boolean compileWithoutMessage;
 
         public String ebpfdivert_version() { return "0.0.5"; }
 
@@ -68,6 +72,8 @@ public class EBPFDivertJnaNativeAdapterTestCase {
         }
 
         public int ebpfdivert_recv(Pointer h, Pointer packet, int len, IntByReference recvLen, Pointer addr, int timeoutMs) {
+            lastTimeout = timeoutMs;
+            if (recvRc < 0) return recvRc;
             packet.write(0, PACKET, 0, PACKET.length);
             recvLen.setValue(PACKET.length);
             ByteBuffer a = addr.getByteBuffer(0, 80).order(ByteOrder.LITTLE_ENDIAN);
@@ -78,6 +84,7 @@ public class EBPFDivertJnaNativeAdapterTestCase {
         }
 
         public int ebpfdivert_send(Pointer h, Pointer packet, int len, IntByReference sendLen, Pointer addr) {
+            if (sendRc < 0) return sendRc;
             sent.add(packet.getByteArray(0, len));
             ByteBuffer a = addr.getByteBuffer(0, 80).order(ByteOrder.LITTLE_ENDIAN);
             sentIfIdx.add(a.getInt(16));
@@ -86,7 +93,7 @@ public class EBPFDivertJnaNativeAdapterTestCase {
             return 0;
         }
 
-        public int ebpfdivert_shutdown(Pointer h, int how) { shutdownHow = how; return 0; }
+        public int ebpfdivert_shutdown(Pointer h, int how) { shutdownHow = how; return shutdownRc; }
 
         public int ebpfdivert_close(Pointer h) { closed++; return 0; }
 
@@ -104,12 +111,13 @@ public class EBPFDivertJnaNativeAdapterTestCase {
 
         public int ebpfdivert_get_handle_stats(Pointer h, long[] stats, int n) { return 0; }
 
-        public int ebpfdivert_unregister() { return 0; }
+        public int ebpfdivert_unregister() { unregistered++; return 0; }
 
         public String ebpfdivert_strerror(int err) { return "errno " + Math.abs(err); }
 
         public int ebpfdivert_helper_compile_filter(String filter, int layer, PointerByReference errStr, IntByReference errPos) {
             if (!filter.contains("(")) return 0;
+            if (compileWithoutMessage) return -22;
             Memory msg = new Memory(16);
             msg.setString(0, "Bad token");
             errStr.setValue(msg);
@@ -121,7 +129,7 @@ public class EBPFDivertJnaNativeAdapterTestCase {
 
         public int ebpfdivert_helper_calc_checksums(Pointer packet, int len, Pointer addr, long flags) {
             packet.setByte(10, (byte) 0xAB);
-            return 0;
+            return checksumRc;
         }
 
         public long ebpfdivert_helper_hash_packet(Pointer packet, int len, long seed) { return 99L + seed; }
@@ -213,5 +221,57 @@ public class EBPFDivertJnaNativeAdapterTestCase {
 
         h.close();
         assertThrows(WinDivertException.class, () -> adapter.getParam(h, 0));
+    }
+
+    @Test
+    public void timedRecvAndNativeErrors() throws WinDivertException {
+        NativeAdapter.Handle h = adapter.open("udp", 0, (short) 0, 0);
+        try (NativeAdapter.Buffer buf = adapter.allocateBuffer(1500)) {
+            assertEquals(PACKET.length, adapter.recv(h, buf, null, 250)); // the address is optional
+            assertEquals(250, lib.lastTimeout);
+            lib.recvRc = -11; // EAGAIN: nothing arrived in time
+            assertEquals(-1, adapter.recv(h, buf, null, 0));
+            assertEquals(0, lib.lastTimeout);
+            lib.recvRc = -105;
+            assertEquals(105, assertThrows(WinDivertException.class, () -> adapter.recv(h, buf, null, -7)).getCode());
+            assertEquals(-1, lib.lastTimeout);
+        }
+        lib.sendRc = -90;
+        assertEquals(90, assertThrows(WinDivertException.class,
+                () -> adapter.send(h, ByteBuffer.wrap(PACKET), new WinDivertAddress())).getCode());
+        lib.shutdownRc = -22;
+        assertEquals(22, assertThrows(WinDivertException.class, () -> adapter.shutdown(h, 1)).getCode());
+        h.close();
+    }
+
+    @Test
+    public void openErrorWithoutCompilerMessage() {
+        lib.openRc = -22;
+        lib.compileWithoutMessage = true;
+        WinDivertException e = assertThrows(WinDivertException.class, () -> adapter.open("tcp and (", 0, (short) 0, 0));
+        assertEquals(22, e.getCode());
+        assertFalse(e.getMessage().contains("position"), e.getMessage());
+    }
+
+    @Test
+    public void checksumFailureLastErrorAndUnregister() {
+        lib.checksumRc = -22;
+        WinDivertAddress a = new WinDivertAddress();
+        assertEquals(0, adapter.calcChecksums(PACKET.clone(), a, 0));
+        assertFalse(a.hasIPChecksum());
+        lib.checksumRc = 0;
+        assertEquals(1, adapter.calcChecksums(PACKET.clone(), null, 0));
+        assertEquals(0, adapter.getLastError());
+        adapter.unregister();
+        assertEquals(1, lib.unregistered);
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    public void realLibraryIsLoadedOnce() throws WinDivertException {
+        EBPFDivertJnaNativeAdapter first = new EBPFDivertJnaNativeAdapter();
+        EBPFDivertJnaNativeAdapter second = new EBPFDivertJnaNativeAdapter();
+        assertNotNull(first.formatMessage(22));
+        assertEquals(first.formatMessage(22), second.formatMessage(22));
     }
 }

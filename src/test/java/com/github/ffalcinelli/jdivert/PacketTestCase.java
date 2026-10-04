@@ -255,4 +255,22 @@ public class PacketTestCase {
         assertEquals(32, p.getIpv6().get().getHopLimit());
         assertArrayEquals(payload, p.getPayload());
     }
+
+    @Test
+    public void testPacketBuilderLoopbackDefaults() throws UnknownHostException {
+        Packet v4 = Packet.builder().ipv4().udp(1, 2).payload(null).build();
+        assertTrue(v4.isIpv4());
+        assertEquals(InetAddress.getByName("127.0.0.1"), InetAddress.getByName(v4.getDstAddr().get()));
+        assertEquals(28, v4.getRaw().length); // no payload
+
+        Packet v6 = Packet.builder().ipv6().tcp(3, 4).build();
+        assertTrue(v6.isIpv6());
+        assertEquals(InetAddress.getByName("::1"), InetAddress.getByName(v6.getSrcAddr().get()));
+    }
+
+    @Test
+    public void testPacketBuilderRejectsInvalidAddress() {
+        // An IPv6 literal on an IPv4 packet: parsed locally (no DNS), then rejected.
+        assertThrows(IllegalArgumentException.class, () -> Packet.builder().ipv4("::1", "10.0.0.2").build());
+    }
 }

@@ -138,13 +138,16 @@ public class EBPFDivertPanamaNativeAdapter implements NativeAdapter {
     }
 
     @Override
-    public int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
+    public int recv(Handle handle, Buffer buffer, WinDivertAddress address, int timeoutMs) throws WinDivertException {
         MemorySegment h = ((PanamaHandle) handle).segment();
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment data = MemorySegment.ofBuffer(buffer.getByteBuffer());
             MemorySegment len = arena.allocate(JAVA_INT);
             MemorySegment addr = arena.allocate(AddressCodec.SIZE, 8);
-            int rc = (int) RECV.invokeExact(h, data, buffer.capacity(), len, addr, -1);
+            int rc = (int) RECV.invokeExact(h, data, buffer.capacity(), len, addr, timeoutMs < 0 ? -1 : timeoutMs);
+            if (rc == -EBPFDivertSupport.EAGAIN) {
+                return -1;
+            }
             if (rc < 0) {
                 throw error(rc, "ebpfdivert_recv");
             }

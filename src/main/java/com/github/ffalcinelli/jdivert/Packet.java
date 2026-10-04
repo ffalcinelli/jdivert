@@ -448,7 +448,9 @@ public class Packet {
 
         public Packet build() {
             int ipLen = ipVersion == 4 ? 20 : 40;
-            int protoLen = "tcp".equals(proto) ? 20 : ("udp".equals(proto) ? 8 : 0);
+            // proto is "tcp" (the default) or "udp"
+            boolean tcp = "tcp".equals(proto);
+            int protoLen = tcp ? 20 : 8;
             int totalLen = ipLen + protoLen + payload.length;
 
             byte[] raw = new byte[totalLen];
@@ -463,23 +465,23 @@ public class Packet {
                 // TTL
                 buf.put(8, (byte) ttl);
                 // Protocol
-                buf.put(9, (byte) ("tcp".equals(proto) ? 6 : ("udp".equals(proto) ? 17 : 0)));
+                buf.put(9, (byte) (tcp ? 6 : 17));
             } else {
                 // Version + Traffic Class + Flow Label
                 buf.putInt(0, 0x60000000);
                 // Payload Length
                 buf.putShort(4, (short) (protoLen + payload.length));
                 // Next Header
-                buf.put(6, (byte) ("tcp".equals(proto) ? 6 : ("udp".equals(proto) ? 17 : 0)));
+                buf.put(6, (byte) (tcp ? 6 : 17));
                 // Hop Limit
                 buf.put(7, (byte) ttl);
             }
 
-            if ("tcp".equals(proto)) {
+            if (tcp) {
                 int offset = ipLen;
                 // Data Offset (5 << 4 = 0x50)
                 buf.put(offset + 12, (byte) 0x50);
-            } else if ("udp".equals(proto)) {
+            } else {
                 int offset = ipLen;
                 // Length
                 buf.putShort(offset + 4, (short) (protoLen + payload.length));
@@ -493,10 +495,8 @@ public class Packet {
                 throw new IllegalArgumentException("Invalid address", e);
             }
 
-            if ("tcp".equals(proto) || "udp".equals(proto)) {
-                packet.setSrcPort(srcPort);
-                packet.setDstPort(dstPort);
-            }
+            packet.setSrcPort(srcPort);
+            packet.setDstPort(dstPort);
 
             if (payload.length > 0) {
                 packet.setPayload(payload);

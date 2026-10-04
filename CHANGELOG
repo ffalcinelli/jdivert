@@ -7,6 +7,8 @@ Version 4.0.0
     - On Linux, WinDivertException carries errno values (e.g. EINVAL 22 for a bad filter).
     - Native libraries are extracted to a per-user, versioned directory (mode 0700 on Linux).
     - New API: stream() and PacketBuilder. Async calls run on virtual threads on Java 21+.
+    - New API: recvBatch(maxPackets, timeout) receives up to maxPackets, waiting up to timeout for the first one (null waits forever); empty if none arrived.
+    - Fixed: setting an IPv6 address on an IPv4 header (or vice versa) now throws instead of overwriting the following header fields.
     - Packet.parse skips event layers and short buffers.
 
 Version 3.0.0

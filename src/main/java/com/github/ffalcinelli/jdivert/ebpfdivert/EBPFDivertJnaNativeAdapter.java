@@ -104,12 +104,16 @@ public class EBPFDivertJnaNativeAdapter implements NativeAdapter {
     }
 
     @Override
-    public int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
+    public int recv(Handle handle, Buffer buffer, WinDivertAddress address, int timeoutMs) throws WinDivertException {
         Pointer h = ((JnaHandle) handle).pointer();
         ByteBuffer bb = buffer.getByteBuffer();
         Memory addr = new Memory(AddressCodec.SIZE);
         IntByReference len = new IntByReference();
-        int rc = lib.ebpfdivert_recv(h, Native.getDirectBufferPointer(bb), buffer.capacity(), len, addr, -1);
+        int rc = lib.ebpfdivert_recv(h, Native.getDirectBufferPointer(bb), buffer.capacity(), len, addr,
+                timeoutMs < 0 ? -1 : timeoutMs);
+        if (rc == -EBPFDivertSupport.EAGAIN) {
+            return -1;
+        }
         if (rc < 0) {
             throw error(rc, "ebpfdivert_recv");
         }

@@ -73,7 +73,7 @@ import static com.github.ffalcinelli.jdivert.Enums.Shutdown;
  */
 public class WinDivert implements AutoCloseable {
     public static int DEFAULT_PACKET_BUFFER_SIZE = 65575;
-    private final NativeAdapter adapter = NativeAdapterFactory.getAdapter();
+    private final NativeAdapter adapter;
     private final String filter;
     private final Layer layer;
     private final int priority;
@@ -101,6 +101,11 @@ public class WinDivert implements AutoCloseable {
      * @param flags    Additional {@link Enums.Flag flags}
      */
     public WinDivert(String filter, Layer layer, int priority, Flag... flags) {
+        this(NativeAdapterFactory.getAdapter(), filter, layer, priority, flags);
+    }
+
+    WinDivert(NativeAdapter adapter, String filter, Layer layer, int priority, Flag... flags) {
+        this.adapter = adapter;
         this.filter = filter;
         this.layer = layer;
         this.priority = priority;
@@ -377,18 +382,33 @@ public class WinDivert implements AutoCloseable {
     }
 
     /**
-     * Receives a batch of intercepted packets.
+     * Receives a batch of intercepted packets: waits up to {@code timeout} for the first one, then takes the
+     * packets that are already queued, up to {@code maxPackets}.
      *
      * @param maxPackets Maximum number of packets to receive in this batch.
-     * @param timeout Maximum duration to wait for the first packet.
-     * @return List of packets received.
+     * @param timeout Maximum duration to wait for the first packet; {@code null} waits forever.
+     * @return The packets received, empty if none arrived within the timeout.
      * @throws WinDivertException If a native Divert error occurs.
      */
     public List<Packet> recvBatch(int maxPackets, java.time.Duration timeout) throws WinDivertException {
+        if (maxPackets < 1) {
+            throw new IllegalArgumentException("maxPackets must be at least 1, got " + maxPackets);
+        }
+        int timeoutMs = timeout == null ? -1 : (int) Math.min(Integer.MAX_VALUE, Math.max(0, timeout.toMillis()));
         List<Packet> packets = new java.util.ArrayList<>();
-        Packet first = recv();
-        if (first != null) {
-            packets.add(first);
+        while (packets.size() < maxPackets) {
+            WinDivertAddress address = new WinDivertAddress();
+            // One buffer per packet, as in recv(int): each Packet wraps its buffer.
+            try (NativeAdapter.Buffer buffer = adapter.allocateBuffer(DEFAULT_PACKET_BUFFER_SIZE)) {
+                int len = adapter.recv(handle, buffer, address, packets.isEmpty() ? timeoutMs : 0);
+                if (len < 0) {
+                    break;
+                }
+                java.nio.ByteBuffer bb = buffer.getByteBuffer();
+                bb.position(0);
+                bb.limit(len);
+                packets.add(new Packet(bb, address));
+            }
         }
         return packets;
     }

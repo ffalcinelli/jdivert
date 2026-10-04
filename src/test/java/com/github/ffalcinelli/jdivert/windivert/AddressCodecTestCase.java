@@ -83,4 +83,34 @@ public class AddressCodecTestCase {
         assertEquals(3, rb.getLong(32));
         assertEquals(-5, rb.getShort(40));
     }
+
+    @Test
+    public void socketLayout() {
+        WinDivertAddress a = new WinDivertAddress();
+        a.setLayer(3);
+        a.Union.Socket.EndpointId = 7;
+        a.Union.Socket.ParentEndpointId = 8;
+        a.Union.Socket.ProcessId = 2000;
+        a.Union.Socket.LocalAddr[3] = 0x0100007f;
+        a.Union.Socket.RemoteAddr[0] = 0x0200007f;
+        a.Union.Socket.LocalPort = 8080;
+        a.Union.Socket.RemotePort = 53;
+        a.Union.Socket.Protocol = 17;
+        ByteBuffer b = ByteBuffer.wrap(AddressCodec.encode(a)).order(ByteOrder.LITTLE_ENDIAN);
+        assertEquals(7, b.getLong(16));
+        assertEquals(8, b.getLong(24));
+        assertEquals(2000, b.getInt(32));
+        assertEquals(0x0100007f, b.getInt(48));
+        assertEquals(0x0200007f, b.getInt(52));
+        assertEquals(8080, b.getShort(68));
+        assertEquals(53, b.getShort(70));
+        assertEquals(17, b.get(72));
+
+        WinDivertAddress back = new WinDivertAddress();
+        AddressCodec.decode(b, back);
+        assertEquals(2000, back.Union.Socket.ProcessId);
+        assertEquals(0x0100007f, back.Union.Socket.LocalAddr[3]);
+        assertEquals(8080, back.Union.Socket.LocalPort);
+        assertEquals(17, back.Union.Socket.Protocol);
+    }
 }

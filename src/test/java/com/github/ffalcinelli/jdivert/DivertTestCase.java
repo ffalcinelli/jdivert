@@ -35,4 +35,11 @@ public class DivertTestCase {
         assertNotNull(d.stream());
         assertEquals(0, d.stream().count());
     }
+
+    @Test
+    public void testDivertWithLayerPriorityAndFlags() {
+        Divert d = new Divert("udp", Enums.Layer.NETWORK_FORWARD, 7, Enums.Flag.SNIFF);
+        assertFalse(d.isOpen());
+        assertTrue(d.toString().contains("udp"), d.toString());
+    }
 }
