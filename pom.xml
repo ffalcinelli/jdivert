@@ -309,6 +309,23 @@
                                     <compileSourceRoots>
                                         <sourcePath>${project.basedir}/src/main/java22</sourcePath>
                                     </compileSourceRoots>
+                                    <multiReleaseOutput>true</multiReleaseOutput>
+                                </configuration>
+                            </execution>
+                            <!-- Multi-release output is only honored inside a jar: also compile the Panama
+                                 adapters into test-classes so that tests on Java 22+ load them. -->
+                            <execution>
+                                <id>compile-java-22-for-test</id>
+                                <phase>process-test-sources</phase>
+                                <goals>
+                                    <goal>compile</goal>
+                                </goals>
+                                <configuration>
+                                    <release>22</release>
+                                    <compileSourceRoots>
+                                        <sourcePath>${project.basedir}/src/main/java22</sourcePath>
+                                    </compileSourceRoots>
+                                    <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
                                 </configuration>
                             </execution>
                         </executions>
