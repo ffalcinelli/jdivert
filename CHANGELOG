@@ -1,6 +1,6 @@
 Version 4.0.0
     - Major version bump to match pydivert 4.0.0.
-    - Linux support (x86_64/aarch64) via the bundled eBPFDivert 0.1.0 (libebpfdivert.so), an eBPF implementation of the WinDivert API. Requires kernel 5.10+ with BTF and glibc 2.28+; cgroup v2 for the FLOW/SOCKET layers.
+    - Linux support (x86_64/aarch64) via the bundled eBPFDivert 0.0.5 (libebpfdivert.so), an eBPF implementation of the WinDivert API. Requires kernel 5.10+ with BTF and glibc 2.28+; cgroup v2 for the FLOW/SOCKET layers.
     - Filters are compiled and evaluated by WinDivert's own filter engine on Linux too; all layers are supported.
     - JNA and Project Panama adapters for Linux; the 80-byte WINDIVERT_ADDRESS round-trips intact between recv and send.
     - Linux-only system properties: jdivert.ebpf.interfaces and jdivert.ebpf.ringBytes.

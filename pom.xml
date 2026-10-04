@@ -53,7 +53,7 @@
         <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <windivert.version>2.2.2</windivert.version>
-        <ebpfdivert.version>0.1.0</ebpfdivert.version>
+        <ebpfdivert.version>0.0.5</ebpfdivert.version>
         <!-- Development: -Debpfdivert.local=/path/to/libebpfdivert.so -Debpfdivert.skipDownload=true -->
         <ebpfdivert.local></ebpfdivert.local>
         <ebpfdivert.local.platform>linux-x86-64</ebpfdivert.local.platform>

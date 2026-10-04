@@ -57,7 +57,7 @@ public class EBPFDivertJnaNativeAdapterTestCase {
         long queueLen = 4096;
         int shutdownHow = -1;
 
-        public String ebpfdivert_version() { return "0.1.0"; }
+        public String ebpfdivert_version() { return "0.0.5"; }
 
         public int ebpfdivert_open_ex(String filter, int layer, short priority, long flags, OpenOpts opts, PointerByReference out) {
             openedFilter = filter;
