@@ -4,6 +4,8 @@ On Linux, JDivert is backed by [eBPFDivert](https://github.com/ffalcinelli/ebpfd
 library that implements the WinDivert API with eBPF. The same `WinDivert` class, filters, layers, flags,
 parameters and packet metadata work unchanged on both operating systems.
 
+> **Experimental.** eBPFDivert is still at 0.0.x: expect rough edges and please report issues.
+
 ---
 
 ## 1. Requirements

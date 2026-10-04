@@ -7,6 +7,10 @@
 
 **JDivert** is a powerful Java binding for capturing, modifying, and dropping network packets. It supports **Windows** via [WinDivert](https://reqrypt.org/windivert.html) and **Linux** via [eBPFDivert](https://github.com/ffalcinelli/ebpfdivert), an eBPF implementation of the WinDivert API. The same code, filters, layers and flags work on both.
 
+> [!WARNING]
+> Linux support is **experimental**. eBPFDivert is still at 0.0.x, so expect rough edges and please report
+> issues. Windows support is stable.
+
 ---
 
 ## Quick Start
@@ -32,7 +36,7 @@ For more complex scenarios, see our [Examples Guide](docs/examples.md).
 ## Usage Hints
 
 ### Prerequisites
-*   **Operating System**: Windows (64-bit) or Linux (x86_64/aarch64, kernel 5.10+ with BTF, glibc 2.28+; cgroup v2 for the FLOW/SOCKET layers). The native libraries are bundled in the jar.
+*   **Operating System**: Windows (64-bit) or Linux (experimental; x86_64/aarch64, kernel 5.10+ with BTF, glibc 2.28+; cgroup v2 for the FLOW/SOCKET layers). The native libraries are bundled in the jar.
 *   **Privileges**: Administrator privileges are **required** on Windows to load the WinDivert driver, and root privileges (or the `CAP_BPF`, `CAP_NET_ADMIN` and `CAP_NET_RAW` capabilities) are **required** on Linux.
 *   **Java**: Version 8 or higher (on Java 22+ the Panama adapters are used, otherwise JNA).
 
