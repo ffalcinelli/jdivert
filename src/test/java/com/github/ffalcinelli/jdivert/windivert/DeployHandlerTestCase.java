@@ -17,13 +17,22 @@
 
 package com.github.ffalcinelli.jdivert.windivert;
 
+import com.github.ffalcinelli.jdivert.Util;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.EnumSet;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,9 +50,13 @@ public class DeployHandlerTestCase {
     }
 
     @Test
-    public void testDeployInInvalidDir() {
-        File invalidDir = new File("Z:\\invalid\\path\\that\\should\\not\\exist");
-        assertThrows(java.io.IOException.class, () -> DeployHandler.deployInTempDir(invalidDir));
+    public void testDeployInInvalidDir() throws java.io.IOException {
+        File fileAsDir = File.createTempFile("jdivert-test", "tmp");
+        try {
+            assertThrows(java.io.IOException.class, () -> DeployHandler.deployInTempDir(fileAsDir));
+        } finally {
+            fileAsDir.delete();
+        }
     }
 
     @Test
@@ -57,21 +70,28 @@ public class DeployHandlerTestCase {
     }
 
     @Test
-    public void testDeployToPath() {
+    public void testDeployToPath() throws java.io.IOException {
         try {
-            Path dllPath = DeployHandler.deployToPath();
-            assertNotNull(dllPath);
-            assertTrue(dllPath.toString().endsWith("WinDivert64.dll"));
+            Path binPath = DeployHandler.deployToPath();
+            assertNotNull(binPath);
+            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "libebpfdivert.so";
+            assertTrue(binPath.toString().endsWith(mainFile));
 
-            File dllFile = dllPath.toFile();
-            assertTrue(dllFile.exists(), "DLL should exist after deployment");
+            File binFile = binPath.toFile();
+            assertTrue(binFile.exists(), "Binary should exist after deployment: " + binFile);
 
-            File sysFile = new File(dllFile.getParentFile(), "WinDivert64.sys");
-            assertTrue(sysFile.exists(), "SYS should exist after deployment");
+            if (Util.isWindows()) {
+                File sysFile = new File(binFile.getParentFile(), "WinDivert64.sys");
+                assertTrue(sysFile.exists(), "SYS should exist after deployment");
+            }
 
             // Verify it's in a stable directory
-            String tmpDir = System.getProperty("java.io.tmpdir");
-            assertTrue(dllPath.toString().contains("jdivert-3.0.0"), "Should use versioned stable directory: " + dllPath);
+            java.util.Properties props = new java.util.Properties();
+            try (java.io.InputStream is = DeployHandler.class.getResourceAsStream("/jdivert.properties")) {
+                props.load(is);
+            }
+            String versionedDir = "jdivert-" + props.getProperty("version");
+            assertTrue(binPath.toString().contains(versionedDir), "Should use versioned stable directory: " + binPath);
         } catch (Throwable t) {
             if (t.getMessage() != null && t.getMessage().contains("64-bit")) {
                 return;
@@ -90,13 +110,14 @@ public class DeployHandlerTestCase {
         if (!tempDir.mkdirs()) return;
         try {
             DeployHandler.deployInTempDir(tempDir);
-            File dllFile = new File(tempDir, "WinDivert64.dll");
-            assertTrue(dllFile.exists());
-            long length = dllFile.length();
+            String mainFile = Util.isWindows() ? "WinDivert64.dll" : "libebpfdivert.so";
+            File binFile = new File(tempDir, mainFile);
+            assertTrue(binFile.exists());
+            long length = binFile.length();
             
             // Re-deploy should skip
             DeployHandler.deployInTempDir(tempDir);
-            assertEquals(length, dllFile.length());
+            assertEquals(length, binFile.length());
         } finally {
             File[] files = tempDir.listFiles();
             if (files != null) {
@@ -104,5 +125,71 @@ public class DeployHandlerTestCase {
             }
             tempDir.delete();
         }
+    }
+
+    @Test
+    public void linuxPlatformFollowsArch() throws IOException {
+        String arch = System.getProperty("os.arch");
+        try {
+            System.setProperty("os.arch", "aarch64");
+            assertEquals("linux-aarch64", DeployHandler.linuxPlatform());
+            System.setProperty("os.arch", "arm64");
+            assertEquals("linux-aarch64", DeployHandler.linuxPlatform());
+            System.setProperty("os.arch", "x86_64");
+            assertEquals("linux-x86-64", DeployHandler.linuxPlatform());
+            System.setProperty("os.arch", "riscv64");
+            assertThrows(IOException.class, DeployHandler::linuxPlatform);
+        } finally {
+            System.setProperty("os.arch", arch);
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    public void insecureDeployDirIsNotReused() throws IOException {
+        File dir = DeployHandler.privateDeployDir();
+        Path path = dir.toPath();
+        Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
+        try {
+            Set<PosixFilePermission> groupWritable = EnumSet.copyOf(perms);
+            groupWritable.add(PosixFilePermission.GROUP_WRITE);
+            Files.setPosixFilePermissions(path, groupWritable);
+            File fresh = DeployHandler.privateDeployDir();
+            assertNotEquals(dir, fresh);
+            assertTrue(fresh.isDirectory());
+        } finally {
+            Files.setPosixFilePermissions(path, perms);
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    public void unknownUserGetsAFreshDeployDir() throws IOException {
+        String user = System.getProperty("user.name");
+        File stable = new File(System.getProperty("java.io.tmpdir"), "jdivert-" + versionOf() + "-jdivert-no-such-user");
+        try {
+            System.setProperty("user.name", "jdivert-no-such-user");
+            // The owner check cannot look the user up: fall back to a fresh private directory.
+            File dir = DeployHandler.privateDeployDir();
+            assertNotEquals(stable, dir);
+            assertTrue(dir.isDirectory());
+        } finally {
+            System.setProperty("user.name", user);
+            Files.deleteIfExists(stable.toPath());
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    public void winDivertDllIsWindowsOnly() {
+        assertThrows(UnsupportedOperationException.class, DeployHandler::deploy);
+    }
+
+    private static String versionOf() throws IOException {
+        java.util.Properties props = new java.util.Properties();
+        try (java.io.InputStream is = DeployHandler.class.getResourceAsStream("/jdivert.properties")) {
+            props.load(is);
+        }
+        return props.getProperty("version");
     }
 }

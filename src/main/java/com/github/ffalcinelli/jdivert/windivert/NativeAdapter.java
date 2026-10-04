@@ -27,7 +27,18 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 public interface NativeAdapter {
     Handle open(String filter, int layer, short priority, long flags) throws WinDivertException;
 
-    int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException;
+    /**
+     * Receives one packet, waiting at most {@code timeoutMs} for it.
+     *
+     * @param timeoutMs how long to wait: negative waits forever, 0 only takes an already queued packet
+     * @return the packet length, or -1 if no packet arrived in time
+     * @throws WinDivertException if the native call fails
+     */
+    int recv(Handle handle, Buffer buffer, WinDivertAddress address, int timeoutMs) throws WinDivertException;
+
+    default int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
+        return recv(handle, buffer, address, -1);
+    }
 
     <T> WinDivertAsyncResult<T> recvAsync(Handle handle, int bufsize, WinDivertAsyncResult.ResultConverter<T> converter) throws WinDivertException;
 

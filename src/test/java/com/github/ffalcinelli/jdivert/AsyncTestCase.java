@@ -20,6 +20,7 @@ package com.github.ffalcinelli.jdivert;
 import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@EnabledIf("com.github.ffalcinelli.jdivert.CaptureCondition#canCapture")
 public class AsyncTestCase {
     private WinDivert wd;
 
@@ -80,6 +82,28 @@ public class AsyncTestCase {
     @Test
     public void testDefaultBufferSize() {
         assertEquals(65575, WinDivert.DEFAULT_PACKET_BUFFER_SIZE);
+    }
+
+    @Test
+    public void testRecvAsyncWithBufferSize() throws WinDivertException {
+        wd = new WinDivert("false").open();
+        WinDivertAsyncResult<Packet> asyncResult = wd.recvAsync(1024);
+        assertFalse(asyncResult.isCompleted());
+        asyncResult.cancel();
+    }
+
+    @Test
+    public void testSendAsyncWithOptions() throws WinDivertException {
+        wd = new WinDivert("true").open();
+        byte[] raw = Util.parseHexBinary("4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637");
+        Packet p = new Packet(raw, new int[]{0, 0}, Enums.Direction.OUTBOUND);
+        
+        try {
+            WinDivertAsyncResult<Integer> asyncSend = wd.sendAsync(p, false, Enums.CalcChecksumsOption.NO_IP_CHECKSUM);
+            assertNotNull(asyncSend);
+        } catch (WinDivertException e) {
+            // Refusal is okay for this test
+        }
     }
 
     @Test

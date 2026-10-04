@@ -38,7 +38,7 @@ import java.util.List;
 /**
  * JNA implementation of NativeAdapter.
  */
-public class JnaNativeAdapter implements NativeAdapter {
+public class WinDivertJnaNativeAdapter implements NativeAdapter {
 
     private final WinDivertDLL dll = WinDivertDLL.INSTANCE;
 
@@ -52,18 +52,58 @@ public class JnaNativeAdapter implements NativeAdapter {
     }
 
     @Override
-    public int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
+    public int recv(Handle handle, Buffer buffer, WinDivertAddress address, int timeoutMs) throws WinDivertException {
         JnaBuffer jnaBuffer = (JnaBuffer) buffer;
         JnaHandle jnaHandle = (JnaHandle) handle;
         IntByReference recvLen = new IntByReference();
         JnaWinDivertAddress jnaAddr = new JnaWinDivertAddress();
 
-        if (!dll.WinDivertRecv(jnaHandle.handle, jnaBuffer.memory, jnaBuffer.capacity(), recvLen, jnaAddr.getPointer())) {
-            WinDivertException.throwExceptionOnGetLastError();
+        if (timeoutMs < 0) {
+            if (!dll.WinDivertRecv(jnaHandle.handle, jnaBuffer.memory, jnaBuffer.capacity(), recvLen, jnaAddr.getPointer())) {
+                WinDivertException.throwExceptionOnGetLastError();
+            }
+        } else if (!recvWithTimeout(jnaHandle, jnaBuffer, jnaAddr, recvLen, timeoutMs)) {
+            return -1;
         }
         jnaAddr.read();
         mapToPojo(jnaAddr, address);
         return recvLen.getValue();
+    }
+
+    /**
+     * Overlapped WinDivertRecvEx, cancelled if nothing arrives within the timeout.
+     *
+     * @return false if the receive timed out
+     */
+    private boolean recvWithTimeout(JnaHandle handle, JnaBuffer buffer, JnaWinDivertAddress addr, IntByReference recvLen,
+                                    int timeoutMs) throws WinDivertException {
+        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
+        overlapped.hEvent = Kernel32.INSTANCE.CreateEvent(null, true, false, null);
+        try {
+            boolean done = dll.WinDivertRecvEx(handle.handle, buffer.memory, buffer.capacity(), null, 0,
+                    addr.getPointer(), null, overlapped);
+            // The driver now owns the OVERLAPPED: never write the Java copy back over it.
+            overlapped.setAutoSynch(false);
+            if (!done) {
+                int err = Native.getLastError();
+                if (err != WinNT.ERROR_IO_PENDING) {
+                    throw new WinDivertException(err);
+                }
+                if (Kernel32.INSTANCE.WaitForSingleObject(overlapped.hEvent, timeoutMs) == WinNT.WAIT_TIMEOUT) {
+                    MyKernel32.INSTANCE.CancelIoEx(handle.handle, overlapped);
+                }
+            }
+            if (!MyKernel32.INSTANCE.GetOverlappedResult(handle.handle, overlapped, recvLen, true)) {
+                int err = Native.getLastError();
+                if (err == WinNT.ERROR_OPERATION_ABORTED) {
+                    return false;
+                }
+                throw new WinDivertException(err);
+            }
+            return true;
+        } finally {
+            Kernel32.INSTANCE.CloseHandle(overlapped.hEvent);
+        }
     }
 
     @Override
@@ -283,6 +323,8 @@ public class JnaNativeAdapter implements NativeAdapter {
         MyKernel32 INSTANCE = Native.load("kernel32", MyKernel32.class, W32APIOptions.DEFAULT_OPTIONS);
 
         boolean GetOverlappedResult(HANDLE hFile, WinBase.OVERLAPPED lpOverlapped, IntByReference lpNumberOfBytesTransferred, boolean bWait);
+
+        boolean CancelIoEx(HANDLE hFile, WinBase.OVERLAPPED lpOverlapped);
     }
 
     private static class JnaHandle implements Handle {

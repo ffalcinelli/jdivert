@@ -1,17 +1,20 @@
 package com.github.ffalcinelli.jdivert.windivert;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class JnaNativeAdapterTestCase {
+@EnabledOnOs(OS.WINDOWS)
+public class WinDivertJnaNativeAdapterTestCase {
 
     @Test
     public void testFormatMessage() {
-        JnaNativeAdapter adapter = new JnaNativeAdapter();
+        WinDivertJnaNativeAdapter adapter = new WinDivertJnaNativeAdapter();
         String msg = adapter.formatMessage(5); // Access Denied
         assertNotNull(msg);
         assertTrue(msg.toLowerCase().contains("access") || msg.toLowerCase().contains("negato"));
@@ -19,7 +22,7 @@ public class JnaNativeAdapterTestCase {
 
     @Test
     public void testJnaWinDivertAddressMapping() {
-        JnaNativeAdapter.JnaWinDivertAddress jnaAddr = new JnaNativeAdapter.JnaWinDivertAddress();
+        WinDivertJnaNativeAdapter.JnaWinDivertAddress jnaAddr = new WinDivertJnaNativeAdapter.JnaWinDivertAddress();
         jnaAddr.bitfield1 = 2; // Layer.FLOW
         jnaAddr.Timestamp = 123456L;
         
@@ -33,7 +36,7 @@ public class JnaNativeAdapterTestCase {
     
     @Test
     public void testGetLastError() {
-        JnaNativeAdapter adapter = new JnaNativeAdapter();
+        WinDivertJnaNativeAdapter adapter = new WinDivertJnaNativeAdapter();
         int err = adapter.getLastError();
         // Should be 0 if no error happened in this thread recently
         assertTrue(err >= 0);
@@ -41,7 +44,7 @@ public class JnaNativeAdapterTestCase {
 
     @Test
     public void testMapNetworkAddress() {
-        JnaNativeAdapter adapter = new JnaNativeAdapter();
+        WinDivertJnaNativeAdapter adapter = new WinDivertJnaNativeAdapter();
         WinDivertAddress addr = new WinDivertAddress();
         addr.setLayer(0); // NETWORK
         addr.setOutbound(true);
@@ -50,7 +53,7 @@ public class JnaNativeAdapterTestCase {
         addr.Union.Network.IfIdx = 1;
         addr.Union.Network.SubIfIdx = 2;
 
-        JnaNativeAdapter.JnaWinDivertAddress jnaAddr = new JnaNativeAdapter.JnaWinDivertAddress();
+        WinDivertJnaNativeAdapter.JnaWinDivertAddress jnaAddr = new WinDivertJnaNativeAdapter.JnaWinDivertAddress();
         adapter.mapFromPojo(addr, jnaAddr);
         
         assertEquals(0, jnaAddr.getLayer());
@@ -72,7 +75,7 @@ public class JnaNativeAdapterTestCase {
 
     @Test
     public void testMapFlowAddress() {
-        JnaNativeAdapter adapter = new JnaNativeAdapter();
+        WinDivertJnaNativeAdapter adapter = new WinDivertJnaNativeAdapter();
         WinDivertAddress addr = new WinDivertAddress();
         addr.setLayer(2); // FLOW
         addr.setOutbound(false);
@@ -80,7 +83,7 @@ public class JnaNativeAdapterTestCase {
         addr.Union.Flow.ParentEndpointId = 67890L;
         addr.Union.Flow.ProcessId = 1000;
 
-        JnaNativeAdapter.JnaWinDivertAddress jnaAddr = new JnaNativeAdapter.JnaWinDivertAddress();
+        WinDivertJnaNativeAdapter.JnaWinDivertAddress jnaAddr = new WinDivertJnaNativeAdapter.JnaWinDivertAddress();
         adapter.mapFromPojo(addr, jnaAddr);
         
         assertEquals(2, jnaAddr.bitfield1 & 0xFF);
@@ -99,7 +102,7 @@ public class JnaNativeAdapterTestCase {
 
     @Test
     public void testMapSocketAddress() {
-        JnaNativeAdapter adapter = new JnaNativeAdapter();
+        WinDivertJnaNativeAdapter adapter = new WinDivertJnaNativeAdapter();
         WinDivertAddress addr = new WinDivertAddress();
         addr.setLayer(3); // SOCKET
         addr.Union.Socket.ProcessId = 1234;
@@ -107,7 +110,7 @@ public class JnaNativeAdapterTestCase {
         addr.Union.Socket.RemotePort = 443;
         addr.Union.Socket.Protocol = 6; // TCP
 
-        JnaNativeAdapter.JnaWinDivertAddress jnaAddr = new JnaNativeAdapter.JnaWinDivertAddress();
+        WinDivertJnaNativeAdapter.JnaWinDivertAddress jnaAddr = new WinDivertJnaNativeAdapter.JnaWinDivertAddress();
         adapter.mapFromPojo(addr, jnaAddr);
         
         assertEquals(3, jnaAddr.bitfield1 & 0xFF);
@@ -127,14 +130,14 @@ public class JnaNativeAdapterTestCase {
 
     @Test
     public void testMapReflectAddress() {
-        JnaNativeAdapter adapter = new JnaNativeAdapter();
+        WinDivertJnaNativeAdapter adapter = new WinDivertJnaNativeAdapter();
         WinDivertAddress addr = new WinDivertAddress();
         addr.setLayer(4); // REFLECT
         addr.Union.Reflect.ProcessId = 5678;
         addr.Union.Reflect.Layer = 0; // NETWORK
         addr.Union.Reflect.Flags = 1;
 
-        JnaNativeAdapter.JnaWinDivertAddress jnaAddr = new JnaNativeAdapter.JnaWinDivertAddress();
+        WinDivertJnaNativeAdapter.JnaWinDivertAddress jnaAddr = new WinDivertJnaNativeAdapter.JnaWinDivertAddress();
         adapter.mapFromPojo(addr, jnaAddr);
         
         assertEquals(4, jnaAddr.bitfield1 & 0xFF);

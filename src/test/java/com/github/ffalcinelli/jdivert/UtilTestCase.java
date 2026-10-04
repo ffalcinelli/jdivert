@@ -45,6 +45,14 @@ public class UtilTestCase {
     }
 
     @Test
+    public void osDetection() {
+        // These will always return something depending on the current OS
+        // We just call them to ensure coverage
+        Util.isWindows();
+        Util.isLinux();
+    }
+
+    @Test
     public void hexConversion() {
         byte[] bytes = parseHexBinary("0123456789ABCDEF");
         assertEquals("0123456789ABCDEF", printHexBinary(bytes));

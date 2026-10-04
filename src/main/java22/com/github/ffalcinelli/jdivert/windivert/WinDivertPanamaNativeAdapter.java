@@ -43,9 +43,11 @@ import static java.lang.foreign.ValueLayout.JAVA_SHORT;
  * Project Panama (FFM API) implementation of NativeAdapter.
  * Targets Java 22+.
  */
-public class PanamaNativeAdapter implements NativeAdapter {
+public class WinDivertPanamaNativeAdapter implements NativeAdapter {
 
     public static final int ERROR_IO_PENDING = 997;
+    public static final int ERROR_OPERATION_ABORTED = 995;
+    public static final int WAIT_TIMEOUT = 0x102;
     public static final int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
     public static final int DEFAULT_BUFFER_SIZE = 1024;
     public static final long OVERLAPPED_ADDRESS = 0x103L;
@@ -78,6 +80,8 @@ public class PanamaNativeAdapter implements NativeAdapter {
     private static final MethodHandle CreateEventW;
     private static final MethodHandle CloseHandle;
     private static final MethodHandle GetOverlappedResult;
+    private static final MethodHandle WaitForSingleObject;
+    private static final MethodHandle CancelIoEx;
 
     // Memory Layouts
     private static final StructLayout OVERLAPPED_LAYOUT = MemoryLayout.structLayout(
@@ -155,6 +159,8 @@ public class PanamaNativeAdapter implements NativeAdapter {
         CreateEventW = link(KERNEL32_LOOKUP, "CreateEventW", FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_BOOLEAN, JAVA_BOOLEAN, ADDRESS));
         CloseHandle = link(KERNEL32_LOOKUP, "CloseHandle", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS));
         GetOverlappedResult = linkWithCcs(KERNEL32_LOOKUP, "GetOverlappedResult", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS, ADDRESS, ADDRESS, JAVA_BOOLEAN));
+        WaitForSingleObject = link(KERNEL32_LOOKUP, "WaitForSingleObject", FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT));
+        CancelIoEx = link(KERNEL32_LOOKUP, "CancelIoEx", FunctionDescriptor.of(JAVA_BOOLEAN, ADDRESS, ADDRESS));
     }
 
     private static MethodHandle link(String name, FunctionDescriptor desc) {
@@ -191,7 +197,10 @@ public class PanamaNativeAdapter implements NativeAdapter {
     }
 
     @Override
-    public int recv(Handle handle, Buffer buffer, WinDivertAddress address) throws WinDivertException {
+    public int recv(Handle handle, Buffer buffer, WinDivertAddress address, int timeoutMs) throws WinDivertException {
+        if (timeoutMs >= 0) {
+            return recvWithTimeout((PanamaHandle) handle, (PanamaBuffer) buffer, address, timeoutMs);
+        }
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment capturedState = arena.allocate(CAPTURED_STATE_LAYOUT);
             MemorySegment pRecvLen = arena.allocate(JAVA_INT);
@@ -209,6 +218,56 @@ public class PanamaNativeAdapter implements NativeAdapter {
         } catch (Throwable t) {
             if (t instanceof WinDivertException) throw (WinDivertException) t;
             throw new RuntimeException(t);
+        }
+    }
+
+    /**
+     * Overlapped WinDivertRecvEx, cancelled if nothing arrives within the timeout.
+     *
+     * @return the packet length, or -1 if the receive timed out
+     */
+    private int recvWithTimeout(PanamaHandle handle, PanamaBuffer buffer, WinDivertAddress address, int timeoutMs) throws WinDivertException {
+        MemorySegment hEvent = MemorySegment.NULL;
+        // The I/O always completes (or is aborted) before GetOverlappedResult returns, so the arena can be confined.
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment capturedState = arena.allocate(CAPTURED_STATE_LAYOUT);
+            MemorySegment pRecvLen = arena.allocate(JAVA_INT);
+            MemorySegment pAddr = arena.allocate(ADDRESS_LAYOUT);
+            MemorySegment pOverlapped = arena.allocate(OVERLAPPED_LAYOUT);
+            hEvent = (MemorySegment) CreateEventW.invokeExact(MemorySegment.NULL, true, false, MemorySegment.NULL);
+            pOverlapped.set(ADDRESS, OVERLAPPED_LAYOUT.byteOffset(MemoryLayout.PathElement.groupElement("hEvent")), hEvent);
+            MemorySegment h = MemorySegment.ofAddress(handle.handle);
+
+            boolean done = (boolean) WinDivertRecvEx.invokeExact(capturedState, handle.handle, buffer.segment, buffer.capacity(), MemorySegment.NULL, 0L, pAddr, MemorySegment.NULL, pOverlapped);
+            if (!done) {
+                int err = (int) GET_LAST_ERROR_VH.get(capturedState, 0L);
+                if (err != ERROR_IO_PENDING) {
+                    throw new WinDivertException(err);
+                }
+                if ((int) WaitForSingleObject.invokeExact(hEvent, timeoutMs) == WAIT_TIMEOUT) {
+                    boolean ignored = (boolean) CancelIoEx.invokeExact(h, pOverlapped);
+                }
+            }
+            boolean ok = (boolean) GetOverlappedResult.invokeExact(capturedState, h, pOverlapped, pRecvLen, true);
+            if (!ok) {
+                int err = (int) GET_LAST_ERROR_VH.get(capturedState, 0L);
+                if (err == ERROR_OPERATION_ABORTED) {
+                    return -1;
+                }
+                throw new WinDivertException(err);
+            }
+            mapToPojo(pAddr, address);
+            return pRecvLen.get(JAVA_INT, 0);
+        } catch (Throwable t) {
+            if (t instanceof WinDivertException) throw (WinDivertException) t;
+            throw new RuntimeException(t);
+        } finally {
+            if (!hEvent.equals(MemorySegment.NULL)) {
+                try {
+                    boolean ignored = (boolean) CloseHandle.invokeExact(hEvent);
+                } catch (Throwable ignored) {
+                }
+            }
         }
     }
 

@@ -21,6 +21,7 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -38,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Created by fabio on 06/11/2016.
  */
+@EnabledIf("com.github.ffalcinelli.jdivert.CaptureCondition#canCapture")
 public class LiveCaptureTestCase {
     WinDivert wd;
     EchoServer srv;
@@ -217,7 +219,7 @@ public class LiveCaptureTestCase {
 
                         String data = in.readLine();
                         if (data != null)
-                            out.print(alterMessage(data));
+                            out.println(alterMessage(data));
                         out.flush();
                     }
                 }

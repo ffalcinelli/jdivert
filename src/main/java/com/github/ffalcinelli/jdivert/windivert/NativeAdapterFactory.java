@@ -17,33 +17,67 @@
 
 package com.github.ffalcinelli.jdivert.windivert;
 
+import com.github.ffalcinelli.jdivert.Util;
+
 /**
  * Factory for creating NativeAdapter instances.
- * This version dynamically loads the correct adapter at runtime.
+ * This version dynamically loads the correct adapter at runtime based on OS and JVM version.
  */
 public class NativeAdapterFactory {
     private static final NativeAdapter INSTANCE;
 
+    private NativeAdapterFactory() {
+    }
+
     static {
         NativeAdapter adapter = null;
+        StringBuilder errorReport = new StringBuilder();
+        if (Util.isWindows()) {
+            adapter = loadAdapter("com.github.ffalcinelli.jdivert.windivert.WinDivertPanamaNativeAdapter",
+                    "com.github.ffalcinelli.jdivert.windivert.WinDivertJnaNativeAdapter", errorReport);
+        } else if (Util.isLinux()) {
+            adapter = loadAdapter("com.github.ffalcinelli.jdivert.ebpfdivert.EBPFDivertPanamaNativeAdapter",
+                    "com.github.ffalcinelli.jdivert.ebpfdivert.EBPFDivertJnaNativeAdapter", errorReport);
+        }
+
+        if (adapter == null) {
+            throw new RuntimeException("Unsupported platform or unable to load native adapter. OS: " + 
+                    System.getProperty("os.name") + ". Errors: " + errorReport.toString());
+        }
+        INSTANCE = adapter;
+    }
+
+    private static NativeAdapter loadAdapter(String panamaClassName, String jnaClassName, StringBuilder errorReport) {
+        NativeAdapter adapter = null;
+        ClassLoader cl = NativeAdapterFactory.class.getClassLoader();
         try {
-            String javaVersion = System.getProperty("java.version");
-            int majorVersion = getJavaMajorVersion(javaVersion);
+            int majorVersion = getJavaMajorVersion(System.getProperty("java.version"));
             if (majorVersion >= 22) {
                 try {
-                    Class<?> clazz = Class.forName("com.github.ffalcinelli.jdivert.windivert.PanamaNativeAdapter");
+                    Class<?> clazz = Class.forName(panamaClassName, true, cl);
                     adapter = (NativeAdapter) clazz.getDeclaredConstructor().newInstance();
                 } catch (Throwable t) {
-                    // Panama adapter not available or failed to load, fallback to JNA
+                    errorReport.append("[").append(panamaClassName).append(" failed: ").append(t.toString()).append("] ");
+                    if (t.getCause() != null) {
+                        errorReport.append("(Cause: ").append(t.getCause().toString()).append(") ");
+                    }
                 }
             }
         } catch (Throwable t) {
-            // Fallback to JNA
+            errorReport.append("[Java version check failed: ").append(t.toString()).append("] ");
         }
         if (adapter == null) {
-            adapter = new JnaNativeAdapter();
+            try {
+                Class<?> clazz = Class.forName(jnaClassName, true, cl);
+                adapter = (NativeAdapter) clazz.getDeclaredConstructor().newInstance();
+            } catch (Throwable t) {
+                errorReport.append("[").append(jnaClassName).append(" failed: ").append(t.toString()).append("] ");
+                if (t.getCause() != null) {
+                    errorReport.append("(Cause: ").append(t.getCause().toString()).append(") ");
+                }
+            }
         }
-        INSTANCE = adapter;
+        return adapter;
     }
 
     public static NativeAdapter getAdapter() {
@@ -55,7 +89,13 @@ public class NativeAdapterFactory {
         if (parts[0].equals("1")) {
             return Integer.parseInt(parts[1]);
         } else {
-            return Integer.parseInt(parts[0]);
+            // Remove any suffix like -ea, -internal, etc.
+            String major = parts[0];
+            int dashIndex = major.indexOf('-');
+            if (dashIndex != -1) {
+                major = major.substring(0, dashIndex);
+            }
+            return Integer.parseInt(major);
         }
     }
 }

@@ -21,7 +21,10 @@ import com.github.ffalcinelli.jdivert.exceptions.WinDivertException;
 import com.github.ffalcinelli.jdivert.windivert.WinDivertAddress;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import static com.github.ffalcinelli.jdivert.Enums.CalcChecksumsOption.NO_TCP_CHECKSUM;
@@ -59,6 +62,14 @@ public class PacketTestCase {
         payload = parseHexBinary("17030300240000000000000c2f53831a37ed3c3a632f47440594cab95283b558bf82cb7784344c3314");
 
         packet = new Packet(raw, addr);
+    }
+
+    @Test
+    public void constructWithByteBuffer() {
+        java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(raw);
+        Packet p = new Packet(buffer, addr);
+        assertArrayEquals(raw, p.getRaw());
+        assertEquals(java.nio.ByteOrder.BIG_ENDIAN, buffer.order());
     }
 
     @Test
@@ -170,6 +181,7 @@ public class PacketTestCase {
     }
 
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void excludeChecksums() throws WinDivertException {
         int cksum = packet.getTcp().get().getChecksum();
         packet.setSrcPort(8080);
@@ -202,5 +214,63 @@ public class PacketTestCase {
         assertEquals(40 + 8 + 4, p.getRaw().length);
         assertEquals(40 + 8 + 4, p.getIpv6().get().getPayloadLength() + 40);
         assertEquals(8 + 4, p.getUdp().get().getLength());
+    }
+
+    @Test
+    public void testPacketBuilderIPv4Tcp() throws UnknownHostException {
+        byte[] payload = "test-payload".getBytes();
+        Packet p = Packet.builder()
+            .ipv4("10.0.0.1", "10.0.0.2")
+            .tcp(12345, 80)
+            .payload(payload)
+            .ttl(128)
+            .build();
+
+        assertTrue(p.isIpv4());
+        assertTrue(p.isTcp());
+        assertEquals(InetAddress.getByName("10.0.0.1"), InetAddress.getByName(p.getSrcAddr().get()));
+        assertEquals(InetAddress.getByName("10.0.0.2"), InetAddress.getByName(p.getDstAddr().get()));
+        assertEquals(12345, p.getSrcPort().get());
+        assertEquals(80, p.getDstPort().get());
+        assertEquals(128, p.getIpv4().get().getTTL());
+        assertArrayEquals(payload, p.getPayload());
+    }
+
+    @Test
+    public void testPacketBuilderIPv6Udp() throws UnknownHostException {
+        byte[] payload = "hello-udp".getBytes();
+        Packet p = Packet.builder()
+            .ipv6("2001:db8::1", "2001:db8::2")
+            .udp(5555, 6666)
+            .payload(payload)
+            .ttl(32)
+            .build();
+
+        assertTrue(p.isIpv6());
+        assertTrue(p.isUdp());
+        assertEquals(InetAddress.getByName("2001:db8::1"), InetAddress.getByName(p.getSrcAddr().get()));
+        assertEquals(InetAddress.getByName("2001:db8::2"), InetAddress.getByName(p.getDstAddr().get()));
+        assertEquals(5555, p.getSrcPort().get());
+        assertEquals(6666, p.getDstPort().get());
+        assertEquals(32, p.getIpv6().get().getHopLimit());
+        assertArrayEquals(payload, p.getPayload());
+    }
+
+    @Test
+    public void testPacketBuilderLoopbackDefaults() throws UnknownHostException {
+        Packet v4 = Packet.builder().ipv4().udp(1, 2).payload(null).build();
+        assertTrue(v4.isIpv4());
+        assertEquals(InetAddress.getByName("127.0.0.1"), InetAddress.getByName(v4.getDstAddr().get()));
+        assertEquals(28, v4.getRaw().length); // no payload
+
+        Packet v6 = Packet.builder().ipv6().tcp(3, 4).build();
+        assertTrue(v6.isIpv6());
+        assertEquals(InetAddress.getByName("::1"), InetAddress.getByName(v6.getSrcAddr().get()));
+    }
+
+    @Test
+    public void testPacketBuilderRejectsInvalidAddress() {
+        // An IPv6 literal on an IPv4 packet: parsed locally (no DNS), then rejected.
+        assertThrows(IllegalArgumentException.class, () -> Packet.builder().ipv4("::1", "10.0.0.2").build());
     }
 }

@@ -2,10 +2,14 @@
 
 [![Build and Test](https://github.com/ffalcinelli/jdivert/actions/workflows/ci.yml/badge.svg)](https://github.com/ffalcinelli/jdivert/actions/workflows/ci.yml)
 [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/jdivert/main.svg)](https://codecov.io/github/ffalcinelli/jdivert)
-[![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)](https://search.maven.org/artifact/com.github.ffalcinelli/jdivert/3.0.0/jar)
+[![Maven Central Repo](https://img.shields.io/maven-central/v/com.github.ffalcinelli/jdivert.svg)](https://search.maven.org/artifact/com.github.ffalcinelli/jdivert/4.0.0/jar)
 [![license](https://img.shields.io/badge/license-LGPLv3%20%7C%20GPLv2-blue.svg)](https://github.com/ffalcinelli/jdivert/blob/master/LICENSE)
 
-**JDivert** is a powerful Java binding for [WinDivert](https://reqrypt.org/windivert.html), a Windows driver that allows user-mode applications to capture, modify, and drop network packets sent to or from the Windows network stack.
+**JDivert** is a powerful Java binding for capturing, modifying, and dropping network packets. It supports **Windows** via [WinDivert](https://reqrypt.org/windivert.html) and **Linux** via [eBPFDivert](https://github.com/ffalcinelli/ebpfdivert), an eBPF implementation of the WinDivert API. The same code, filters, layers and flags work on both.
+
+> [!WARNING]
+> Linux support is **experimental**. eBPFDivert is still at 0.0.x, so expect rough edges and please report
+> issues. Windows support is stable.
 
 ---
 
@@ -32,9 +36,9 @@ For more complex scenarios, see our [Examples Guide](docs/examples.md).
 ## Usage Hints
 
 ### Prerequisites
-*   **Operating System**: Windows (64-bit).
-*   **Privileges**: Administrator privileges are **required** to load the WinDivert driver and open capture handles.
-*   **Java**: Version 8 or higher.
+*   **Operating System**: Windows (64-bit) or Linux (experimental; x86_64/aarch64, kernel 5.10+ with BTF, glibc 2.28+; cgroup v2 for the FLOW/SOCKET layers). The native libraries are bundled in the jar.
+*   **Privileges**: Administrator privileges are **required** on Windows to load the WinDivert driver, and root privileges (or the `CAP_BPF`, `CAP_NET_ADMIN` and `CAP_NET_RAW` capabilities) are **required** on Linux.
+*   **Java**: Version 8 or higher (on Java 22+ the Panama adapters are used, otherwise JNA).
 
 ### Basic Patterns
 1.  **Always use try-with-resources**: JDivert manages native handles and buffers. The `WinDivert` and `WinDivertAsyncResult` classes implement `AutoCloseable` to ensure these resources are released.
@@ -63,17 +67,19 @@ Due to the nature of the WinDivert driver and its requirement for specific netwo
     vagrant winrm --command "cd C:\local_jdivert; mvn clean verify"
     ```
 
-*Note: While you can compile the project on any OS, actual packet capture tests will only succeed in the provided Vagrant environment or an elevated Windows session.*
+On Linux, capture tests run as root in the `linux` machine: `vagrant up linux && vagrant ssh linux -c "cd /jdivert && sudo mvn clean verify"`, then `vagrant destroy -f linux`.
+
+*Note: While you can compile the project on any OS, actual packet capture tests will only succeed in the provided Vagrant environments or an elevated session (Administrator on Windows, root on Linux).*
 
 ---
 
 ## Architecture
 
-JDivert bridges the gap between Java and the native WinDivert C library using **JNA** (with optional **Project Panama** support on Java 22+). 
+JDivert bridges Java and the native WinDivert (Windows) and eBPFDivert (Linux) libraries using **JNA**, or **Project Panama** on Java 22+.
 
 *   **Zero-Copy**: Leverages direct buffers to process packets without redundant memory copying.
 *   **Memory-Safe**: Employs deterministic cleanup to prevent native memory leaks.
-*   **Zero-Install**: WinDivert binaries are bundled and extracted automatically into versioned temporary directories.
+*   **Zero-Install**: WinDivert and eBPFDivert binaries are bundled and extracted automatically into versioned temporary directories.
 
 Read the full [Architecture Overview](docs/architecture.md) for more details.
 
@@ -86,13 +92,13 @@ Read the full [Architecture Overview](docs/architecture.md) for more details.
 <dependency>
   <groupId>com.github.ffalcinelli</groupId>
   <artifactId>jdivert</artifactId>
-  <version>3.0.0</version>
+  <version>4.0.0</version>
 </dependency>
 ```
 
 ### Gradle
 ```groovy
-implementation 'com.github.ffalcinelli:jdivert:3.0.0'
+implementation 'com.github.ffalcinelli:jdivert:4.0.0'
 ```
 
 ---
@@ -111,6 +117,7 @@ We would like to thank the WinDivert community for providing such a powerful too
 
 *   [Full API Reference (Javadoc)](https://ffalcinelli.github.io/jdivert/api/apidocs/)
 *   [Architecture Overview](docs/architecture.md)
+*   [Linux eBPF Backend Guide](docs/linux_backend.md)
 *   [Filter Language Guide](docs/filters.md)
 *   [Examples Guide](docs/examples.md)
 *   [Performance Considerations](docs/performance.md)

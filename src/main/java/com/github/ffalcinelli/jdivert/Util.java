@@ -165,4 +165,12 @@ public class Util {
     public static int unsigned(byte value) {
         return value & 0x000000ff;
     }
+
+    public static boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().contains("win");
+    }
+
+    public static boolean isLinux() {
+        return System.getProperty("os.name").toLowerCase().contains("linux");
+    }
 }
