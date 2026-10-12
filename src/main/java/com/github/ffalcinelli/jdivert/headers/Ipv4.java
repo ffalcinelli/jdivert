@@ -79,6 +79,21 @@ public class Ipv4 extends Ip<Inet4Address> {
         return getProtocol();
     }
 
+    @Override
+    public int getTransportProtocol() {
+        return raw.get(9) & 0xFF;
+    }
+
+    @Override
+    public int getTransportOffset() {
+        return getHeaderLength();
+    }
+
+    @Override
+    public boolean isLaterFragment() {
+        return getFragmentOffset() != 0;
+    }
+
     public Protocol getProtocol() {
         return Protocol.fromValue(raw.get(9));
     }
@@ -95,12 +110,13 @@ public class Ipv4 extends Ip<Inet4Address> {
         raw.putShort(10, (short) cksum);
     }
 
+    // RESERVED, DF and MF are bits 7, 6 and 5 of byte 6.
     public boolean is(Flag flag) {
-        return getFlag(6, flag.ordinal() + 5);
+        return getFlag(6, 7 - flag.ordinal());
     }
 
     public void set(Flag flag, boolean value) {
-        setFlag(6, flag.ordinal() + 5, value);
+        setFlag(6, 7 - flag.ordinal(), value);
     }
 
 
@@ -142,7 +158,7 @@ public class Ipv4 extends Ip<Inet4Address> {
      */
     public void setFlags(int flags) {
         byte first = (byte) (flags << 5);
-        byte second = (byte) (getFragmentOffset() & 0xFF00);
+        byte second = (byte) (getFragmentOffset() >> 8);
         raw.put(6, (byte) (first | second));
     }
 

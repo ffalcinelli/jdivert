@@ -50,6 +50,64 @@ public class Ipv6 extends Ip<Inet6Address> {
         return getNextHeader();
     }
 
+    @Override
+    public int getTransportProtocol() {
+        return walkExtensionHeaders()[0];
+    }
+
+    @Override
+    public int getTransportOffset() {
+        return walkExtensionHeaders()[1];
+    }
+
+    @Override
+    public boolean isLaterFragment() {
+        return walkExtensionHeaders()[2] != 0;
+    }
+
+    /**
+     * Skip the extension headers the way WinDivert's packet parser does, stopping after the Fragment header of a
+     * non-first fragment since the rest is payload.
+     *
+     * @return {protocol, offset, 1 if this is a non-first fragment else 0}
+     */
+    private int[] walkExtensionHeaders() {
+        int protocol = raw.get(6) & 0xFF;
+        int offset = 40;
+        boolean fragment = false;
+        walk:
+        while (raw.limit() >= offset + 2) {
+            int length;
+            switch (protocol) {
+                case 0:   // Hop-by-Hop Options
+                case 43:  // Routing
+                case 60:  // Destination Options
+                case 135: // Mobility
+                    length = ((raw.get(offset + 1) & 0xFF) + 1) * 8;
+                    break;
+                case 51:  // Authentication Header
+                    length = ((raw.get(offset + 1) & 0xFF) + 2) * 4;
+                    break;
+                case 44:  // Fragment
+                    if (fragment)
+                        break walk;
+                    length = 8;
+                    break;
+                default:
+                    break walk;
+            }
+            if (raw.limit() < offset + length)
+                break;
+            boolean later = protocol == 44 && (raw.getShort(offset + 2) & 0xFFF8) != 0;
+            fragment |= protocol == 44;
+            protocol = raw.get(offset) & 0xFF;
+            offset += length;
+            if (later)
+                return new int[]{protocol, offset, 1};
+        }
+        return new int[]{protocol, offset, 0};
+    }
+
     public int getPayloadLength() {
         return unsigned(raw.getShort(4));
     }

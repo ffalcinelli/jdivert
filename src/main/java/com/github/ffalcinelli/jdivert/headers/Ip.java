@@ -102,6 +102,28 @@ public abstract class Ip<T extends InetAddress> extends Header {
     public abstract Protocol getNextHeaderProtocol();
 
     /**
+     * Return the protocol number of the header that follows this IP header and any IPv6 extension headers.
+     *
+     * @return The IANA protocol number (it may not be a known {@link Protocol}).
+     */
+    public abstract int getTransportProtocol();
+
+    /**
+     * Return where the IP header and any IPv6 extension headers end.
+     *
+     * @return The offset (in bytes) of the transport header or, for a non-first fragment, of the payload.
+     */
+    public abstract int getTransportOffset();
+
+    /**
+     * Tell whether this is an IP fragment other than the first. Like WinDivert, such a fragment has no
+     * transport header: what follows the IP headers is payload.
+     *
+     * @return True if the fragment offset is not zero.
+     */
+    public abstract boolean isLaterFragment();
+
+    /**
      * Set the source address field offset.
      * Only to ease test writing.
      *
