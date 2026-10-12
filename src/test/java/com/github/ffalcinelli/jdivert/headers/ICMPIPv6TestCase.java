@@ -75,6 +75,12 @@ public class ICMPIPv6TestCase extends IPv6TestCase {
     }
 
     @Test
+    public void headerLength() {
+        super.headerLength();
+        assertEquals(8, icmpHdr.getHeaderLength());
+    }
+
+    @Test
     public void equalsAndHashCodeBis() {
         Icmpv6 icmp2 = new Icmpv6(ipHdr.getByteBuffer(), ipHeaderLength);
         assertEquals(icmpHdr, icmp2);

@@ -84,6 +84,12 @@ public class ICMPIPv4TestCase extends IPv4TestCase {
     }
 
     @Test
+    public void headerLength() {
+        super.headerLength();
+        assertEquals(8, icmpHdr.getHeaderLength());
+    }
+
+    @Test
     public void equalsAndHashCodeBis() {
         Icmpv4 icmp2 = new Icmpv4(ipHdr.getByteBuffer(), ipHeaderLength);
         assertEquals(icmpHdr, icmp2);

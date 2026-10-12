@@ -1,3 +1,11 @@
+Unreleased
+    - The ICMP/ICMPv6 header is 8 bytes like WinDivert's (type, code, checksum, rest-of-header). Packet.getPayload() on ICMP packets no longer includes the rest-of-header; packets with fewer than 8 ICMP bytes have no ICMP header.
+    - Fixed: IP fragments other than the first have no transport header (their payload starts after the IP headers), like WinDivert.
+    - Fixed: IPv6 extension headers (Hop-by-Hop, Routing, Fragment, AH, Destination Options, Mobility) are skipped when looking for the transport header.
+    - Fixed: packets with a protocol missing from Enums.Protocol (e.g. GRE, SCTP) no longer make the Packet constructor throw.
+    - Fixed: Ipv4.is/set(Flag) swapped MF and the reserved bit, and Ipv4.setFlags cleared the top bits of the fragment offset.
+    - New API: Ip.getTransportProtocol(), Ip.getTransportOffset(), Ip.isLaterFragment() and Header.getStart().
+
 Version 4.0.0
     - Major version bump to match pydivert 4.0.0.
     - Linux support (experimental; x86_64/aarch64) via the bundled eBPFDivert 0.0.5 (libebpfdivert.so), an eBPF implementation of the WinDivert API. Requires kernel 5.10+ with BTF and glibc 2.28+; cgroup v2 for the FLOW/SOCKET layers.

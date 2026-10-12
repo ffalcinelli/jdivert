@@ -87,12 +87,13 @@ public abstract class Header {
             case 17:
                 headers[1] = new Udp(raw, offset);
                 break;
+            // Like WinDivert, a truncated ICMP header is left unparsed.
             case 1:
-                if (ipHdr instanceof Ipv4)
+                if (ipHdr instanceof Ipv4 && raw.limit() - offset >= 8)
                     headers[1] = new Icmpv4(raw, offset);
                 break;
             case 58:
-                if (ipHdr instanceof Ipv6)
+                if (ipHdr instanceof Ipv6 && raw.limit() - offset >= 8)
                     headers[1] = new Icmpv6(raw, offset);
                 break;
         }

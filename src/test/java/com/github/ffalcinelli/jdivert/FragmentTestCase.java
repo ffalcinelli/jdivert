@@ -196,7 +196,21 @@ public class FragmentTestCase {
     public void icmpHeadersLength() {
         Packet p = packet("4500001c000a000040010000" + "7f000001" + "7f000001" + "0800f7ff00000000");
         assertTrue(p.isIcmpv4());
-        assertEquals(24, p.getHeadersLength());
+        assertEquals(28, p.getHeadersLength());
+        assertEquals(0, p.getPayload().length);
+    }
+
+    @Test
+    public void truncatedIcmpHasNoIcmpHeader() {
+        // Like WinDivert, fewer than 8 ICMP bytes are payload
+        Packet v4 = packet("45000018000a000040010000" + "7f000001" + "7f000001" + "0800f7ff");
+        assertFalse(v4.getIcmp().isPresent());
+        assertEquals(20, v4.getHeadersLength());
+        assertArrayEquals(parseHexBinary("0800f7ff"), v4.getPayload());
+        Packet v6 = ipv6(58, "80000000");
+        assertFalse(v6.getIcmp().isPresent());
+        assertEquals(40, v6.getHeadersLength());
+        assertArrayEquals(parseHexBinary("80000000"), v6.getPayload());
     }
 
     @Test

@@ -82,6 +82,9 @@ public class PacketTestCase {
         packet = new Packet(parseHexBinary("4500005426ef0000400157f9c0a82b09080808080800bbb3d73b000051a7d67d000451e408090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637"), addr);
         assertTrue(packet.isIcmpv4());
         assertTrue(packet.getIcmpv4().isPresent());
+        // The echo id and sequence number (d73b0000) belong to the 8-byte ICMP header, like in WinDivert
+        assertEquals(28, packet.getHeadersLength());
+        assertEquals("51a7d67d", printHexBinary(packet.getPayload()).substring(0, 8).toLowerCase());
         assertFalse(packet.isTcp());
         assertFalse(packet.getTcp().isPresent());
         assertTrue(packet.isIpv4());
