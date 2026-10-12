@@ -162,6 +162,49 @@ public class FragmentTestCase {
     }
 
     @Test
+    public void ipv6AuthenticationHeaderIsSkipped() {
+        // AH with payload length 1: (1 + 2) * 4 = 12 bytes, then TCP
+        Packet p = ipv6(51, "060100000000000100000001" + TCP + PAYLOAD);
+        assertTrue(p.isTcp());
+        assertEquals(52, p.getTcp().get().getStart());
+        assertEquals(72, p.getHeadersLength());
+        assertArrayEquals(parseHexBinary(PAYLOAD), p.getPayload());
+    }
+
+    @Test
+    public void ipv6ExtensionHeaderAtEndOfPacket() {
+        // Hop-by-Hop Options announcing Destination Options, but the packet ends there
+        Packet p = ipv6(0, "3c00010400000000");
+        assertEquals(60, p.getIpv6().get().getTransportProtocol());
+        assertEquals(48, p.getIpv6().get().getTransportOffset());
+        assertFalse(p.isTcp());
+        assertEquals(48, p.getHeadersLength());
+    }
+
+    @Test
+    public void icmpProtocolMustMatchIpVersion() {
+        // ICMPv4 inside IPv6 and ICMPv6 inside IPv4 are not parsed as ICMP
+        Packet v6 = ipv6(1, "0800f7ff00000000");
+        assertFalse(v6.getIcmp().isPresent());
+        assertEquals(40, v6.getHeadersLength());
+        Packet v4 = packet("4500001c000a0000403a0000" + "7f000001" + "7f000001" + "8000000000000000");
+        assertFalse(v4.getIcmp().isPresent());
+        assertEquals(20, v4.getHeadersLength());
+    }
+
+    @Test
+    public void icmpHeadersLength() {
+        Packet p = packet("4500001c000a000040010000" + "7f000001" + "7f000001" + "0800f7ff00000000");
+        assertTrue(p.isIcmpv4());
+        assertEquals(24, p.getHeadersLength());
+    }
+
+    @Test
+    public void noIpHeaderHasNoHeadersLength() {
+        assertEquals(0, packet("0102030405060708").getHeadersLength());
+    }
+
+    @Test
     public void ipv6SecondFragmentHeaderStopsTheWalk() {
         Packet p = ipv6(44, fragmentHeader(0, true).replaceFirst("^06", "2c") + fragmentHeader(0, false) + TCP);
         assertEquals(44, p.getIpv6().get().getTransportProtocol());
