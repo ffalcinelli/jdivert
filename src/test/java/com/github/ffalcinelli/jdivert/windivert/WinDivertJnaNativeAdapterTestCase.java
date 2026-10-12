@@ -1,5 +1,7 @@
 package com.github.ffalcinelli.jdivert.windivert;
 
+import com.sun.jna.NativeLong;
+import com.sun.jna.platform.win32.WinBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -152,5 +154,21 @@ public class WinDivertJnaNativeAdapterTestCase {
         adapter.mapToPojo(jnaAddr, pojo);
         assertEquals(4, pojo.getLayer());
         assertEquals(5678, pojo.Union.Reflect.ProcessId);
+    }
+
+    @Test
+    public void testAsyncImplementationIsCompleted() {
+        WinDivertJnaNativeAdapter adapter = new WinDivertJnaNativeAdapter();
+        WinBase.OVERLAPPED overlapped = new WinBase.OVERLAPPED();
+        overlapped.write();
+        overlapped.setAutoSynch(false);
+        WinDivertJnaNativeAdapter.JnaAsyncImplementation asyncImpl =
+                adapter.new JnaAsyncImplementation(new WinDivertJnaNativeAdapter.JnaHandle(null), overlapped, null, null);
+
+        overlapped.getPointer().setNativeLong(0, new NativeLong(0x103)); // STATUS_PENDING
+        assertFalse(asyncImpl.isCompleted());
+
+        overlapped.getPointer().setNativeLong(0, new NativeLong(0)); // STATUS_SUCCESS
+        assertTrue(asyncImpl.isCompleted());
     }
 }

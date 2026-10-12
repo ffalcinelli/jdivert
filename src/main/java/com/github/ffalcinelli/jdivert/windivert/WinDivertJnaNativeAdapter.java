@@ -122,6 +122,7 @@ public class WinDivertJnaNativeAdapter implements NativeAdapter {
                 throw new WinDivertException(err);
             }
         }
+        overlapped.setAutoSynch(false);
 
         return new WinDivertAsyncResult<>(handle, jnaBuffer, address, converter, new JnaAsyncImplementation(jnaHandle, overlapped, jnaAddr, address));
     }
@@ -170,6 +171,7 @@ public class WinDivertJnaNativeAdapter implements NativeAdapter {
                 throw new WinDivertException(err);
             }
         }
+        overlapped.setAutoSynch(false);
 
         return new WinDivertAsyncResult<>(handle, jnaBuffer, address, converter, new JnaAsyncImplementation(jnaHandle, overlapped, jnaAddr, address));
     }
@@ -327,7 +329,7 @@ public class WinDivertJnaNativeAdapter implements NativeAdapter {
         boolean CancelIoEx(HANDLE hFile, WinBase.OVERLAPPED lpOverlapped);
     }
 
-    private static class JnaHandle implements Handle {
+    static class JnaHandle implements Handle {
         final WinNT.HANDLE handle;
 
         JnaHandle(WinNT.HANDLE handle) {
@@ -493,7 +495,7 @@ public class WinDivertJnaNativeAdapter implements NativeAdapter {
         }
     }
 
-    private class JnaAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
+    class JnaAsyncImplementation implements WinDivertAsyncResult.AsyncImplementation {
         private static final int STATUS_PENDING = 0x103;
         private final JnaHandle handle;
         private final WinBase.OVERLAPPED overlapped;
@@ -509,6 +511,7 @@ public class WinDivertJnaNativeAdapter implements NativeAdapter {
 
         @Override
         public boolean isCompleted() {
+            overlapped.readField("Internal");
             return overlapped.Internal.intValue() != STATUS_PENDING;
         }
 
