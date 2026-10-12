@@ -317,7 +317,11 @@ public class Packet {
      * @return The overall {@link Packet} headers length
      */
     public int getHeadersLength() {
-        return (ipHdr != null ? ipHdr.getHeaderLength() : 0) + (transHdr != null ? transHdr.getHeaderLength() : (icmpHdr != null ? icmpHdr.getHeaderLength() : 0));
+        if (transHdr != null)
+            return transHdr.getStart() + transHdr.getHeaderLength();
+        if (icmpHdr != null)
+            return icmpHdr.getStart() + icmpHdr.getHeaderLength();
+        return ipHdr != null ? ipHdr.getTransportOffset() : 0;
     }
 
     /**

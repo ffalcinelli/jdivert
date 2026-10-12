@@ -75,18 +75,27 @@ public abstract class Header {
             ipHdr = new Ipv6(raw);
         }
         headers[0] = ipHdr;
-        switch (ipHdr.getNextHeaderProtocol()) {
-            case TCP:
-                headers[1] = new Tcp(raw, ipHdr.getHeaderLength());
+        // Like WinDivert, a fragment other than the first carries payload only.
+        if (ipHdr.isLaterFragment()) {
+            return headers;
+        }
+        int offset = ipHdr.getTransportOffset();
+        switch (ipHdr.getTransportProtocol()) {
+            case 6:
+                headers[1] = new Tcp(raw, offset);
                 break;
-            case UDP:
-                headers[1] = new Udp(raw, ipHdr.getHeaderLength());
+            case 17:
+                headers[1] = new Udp(raw, offset);
                 break;
-            case ICMP:
-                headers[1] = new Icmpv4(raw, ipHdr.getHeaderLength());
+            // Like WinDivert, a truncated ICMP header is left unparsed.
+            case 1:
+                if (ipHdr instanceof Ipv4 && raw.limit() - offset >= 8)
+                    headers[1] = new Icmpv4(raw, offset);
                 break;
-            case ICMPV6:
-                headers[1] = new Icmpv6(raw, ipHdr.getHeaderLength());
+            case 58:
+                if (ipHdr instanceof Ipv6 && raw.limit() - offset >= 8)
+                    headers[1] = new Icmpv6(raw, offset);
+                break;
         }
         return headers;
     }
@@ -147,6 +156,15 @@ public abstract class Header {
      */
     public byte[] getRawHeaderBytes() {
         return getBytesAtOffset(start, getHeaderLength());
+    }
+
+    /**
+     * Return the offset of this header in the packet.
+     *
+     * @return The offset (in bytes) of this header from the start of the packet.
+     */
+    public int getStart() {
+        return start;
     }
 
     /**

@@ -55,8 +55,13 @@ public class Icmp extends Header {
     }
 
 
+    /**
+     * Like WinDivert, the header is type, code, checksum and the 4-byte rest-of-header (message body).
+     *
+     * @return 8
+     */
     @Override
     public int getHeaderLength() {
-        return 4;
+        return 8;
     }
 }
