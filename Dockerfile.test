@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later OR GPL-2.0-or-later
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-8-jdk \
+    maven \
+    curl \
+    ca-certificates \
+    iproute2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /opt/jdk25 \
+    && curl -fsSL --retry 10 --retry-all-errors \
+       "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jdk/hotspot/normal/eclipse" \
+       | tar -xz -C /opt/jdk25 --strip-components=1 \
+    && ln -sfn /opt/jdk25 /usr/lib/jvm/java-25-openjdk-amd64
+
+ENV JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64
+
+WORKDIR /workspace

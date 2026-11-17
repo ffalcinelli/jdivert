@@ -51,25 +51,27 @@ For more complex scenarios, see our [Examples Guide](docs/examples.md).
 
 ### Prerequisites
 *   Maven 3.9+
-*   Vagrant & VirtualBox (Required for full test execution)
+*   Docker (fast Linux runs on the host kernel) or QEMU/KVM (`scripts/vm.py` for isolated Linux / Windows 11 VMs)
 
 ### Running Tests
-Due to the nature of the WinDivert driver and its requirement for specific network stack interactions and Administrator privileges, the full test suite is designed to be executed within a clean, isolated Windows 11 environment managed by **Vagrant**.
+Due to the nature of the WinDivert driver and eBPF programs requiring Administrator / root privileges and isolated network-stack interaction, the full test suite can be executed in a privileged Docker container (Linux) or in isolated QEMU/KVM VMs via `scripts/vm.py`:
 
-1.  **Boot the VM**:
+*   **Linux (Docker, host kernel)**:
     ```bash
-    vagrant up
+    ./scripts/test-docker.sh
+    # Or run with JDK 8 (JNA path):
+    JDK_VERSION=8 ./scripts/test-docker.sh
     ```
-2.  **Sync and Execute**:
-    Run the following commands to sync the latest code to a local directory in the VM (avoiding synced folder permission issues) and execute the tests:
+*   **Linux (QEMU/KVM VM)**:
     ```bash
-    vagrant winrm --command "robocopy C:\jdivert C:\local_jdivert /MIR /XD .git .vagrant target"
-    vagrant winrm --command "cd C:\local_jdivert; mvn clean verify"
+    python3 scripts/vm.py run linux
+    ```
+*   **Windows (QEMU/KVM VM)**:
+    ```bash
+    python3 scripts/vm.py run windows
     ```
 
-On Linux, capture tests run as root in the `linux` machine: `vagrant up linux && vagrant ssh linux -c "cd /jdivert && sudo mvn clean verify"`, then `vagrant destroy -f linux`.
-
-*Note: While you can compile the project on any OS, actual packet capture tests will only succeed in the provided Vagrant environments or an elevated session (Administrator on Windows, root on Linux).*
+*Note: While you can compile the project on any OS, actual packet capture tests will only succeed in the provided container/VM environments or an elevated session (Administrator on Windows, root on Linux).*
 
 ---
 
