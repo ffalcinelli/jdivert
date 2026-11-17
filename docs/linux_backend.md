@@ -104,9 +104,9 @@ mvn clean verify -Debpfdivert.skipDownload=true \
     -Debpfdivert.local=/path/to/libebpfdivert.so     # -Debpfdivert.local.platform=linux-aarch64 on arm64
 ```
 
-Tests that capture traffic need root. Run them in the Vagrant `linux` machine, then destroy it:
+Tests that capture traffic need root. Run them in Docker or the QEMU/KVM `linux` VM:
 
 ```bash
-vagrant up linux && vagrant ssh linux -c "cd /jdivert && sudo mvn clean verify"
-vagrant destroy -f linux
+./scripts/test-docker.sh
+python3 scripts/vm.py run linux
 ```
