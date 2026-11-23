@@ -11,7 +11,7 @@ This guide covers common issues encountered when using JDivert on both Windows a
 - **Solution**:
   - Run your IDE (IntelliJ, Eclipse, VS Code) as Administrator.
   - If running from the command line, use an elevated Command Prompt or PowerShell window.
-  - If using Vagrant, ensure the virtualization provider is running with sufficient privileges.
+  - If running inside a QEMU/KVM VM via `scripts/vm.py`, run commands from an elevated/Administrator OpenSSH session.
 
 ### 2. `WinDivertException: The system cannot find the path specified` (Error 3)
 - **Cause**: JDivert failed to extract the native `.dll` or `.sys` binaries to the temporary directory, or they were blocked/quarantined by security software.

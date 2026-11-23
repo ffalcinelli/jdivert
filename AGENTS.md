@@ -19,17 +19,16 @@ mvn clean verify -Debpfdivert.skipDownload=true \
                                               # (add -Debpfdivert.local.platform=linux-aarch64 on arm64)
 ```
 
-Live capture tests need root on Linux or Administrator on Windows. Run them in the Vagrant VMs:
+Live capture tests need root on Linux or Administrator on Windows. Run them in Docker (Linux, host
+kernel) or the QEMU/KVM VMs (`scripts/vm.py`):
 
 ```bash
-vagrant up linux && vagrant ssh linux -c "cd /jdivert && sudo mvn clean verify"; vagrant destroy -f linux
-vagrant up windows
-vagrant winrm windows --command "robocopy C:\jdivert C:\local_jdivert /MIR /XD .git .vagrant target"
-vagrant winrm windows --command "cd C:\local_jdivert; mvn clean verify"
+./scripts/test-docker.sh                      # Linux privileged suite in Docker (JDK 25; JDK_VERSION=8 for JNA)
+python3 scripts/vm.py run linux               # isolated Ubuntu 24.04 QEMU/KVM VM
+python3 scripts/vm.py run windows             # Windows 11 QEMU/KVM VM (syncs to C:\local_jdivert)
 ```
 
-The robocopy step avoids synced-folder permission problems on Windows. `run_tests.bat` is stale: it still
-calls Gradle.
+`run_tests.bat` is stale: it still calls Gradle.
 
 ## Architecture
 

@@ -49,9 +49,6 @@ desktop.ini
 *.tar.gz
 *.rar
 
-# Vagrant
-.vagrant/
-
 # Log files
 *.log
 
@@ -71,3 +68,4 @@ _site_javadocs/
 *.o
 *.so
 .local/
+__pycache__/
