@@ -173,7 +173,7 @@ public class WinDivertIntegrationTest {
     }
 
     @Test
-    @Disabled("Consistently fails/times out in some virtualized environments (like VirtualBox/Vagrant) where re-injected loopback packets are not reliably captured by multiple handles.")
+    @Disabled("Consistently fails/times out in some virtualized environments (such as VirtualBox or QEMU VMs) where re-injected loopback packets are not reliably captured by multiple handles.")
     public void testInboundOutboundLogic() throws Exception {
         // Use two handles to test direction bit handling. 
         int port;

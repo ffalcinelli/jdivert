@@ -66,8 +66,10 @@ Due to the nature of the WinDivert driver and eBPF programs requiring Administra
     ```bash
     python3 scripts/vm.py run linux
     ```
-*   **Windows (QEMU/KVM VM)**:
+*   **Windows (QEMU/KVM VM)**, after building the shared Windows 11 base image once from an ISO
+    (`--lang` is the ISO's language, `en-US` by default):
     ```bash
+    python3 scripts/vm.py init-windows --iso /path/to/win11.iso --lang en-US
     python3 scripts/vm.py run windows
     ```
 

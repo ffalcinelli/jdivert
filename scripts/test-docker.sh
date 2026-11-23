@@ -5,8 +5,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE_NAME="${JDIVERT_TEST_IMAGE:-jdivert-test}"
-M2_CACHE="${HOME}/.m2"
-mkdir -p "$M2_CACHE"
+# Maven's repository lives in a named volume: the container runs as root and must not write into ~/.m2.
+M2_VOLUME="${JDIVERT_M2_VOLUME:-jdivert-m2}"
 
 docker build -t "$IMAGE_NAME" -f "$REPO_DIR/Dockerfile.test" "$REPO_DIR"
 
@@ -17,7 +17,7 @@ fi
 
 exec docker run --rm --privileged --pid=host \
     -v "$REPO_DIR:/src:ro" \
-    -v "$M2_CACHE:/root/.m2" \
+    -v "$M2_VOLUME:/root/.m2" \
     "${ENV_ARGS[@]}" \
     "$IMAGE_NAME" \
     bash -ceu '
