@@ -21,24 +21,51 @@ function Get-File($url, $out) {
     throw "Could not download $url"
 }
 
-function Install-Zip($url, $dest) {
+function Test-Zip($path) {
+    # Mirrors occasionally serve an error page instead of the archive: check the "PK" signature.
+    if (-not (Test-Path $path) -or (Get-Item $path).Length -lt 1MB) { return $false }
+    $stream = [IO.File]::OpenRead($path)
+    try { return ($stream.ReadByte() -eq 0x50) -and ($stream.ReadByte() -eq 0x4B) } finally { $stream.Close() }
+}
+
+function Install-Zip($urls, $dest) {
     if (Test-Path $dest) {
         Write-Host "$dest already present"
         return
     }
-    $zip = Join-Path $env:TEMP ([IO.Path]::GetRandomFileName() + ".zip")
-    $tmp = Join-Path $env:TEMP ([IO.Path]::GetRandomFileName())
-    Write-Host "Installing $url -> $dest"
-    Get-File $url $zip
-    Expand-Archive -Path $zip -DestinationPath $tmp
-    Move-Item -Path (Get-ChildItem $tmp | Select-Object -First 1).FullName -Destination $dest
-    Remove-Item $zip, $tmp -Recurse -Force
+    foreach ($url in $urls) {
+        $zip = Join-Path $env:TEMP ([IO.Path]::GetRandomFileName() + ".zip")
+        $tmp = Join-Path $env:TEMP ([IO.Path]::GetRandomFileName())
+        Write-Host "Installing $url -> $dest"
+        Get-File $url $zip
+        if (-not (Test-Zip $zip)) {
+            Write-Warning "$url did not return a zip archive, trying the next one"
+            Remove-Item $zip -ErrorAction SilentlyContinue
+            continue
+        }
+        Expand-Archive -Path $zip -DestinationPath $tmp
+        Move-Item -Path (Get-ChildItem $tmp | Select-Object -First 1).FullName -Destination $dest
+        Remove-Item $zip, $tmp -Recurse -Force
+        return
+    }
+    throw "Could not install $dest"
 }
 
-$adoptium = "https://api.adoptium.net/v3/binary/latest/{0}/ga/windows/x64/jdk/hotspot/normal/eclipse"
-Install-Zip ($adoptium -f 25) "$Tools\jdk25"
-Install-Zip ($adoptium -f 8) "$Tools\jdk8"
-Install-Zip "https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.zip" "$Tools\maven"
+function Get-TemurinUrls($feature) {
+    # The three newest GA builds, newest first, so that one broken release asset does not block provisioning.
+    $api = "https://api.adoptium.net/v3/assets/feature_releases/$feature/ga?image_type=jdk&os=windows" +
+        "&architecture=x64&jvm_impl=hotspot&page_size=3&sort_order=DESC"
+    try {
+        return @(Invoke-RestMethod -UseBasicParsing -Uri $api | ForEach-Object { $_.binaries[0].package.link })
+    } catch {
+        Write-Warning "Adoptium API failed: $($_.Exception.Message)"
+        return @("https://api.adoptium.net/v3/binary/latest/$feature/ga/windows/x64/jdk/hotspot/normal/eclipse")
+    }
+}
+
+Install-Zip (Get-TemurinUrls 25) "$Tools\jdk25"
+Install-Zip (Get-TemurinUrls 8) "$Tools\jdk8"
+Install-Zip @("https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.zip") "$Tools\maven"
 
 [Environment]::SetEnvironmentVariable("JAVA_HOME", "$Tools\jdk25", "Machine")
 [Environment]::SetEnvironmentVariable("JDK8_HOME", "$Tools\jdk8", "Machine")
