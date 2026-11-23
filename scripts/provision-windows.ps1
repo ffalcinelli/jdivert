@@ -56,7 +56,9 @@ function Get-TemurinUrls($feature) {
     $api = "https://api.adoptium.net/v3/assets/feature_releases/$feature/ga?image_type=jdk&os=windows" +
         "&architecture=x64&jvm_impl=hotspot&page_size=3&sort_order=DESC"
     try {
-        return @(Invoke-RestMethod -UseBasicParsing -Uri $api | ForEach-Object { $_.binaries[0].package.link })
+        # Windows PowerShell passes a JSON array down the pipeline as one object: enumerate it explicitly.
+        $releases = Invoke-RestMethod -UseBasicParsing -Uri $api
+        return @(foreach ($r in $releases) { $r.binaries[0].package.link })
     } catch {
         Write-Warning "Adoptium API failed: $($_.Exception.Message)"
         return @("https://api.adoptium.net/v3/binary/latest/$feature/ga/windows/x64/jdk/hotspot/normal/eclipse")
