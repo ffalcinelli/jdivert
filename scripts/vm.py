@@ -769,7 +769,7 @@ def cmd_run(target: str, extra: list[str]) -> int:
                 "rm -rf /tmp/work && cp -a /workspace /tmp/work && cd /tmp/work; "
                 f"sudo JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64 mvn -B clean verify {shlex.join(extra)}"
             )
-            return cmd_exec(target, f"bash -lc {shlex.quote(script)}")
+            return cmd_exec(target, f"bash -c {shlex.quote(script)}")
         sync_to_windows(port)
         rc = cmd_exec(
             target, f"powershell -NoProfile -ExecutionPolicy Bypass -File {WINDOWS_DIR}\\scripts\\provision-windows.ps1"
